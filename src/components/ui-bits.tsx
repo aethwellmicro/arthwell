@@ -10,6 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { AnimatedNumber } from '@/components/animated-number'
 
 export function StatCard({
   label,
@@ -18,6 +19,9 @@ export function StatCard({
   icon: Icon,
   tone = 'default',
   fullValue,
+  onClick,
+  animateValue,
+  animateFormat,
 }: {
   label: string
   value: string
@@ -25,6 +29,9 @@ export function StatCard({
   icon: React.ComponentType<{ className?: string }>
   tone?: 'default' | 'success' | 'warning' | 'danger' | 'info'
   fullValue?: string // optional: if value is compact, show full on hover
+  onClick?: () => void // optional: makes the card clickable
+  animateValue?: number // if provided with animateFormat, shows count-up animation
+  animateFormat?: (n: number) => string // formatter for the animated number
 }) {
   const tones: Record<string, string> = {
     default: 'bg-primary/10 text-primary',
@@ -33,36 +40,55 @@ export function StatCard({
     danger: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
     info: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
   }
+  const displayValue = (animateValue !== undefined && animateFormat) ? (
+    <AnimatedNumber value={animateValue} format={animateFormat} />
+  ) : value
   const valueEl = (
-    <p className="mt-1.5 text-2xl font-bold tracking-tight truncate">{value}</p>
+    <p className="mt-1.5 text-2xl font-bold tracking-tight truncate">{displayValue}</p>
   )
+  const inner = (
+    <CardContent className="p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold text-muted-foreground/80 uppercase tracking-wide">{label}</p>
+          {fullValue && fullValue !== value ? (
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="block cursor-help" onClick={onClick}>{valueEl}</span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <span className="font-medium">{fullValue}</span>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            valueEl
+          )}
+          {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
+        </div>
+        <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', tones[tone])}>
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+    </CardContent>
+  )
+  if (onClick) {
+    return (
+      <Card
+        role="button"
+        tabIndex={0}
+        onClick={onClick}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
+        className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5 duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {inner}
+      </Card>
+    )
+  }
   return (
     <Card className="overflow-hidden transition-all hover:shadow-md hover:-translate-y-0.5 duration-200">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-muted-foreground/80 uppercase tracking-wide">{label}</p>
-            {fullValue && fullValue !== value ? (
-              <TooltipProvider delayDuration={200}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="block cursor-help">{valueEl}</span>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <span className="font-medium">{fullValue}</span>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            ) : (
-              valueEl
-            )}
-            {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
-          </div>
-          <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', tones[tone])}>
-            <Icon className="h-5 w-5" />
-          </div>
-        </div>
-      </CardContent>
+      {inner}
     </Card>
   )
 }

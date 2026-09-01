@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { ReceiptText, Search, Printer, Eye, RefreshCw, FileSpreadsheet } from 'lucide-react'
 import { apiFetch, formatMoney, formatDateTime, STATUS_COLORS, downloadCSV } from '@/lib/format'
+import { useApp } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -43,6 +44,7 @@ interface Receipt {
 }
 
 export function ReceiptsView() {
+  const { searchQuery, setSearchQuery } = useApp()
   const [items, setItems] = useState<Receipt[]>([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
@@ -52,6 +54,14 @@ export function ReceiptsView() {
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [view, setView] = useState<Receipt | null>(null)
   const receiptRef = useRef<HTMLDivElement>(null)
+
+  // Sync global search query to local search
+  useEffect(() => {
+    if (searchQuery) {
+      setQ(searchQuery)
+      setSearchQuery('')
+    }
+  }, [searchQuery, setSearchQuery])
 
   const load = useCallback(async () => {
     setLoading(true)

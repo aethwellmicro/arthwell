@@ -20,6 +20,7 @@ import {
   Sun,
   Lock,
   Database,
+  Keyboard,
 } from 'lucide-react'
 import { useApp, canManageUsers, canManageSettings, type ViewKey } from '@/lib/store'
 import { apiFetch, formatMoneyCompact } from '@/lib/format'
@@ -41,6 +42,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -182,6 +190,7 @@ function SidebarQuickStats() {
 export function AppShell() {
   const { user, view, setView, logout, setSearchQuery, startCollection } = useApp()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const { theme, setTheme } = useTheme()
   const [searchVal, setSearchVal] = useState('')
 
@@ -196,13 +205,25 @@ export function AppShell() {
         startCollection()
         toast.info('Quick Collection', { description: 'Press Ctrl+K anytime to start a new collection' })
       }
-      // 'c' -> Customers, 'd' -> Dashboard, 'r' -> Reports (single-key shortcuts)
+      // ? -> Help modal
+      if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+        e.preventDefault()
+        setShowHelp((s) => !s)
+        return
+      }
+      // 'c' -> Customers, 'd' -> Dashboard, 'r' -> Reports, 'a' -> Accounts, 'o' -> Collections, 'e' -> Employees (single-key shortcuts)
       if (e.key.toLowerCase() === 'c' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         setView('customers')
       } else if (e.key.toLowerCase() === 'd' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         setView('dashboard')
       } else if (e.key.toLowerCase() === 'r' && !e.ctrlKey && !e.metaKey && !e.altKey) {
         setView('reports')
+      } else if (e.key.toLowerCase() === 'a' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        setView('accounts')
+      } else if (e.key.toLowerCase() === 'o' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        setView('collections')
+      } else if (e.key.toLowerCase() === 'e' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        setView('employees')
       }
     }
     window.addEventListener('keydown', onKey)
@@ -219,8 +240,25 @@ export function AppShell() {
 
   function onSearchSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSearchQuery(searchVal)
-    setView('customers')
+    const q = searchVal.trim()
+    if (!q) return
+    // Smart routing: if query looks like an account number (LN-), go to accounts
+    // If it looks like a receipt number (RCP-), go to receipts
+    // Otherwise, search customers
+    const upperQ = q.toUpperCase()
+    if (/^LN[-\s]?\d/i.test(upperQ)) {
+      // Account number search — go to accounts view (the accounts view has its own search)
+      toast.info('Searching accounts for "' + q + '"')
+      setView('accounts')
+    } else if (/^RCP[-\s]?\d/i.test(upperQ)) {
+      // Receipt number search — go to receipts view
+      toast.info('Searching receipts for "' + q + '"')
+      setView('receipts')
+    } else {
+      // Default: customer search
+      setSearchQuery(q)
+      setView('customers')
+    }
   }
 
   function navClick(item: NavItem) {
@@ -290,7 +328,7 @@ export function AppShell() {
                 <Input
                   value={searchVal}
                   onChange={(e) => setSearchVal(e.target.value)}
-                  placeholder="Search customers, mobile, ID…"
+                  placeholder="Search customers, accounts (LN-), receipts (RCP-)…"
                   className="pl-8 w-64 lg:w-72"
                 />
               </div>
@@ -380,6 +418,9 @@ export function AppShell() {
           </div>
           <div className="flex items-center gap-3">
             <span>Internal Use Only</span>
+            <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setShowHelp(true)} aria-label="Keyboard shortcuts">
+              <Keyboard className="h-3 w-3 mr-1" /> Shortcuts
+            </Button>
             {canManageSettings(user?.role) && (
               <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={reseed} aria-label="Re-seed">
                 <Database className="h-3 w-3 mr-1" /> Re-seed
@@ -388,6 +429,42 @@ export function AppShell() {
           </div>
         </div>
       </footer>
+
+      {/* Keyboard shortcuts help dialog */}
+      <Dialog open={showHelp} onOpenChange={setShowHelp}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Keyboard className="h-5 w-5 text-primary" /> Keyboard Shortcuts</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            {[
+              { keys: ['Ctrl', 'K'], desc: 'New Collection (quick)' },
+              { keys: ['D'], desc: 'Go to Dashboard' },
+              { keys: ['C'], desc: 'Go to Customers' },
+              { keys: ['A'], desc: 'Go to Accounts / Loans' },
+              { keys: ['O'], desc: 'Go to Collections' },
+              { keys: ['R'], desc: 'Go to Reports' },
+              { keys: ['E'], desc: 'Go to Employees' },
+              { keys: ['?'], desc: 'Toggle this help dialog' },
+            ].map((s, i) => (
+              <div key={i} className="flex items-center justify-between py-1.5 border-b border-dashed last:border-0">
+                <span className="text-sm text-muted-foreground">{s.desc}</span>
+                <div className="flex gap-1">
+                  {s.keys.map((k, j) => (
+                    <kbd key={j} className="inline-flex items-center justify-center min-w-[28px] rounded border bg-muted px-1.5 py-0.5 text-xs font-medium">
+                      {k}
+                    </kbd>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <p className="text-xs text-muted-foreground pt-2">Shortcuts are disabled while typing in input fields.</p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowHelp(false)}>Got it</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -100,7 +100,7 @@ const emptyForm = {
 }
 
 export function AccountsView() {
-  const { openCustomer, startCollection } = useApp()
+  const { openCustomer, startCollection, searchQuery, setSearchQuery } = useApp()
   const [items, setItems] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
@@ -110,6 +110,14 @@ export function AccountsView() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [selected, setSelected] = useState<Account | null>(null)
+
+  // Sync global search query to local search
+  useEffect(() => {
+    if (searchQuery) {
+      setQ(searchQuery)
+      setSearchQuery('')
+    }
+  }, [searchQuery, setSearchQuery])
   const [schedule, setSchedule] = useState<any[]>([])
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)

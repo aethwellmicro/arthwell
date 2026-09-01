@@ -176,14 +176,14 @@ export function DashboardView() {
 
       {/* KPI grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-        <StatCard label="Total Customers" value={String(stats.totalCustomers)} sub={`${stats.activeCustomers} active`} icon={Users} tone="default" />
-        <StatCard label="Active Accounts" value={String(stats.totalAccounts)} sub="Loans disbursed" icon={Landmark} tone="info" />
-        <StatCard label="Total Disbursed" value={formatMoneyCompact(stats.totalDisbursed)} fullValue={formatMoney(stats.totalDisbursed)} sub="Principal amount" icon={Banknote} tone="default" />
-        <StatCard label="Total Collected" value={formatMoneyCompact(stats.totalCollected)} fullValue={formatMoney(stats.totalCollected)} sub={`6-mo: ${formatMoneyCompact(stats.sixMonthCollected)}`} icon={Wallet} tone="success" />
-        <StatCard label="Total Outstanding" value={formatMoneyCompact(stats.totalOutstanding)} fullValue={formatMoney(stats.totalOutstanding)} sub="Across all accounts" icon={TrendingUp} tone="warning" />
-        <StatCard label="Total Overdue" value={formatMoneyCompact(stats.totalOverdue)} fullValue={formatMoney(stats.totalOverdue)} sub={`${stats.overdueAccountCount} accounts`} icon={AlertTriangle} tone="danger" />
-        <StatCard label="Today's Collection" value={formatMoneyCompact(stats.todayCollected)} fullValue={formatMoney(stats.todayCollected)} sub={`Due: ${formatMoneyCompact(stats.todayDue)}`} icon={HandCoins} tone="success" />
-        <StatCard label="Today's Pending" value={formatMoneyCompact(stats.todayPending)} fullValue={formatMoney(stats.todayPending)} sub="Remaining due today" icon={CalendarClock} tone="warning" />
+        <StatCard label="Total Customers" value={String(stats.totalCustomers)} animateValue={stats.totalCustomers} animateFormat={(n) => String(n)} sub={`${stats.activeCustomers} active`} icon={Users} tone="default" onClick={() => setView('customers')} />
+        <StatCard label="Active Accounts" value={String(stats.totalAccounts)} animateValue={stats.totalAccounts} animateFormat={(n) => String(n)} sub="Loans disbursed" icon={Landmark} tone="info" onClick={() => setView('accounts')} />
+        <StatCard label="Total Disbursed" value={formatMoneyCompact(stats.totalDisbursed)} animateValue={stats.totalDisbursed} animateFormat={formatMoneyCompact} fullValue={formatMoney(stats.totalDisbursed)} sub="Principal amount" icon={Banknote} tone="default" onClick={() => setView('accounts')} />
+        <StatCard label="Total Collected" value={formatMoneyCompact(stats.totalCollected)} animateValue={stats.totalCollected} animateFormat={formatMoneyCompact} fullValue={formatMoney(stats.totalCollected)} sub={`6-mo: ${formatMoneyCompact(stats.sixMonthCollected)}`} icon={Wallet} tone="success" onClick={() => setView('collections')} />
+        <StatCard label="Total Outstanding" value={formatMoneyCompact(stats.totalOutstanding)} animateValue={stats.totalOutstanding} animateFormat={formatMoneyCompact} fullValue={formatMoney(stats.totalOutstanding)} sub="Across all accounts" icon={TrendingUp} tone="warning" onClick={() => setView('reports')} />
+        <StatCard label="Total Overdue" value={formatMoneyCompact(stats.totalOverdue)} animateValue={stats.totalOverdue} animateFormat={formatMoneyCompact} fullValue={formatMoney(stats.totalOverdue)} sub={`${stats.overdueAccountCount} accounts`} icon={AlertTriangle} tone="danger" onClick={() => setView('reports')} />
+        <StatCard label="Today's Collection" value={formatMoneyCompact(stats.todayCollected)} animateValue={stats.todayCollected} animateFormat={formatMoneyCompact} fullValue={formatMoney(stats.todayCollected)} sub={`Due: ${formatMoneyCompact(stats.todayDue)}`} icon={HandCoins} tone="success" onClick={() => setView('collections')} />
+        <StatCard label="Today's Pending" value={formatMoneyCompact(stats.todayPending)} animateValue={stats.todayPending} animateFormat={formatMoneyCompact} fullValue={formatMoney(stats.todayPending)} sub="Remaining due today" icon={CalendarClock} tone="warning" onClick={() => setView('reports')} />
       </div>
 
       {/* Charts row */}

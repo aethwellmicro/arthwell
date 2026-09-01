@@ -9,6 +9,7 @@ import {
   Undo2,
   Eye,
   Receipt as ReceiptIcon,
+  X,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatDateTime, todayInput, STATUS_COLORS } from '@/lib/format'
 import { useApp, canReverse } from '@/lib/store'
@@ -254,9 +255,16 @@ export function CollectionsView() {
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={() => { setForm(emptyForm); setShowNew(true) }} className="ml-auto">
-          <Plus className="h-4 w-4 mr-1" /> New Collection
-        </Button>
+        <div className="ml-auto flex gap-2">
+          {(from || to || employeeId || paymentMode !== 'ALL' || statusFilter !== 'ALL') && (
+            <Button variant="ghost" size="sm" onClick={() => { setFrom(''); setTo(''); setEmployeeId(''); setPaymentMode('ALL'); setStatusFilter('SUCCESSFUL') }}>
+              <X className="h-3.5 w-3.5 mr-1" /> Clear Filters
+            </Button>
+          )}
+          <Button onClick={() => { setForm(emptyForm); setShowNew(true) }}>
+            <Plus className="h-4 w-4 mr-1" /> New Collection
+          </Button>
+        </div>
       </div>
 
       <SectionCard title={`Collections (${items.length})`}>
