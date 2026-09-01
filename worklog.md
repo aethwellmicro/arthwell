@@ -680,3 +680,75 @@ Unresolved / Next Phase Recommendations:
 - Smart insights / AI assistant widget
 - Forecasting & projections in trend chart
 - Risk score / probability of default column
+
+---
+Task ID: 13 — Quick Actions, Projections, Drill-Down & Bulk Receipts (COMPLETED)
+Agent: main (cron review round 9)
+Task: Assess project status, perform QA via agent-browser + VLM, add quick call/WhatsApp links, projected collections, drill-down filtering, and bulk receipts selection.
+
+Work Log:
+QA Methodology: Used agent-browser for functional testing + VLM (z-ai vision) for visual design analysis of dashboard, collections, and receipts screenshots. VLM suggested: quick call/WhatsApp links, projected cash flow, drill-down charts, and bulk actions.
+
+New Features:
+1. Quick Call/WhatsApp Links on Overdue Accounts: added Phone (tel:) and MessageCircle (wa.me) icon links next to each customer's mobile number in the dashboard overdue accounts table. Phone links use `tel:` protocol for direct calling. WhatsApp links use `https://wa.me/91{mobile}` with proper Indian country code extraction (last 10 digits, prefixed with 91). Links open in new tab with rel="noopener noreferrer". Added Phone and MessageCircle icon imports.
+2. Projected Collections Widget: 
+   - Updated dashboard API to compute `projectedCollections` (total unpaid installment amounts due in next 7 days) and `projectedDaily` (daily breakdown for next 7 days with weekday names).
+   - Added "Projected Collections" SectionCard to the dashboard showing a bar chart of expected dues for the next 7 days.
+   - Each bar shows the weekday name (Mon, Tue, etc.) and compact money amount below.
+   - Bars use gradient (from-primary/60 to-primary) with hover opacity transition.
+   - Total projected amount shown in the card header.
+   - Widget only renders when there's projected data.
+3. Aging Bucket Drill-Down: 
+   - Added `agingFilter` state to track the selected aging bracket.
+   - Made both the stacked bar segments and legend items clickable buttons.
+   - Clicking a bucket filters the overdue accounts table below to show only accounts in that age range.
+   - Selected bucket is highlighted; non-selected buckets dim to 40% opacity.
+   - "Clear filter" button appears in the aging card header when a filter is active.
+   - Overdue accounts table description updates to show "Filtered: 90+ days" when filtered.
+   - Empty state message adapts: "No accounts in the 90+ day range."
+   - Clicking the same bucket again toggles the filter off.
+4. Bulk Selection on Receipts View:
+   - Added `selectedIds` Set state + Checkbox component import.
+   - Added "Select all" checkbox in the table header (selects/deselects all receipts).
+   - Added per-row checkboxes with proper aria-labels (e.g., "Select RCP-00019").
+   - Selected rows highlighted with `bg-primary/5` tint.
+   - Bulk action bar appears when items are selected, showing count + "Export Selected" (CSV) button.
+   - Export downloads selected receipts with full details.
+
+Verification:
+- `bun run lint` — clean (0 errors).
+- agent-browser end-to-end:
+  - Login as admin → no console warnings.
+  - Dashboard: "Projected Collections" widget visible with 7-day bar chart.
+  - Overdue accounts: Call (tel:) and WhatsApp (wa.me) links visible next to each mobile number.
+  - Aging Analysis: clicking "90+ days" segment → overdue table filtered to "Filtered: 90+ days" with "Clear filter" button.
+  - Receipts: "Select all" checkbox present. Selected a receipt → bulk action bar appeared with "Export Selected" button.
+  - All API calls returning 200, no runtime errors.
+
+Stage Summary:
+- 4 new features (quick call/WhatsApp links, projected collections widget, aging drill-down, bulk receipts selection).
+- Lint clean, zero console warnings, all features browser-verified.
+
+Current Project Status: FORECASTING & DRILL-DOWN (Round 9)
+- Dashboard has projected collections forecast for next 7 days.
+- Overdue accounts have one-click Call/WhatsApp links.
+- Aging analysis is interactive (click to filter overdue table).
+- Receipts support bulk selection and export.
+- Zero console warnings across all components.
+
+Unresolved / Next Phase Recommendations:
+- Multi-branch support (schema has no branch entity yet)
+- Real SMS gateway integration (currently simulated as 'SENT')
+- Manager approval workflow enforcement for reversals (setting exists, not enforced in UI)
+- PWA / mobile collector interface optimization
+- GPS location capture for field collections
+- Customer allocation by route/area
+- Advanced analytics / predictive overdue
+- Bulk collection import (CSV upload)
+- Data backup/restore UI
+- Responsive table-to-card layout for mobile
+- KPI sparkline trends (↑↓ arrows with % change)
+- Smart insights / AI assistant widget
+- Risk score / probability of default column
+- Chart drill-down: click trend chart bar to view that month's transactions
+- Inline quick-edit for corrections in collections/receipts tables

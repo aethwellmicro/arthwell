@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -54,6 +55,7 @@ export function ReceiptsView() {
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [view, setView] = useState<Receipt | null>(null)
   const receiptRef = useRef<HTMLDivElement>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   // Sync global search query to local search
   useEffect(() => {
@@ -204,6 +206,31 @@ export function ReceiptsView() {
         </div>
       </div>
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">{selectedIds.size} selected</span>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>Clear</Button>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => {
+            const selectedItems = items.filter((r) => selectedIds.has(r.id))
+            downloadCSV(`receipts-${new Date().toISOString().slice(0, 10)}.csv`, selectedItems.map((r) => ({
+              receiptNumber: r.receiptNumber,
+              date: formatDateTime(r.collectionDate),
+              customer: r.customer.fullName,
+              account: r.account.accountNumber,
+              amount: r.amount,
+              paymentMode: r.paymentMode,
+              status: r.status,
+            })))
+            toast.success(`Exported ${selectedIds.size} receipts`)
+          }}>
+            <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> Export Selected
+          </Button>
+        </div>
+      )}
+
       <SectionCard title={`Receipts (${items.length})`}>
         {loading ? (
           <LoadingRows rows={6} />
@@ -214,6 +241,19 @@ export function ReceiptsView() {
             <table className="w-full text-sm zebra-table">
               <thead className="bg-muted/50 sticky top-0 z-10">
                 <tr className="text-left text-xs text-muted-foreground">
+                  <th className="px-3 py-2.5 w-10">
+                    <Checkbox
+                      checked={items.length > 0 && items.every((r) => selectedIds.has(r.id))}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedIds(new Set(items.map((r) => r.id)))
+                        } else {
+                          setSelectedIds(new Set())
+                        }
+                      }}
+                      aria-label="Select all"
+                    />
+                  </th>
                   <th className="px-3 py-2.5 font-medium whitespace-nowrap">Receipt No</th>
                   <th className="px-3 py-2.5 font-medium whitespace-nowrap">Date</th>
                   <th className="px-3 py-2.5 font-medium">Customer</th>
@@ -228,7 +268,19 @@ export function ReceiptsView() {
               </thead>
               <tbody>
                 {items.map((r) => (
-                  <tr key={r.id} className="border-b last:border-0">
+                  <tr key={r.id} className={cn('border-b last:border-0', selectedIds.has(r.id) && 'bg-primary/5')}>
+                    <td className="px-3 py-2.5">
+                      <Checkbox
+                        checked={selectedIds.has(r.id)}
+                        onCheckedChange={(checked) => {
+                          const next = new Set(selectedIds)
+                          if (checked) next.add(r.id)
+                          else next.delete(r.id)
+                          setSelectedIds(next)
+                        }}
+                        aria-label={`Select ${r.receiptNumber}`}
+                      />
+                    </td>
                     <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">{r.receiptNumber}</td>
                     <td className="px-3 py-2.5 text-xs whitespace-nowrap">{formatDateTime(r.collectionDate)}</td>
                     <td className="px-3 py-2.5">

@@ -14,6 +14,9 @@ import {
   RefreshCw,
   BellRing,
   ScrollText,
+  Phone,
+  MessageCircle,
+  X,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -65,6 +68,7 @@ interface Dashboard {
   trend: { month: string; amount: number }[]
   statusBreakdown: Record<string, number>
   agingBuckets: { '0-30': number; '31-60': number; '61-90': number; '90+': number }
+  projectedDaily: { date: string; amount: number }[]
 }
 
 const MODE_COLORS: Record<string, string> = {
@@ -82,6 +86,7 @@ export function DashboardView() {
   const [refreshing, setRefreshing] = useState(false)
   const [trendMonths, setTrendMonths] = useState(6)
   const [recentActivity, setRecentActivity] = useState<any[]>([])
+  const [agingFilter, setAgingFilter] = useState<string | null>(null)
 
   const loadDashboard = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
@@ -331,40 +336,80 @@ export function DashboardView() {
         </SectionCard>
       </div>
 
+      {/* Projected Collections widget */}
+      {data.projectedDaily && data.projectedDaily.length > 0 && (() => {
+        const total = data.projectedDaily.reduce((s, d) => s + d.amount, 0)
+        if (total <= 0) return null
+        const maxAmount = Math.max(...data.projectedDaily.map((d) => d.amount), 1)
+        return (
+          <SectionCard title="Projected Collections" description="Expected dues for next 7 days" action={
+            <span className="text-sm font-bold text-primary">{formatMoneyCompact(total)}</span>
+          }>
+            <div className="p-4">
+              <div className="flex items-end justify-between gap-1.5 h-32">
+                {data.projectedDaily.map((d, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
+                    <div className="w-full flex-1 flex items-end">
+                      <div
+                        className="w-full rounded-t bg-gradient-to-t from-primary/60 to-primary transition-all hover:from-primary hover:to-primary group-hover:opacity-80"
+                        style={{ height: `${(d.amount / maxAmount) * 100}%`, minHeight: d.amount > 0 ? '4px' : '0' }}
+                        title={`${d.date}: ${formatMoney(d.amount)}`}
+                      />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">{d.date}</span>
+                    <span className="text-[10px] font-medium text-muted-foreground">{d.amount > 0 ? formatMoneyCompact(d.amount) : '—'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </SectionCard>
+        )
+      })()}
+
       {/* Aging bucket widget */}
       {data.agingBuckets && (() => {
         const total = data.agingBuckets['0-30'] + data.agingBuckets['31-60'] + data.agingBuckets['61-90'] + data.agingBuckets['90+']
         if (total <= 0) return null
+        const bucketKeys = ['0-30', '31-60', '61-90', '90+']
         const buckets = [
-          { label: '0-30 days', value: data.agingBuckets['0-30'], color: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
-          { label: '31-60 days', value: data.agingBuckets['31-60'], color: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
-          { label: '61-90 days', value: data.agingBuckets['61-90'], color: 'bg-orange-500', text: 'text-orange-600 dark:text-orange-400' },
-          { label: '90+ days', value: data.agingBuckets['90+'], color: 'bg-red-500', text: 'text-red-600 dark:text-red-400' },
+          { key: '0-30', label: '0-30 days', value: data.agingBuckets['0-30'], color: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
+          { key: '31-60', label: '31-60 days', value: data.agingBuckets['31-60'], color: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
+          { key: '61-90', label: '61-90 days', value: data.agingBuckets['61-90'], color: 'bg-orange-500', text: 'text-orange-600 dark:text-orange-400' },
+          { key: '90+', label: '90+ days', value: data.agingBuckets['90+'], color: 'bg-red-500', text: 'text-red-600 dark:text-red-400' },
         ]
         return (
-          <SectionCard title="Overdue Aging Analysis" description="Outstanding by age bracket">
+          <SectionCard title="Overdue Aging Analysis" description="Outstanding by age bracket — click to filter" action={agingFilter && (
+            <Button variant="ghost" size="sm" onClick={() => setAgingFilter(null)}>
+              <X className="h-3 w-3 mr-1" /> Clear filter
+            </Button>
+          )}>
             <div className="p-4 space-y-3">
               {/* Stacked bar */}
               <div className="flex h-8 rounded-lg overflow-hidden border">
                 {buckets.map((b, i) => b.value > 0 && (
-                  <div
+                  <button
                     key={i}
-                    className={cn(b.color, 'transition-all')}
+                    onClick={() => setAgingFilter(agingFilter === b.key ? null : b.key)}
+                    className={cn(b.color, 'transition-all hover:opacity-80', agingFilter && agingFilter !== b.key && 'opacity-40')}
                     style={{ width: `${(b.value / total) * 100}%` }}
-                    title={`${b.label}: ${formatMoney(b.value)}`}
+                    title={`${b.label}: ${formatMoney(b.value)} — click to filter`}
                   />
                 ))}
               </div>
               {/* Legend */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {buckets.map((b, i) => (
-                  <div key={i} className="flex items-center gap-2">
+                  <button
+                    key={i}
+                    onClick={() => setAgingFilter(agingFilter === b.key ? null : b.key)}
+                    className={cn('flex items-center gap-2 text-left transition-opacity hover:opacity-80', agingFilter && agingFilter !== b.key && 'opacity-40')}
+                  >
                     <span className={cn('h-3 w-3 rounded shrink-0', b.color)} />
                     <div className="min-w-0">
                       <p className="text-[10px] uppercase text-muted-foreground truncate">{b.label}</p>
                       <p className={cn('text-sm font-bold', b.text)}>{formatMoneyCompact(b.value)}</p>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -410,9 +455,20 @@ export function DashboardView() {
           </div>
         </SectionCard>
 
-        <SectionCard title="Overdue Accounts" description="Top follow-up targets" action={<Button variant="ghost" size="sm" onClick={() => setView('reports')}>View all<ArrowRight className="h-3 w-3 ml-1" /></Button>}>
+        <SectionCard title="Overdue Accounts" description={agingFilter ? `Filtered: ${agingFilter === '0-30' ? '0-30 days' : agingFilter === '31-60' ? '31-60 days' : agingFilter === '61-90' ? '61-90 days' : '90+ days'}` : 'Top follow-up targets'} action={<Button variant="ghost" size="sm" onClick={() => setView('reports')}>View all<ArrowRight className="h-3 w-3 ml-1" /></Button>}>
           <div className="max-h-96 overflow-y-auto scroll-area">
-            {data.overdueAccounts.length ? (
+            {(() => {
+              const filtered = agingFilter
+                ? data.overdueAccounts.filter((a) => {
+                    const days = a.maxOverdueDays || 0
+                    if (agingFilter === '0-30') return days <= 30
+                    if (agingFilter === '31-60') return days > 30 && days <= 60
+                    if (agingFilter === '61-90') return days > 60 && days <= 90
+                    if (agingFilter === '90+') return days > 90
+                    return true
+                  })
+                : data.overdueAccounts
+              return filtered.length ? (
               <table className="w-full text-sm zebra-table">
                 <thead className="bg-muted/50 sticky top-0">
                   <tr className="text-left text-xs text-muted-foreground">
@@ -424,7 +480,7 @@ export function DashboardView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.overdueAccounts.map((a, i) => {
+                  {filtered.map((a, i) => {
                     const days = a.maxOverdueDays || 0
                     const severity = days > 60 ? 'critical' : days > 30 ? 'warning' : 'attention'
                     const rowBg = severity === 'critical' ? 'bg-red-50/50 dark:bg-red-950/20' : severity === 'warning' ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''
@@ -435,7 +491,19 @@ export function DashboardView() {
                           <button className="font-medium hover:text-primary text-left" onClick={() => openCustomer(a.customerId)}>
                             {a.customer}
                           </button>
-                          <p className="text-xs text-muted-foreground">{a.mobile}</p>
+                          <div className="flex items-center gap-1">
+                            <p className="text-xs text-muted-foreground">{a.mobile}</p>
+                            {a.mobile && (
+                              <>
+                                <a href={`tel:${a.mobile}`} className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400" aria-label={`Call ${a.customer}`}>
+                                  <Phone className="h-3 w-3" />
+                                </a>
+                                <a href={`https://wa.me/91${a.mobile.replace(/\D/g, '').slice(-10)}`} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:text-teal-700 dark:text-teal-400" aria-label={`WhatsApp ${a.customer}`}>
+                                  <MessageCircle className="h-3 w-3" />
+                                </a>
+                              </>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-2 text-right font-semibold text-red-600 dark:text-red-400">{formatMoney(a.overdueAmount)}</td>
                         <td className="px-4 py-2 text-center">
@@ -464,8 +532,9 @@ export function DashboardView() {
                 </tbody>
               </table>
             ) : (
-              <EmptyState message="No overdue accounts. 🎉" icon={AlertTriangle} />
-            )}
+              <EmptyState message={agingFilter ? `No accounts in the ${agingFilter} day range.` : "No overdue accounts. 🎉"} icon={AlertTriangle} />
+            )
+            })()}
           </div>
         </SectionCard>
       </div>

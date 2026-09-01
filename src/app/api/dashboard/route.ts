@@ -105,6 +105,31 @@ export async function GET() {
     const todayDueAmount = dueToday.reduce((s, i) => s + (num(i.amount) - num(i.paidAmount)), 0)
     const todayPending = Math.max(todayDueAmount - todayCollectedAmount, 0)
 
+    // projected collections for next 7 days (upcoming due installments)
+    const sevenDaysLater = new Date(now)
+    sevenDaysLater.setDate(sevenDaysLater.getDate() + 7)
+    const upcomingInstallments = await db.installment.findMany({
+      where: {
+        dueDate: { gt: todayEnd, lte: sevenDaysLater },
+        status: { in: ['PENDING', 'PARTIAL'] },
+      },
+      select: { amount: true, paidAmount: true, dueDate: true },
+    })
+    const projectedCollections = upcomingInstallments.reduce((s, i) => s + (num(i.amount) - num(i.paidAmount)), 0)
+    // daily breakdown for next 7 days
+    const projectedDaily: { date: string; amount: number }[] = []
+    for (let d = 1; d <= 7; d++) {
+      const dayStart = new Date(now)
+      dayStart.setDate(dayStart.getDate() + d)
+      dayStart.setHours(0, 0, 0, 0)
+      const dayEnd = new Date(dayStart)
+      dayEnd.setHours(23, 59, 59, 999)
+      const dayAmount = upcomingInstallments
+        .filter((i) => i.dueDate >= dayStart && i.dueDate <= dayEnd)
+        .reduce((s, i) => s + (num(i.amount) - num(i.paidAmount)), 0)
+      projectedDaily.push({ date: dayStart.toLocaleString('en', { weekday: 'short' }), amount: dayAmount })
+    }
+
     // 6-month trend
     const trend: { month: string; amount: number }[] = []
     for (let i = 5; i >= 0; i--) {
@@ -139,6 +164,7 @@ export async function GET() {
         monthCollected,
         sixMonthCollected,
         overdueAccountCount: overdueAccounts.length,
+        projectedCollections,
       },
       byMode,
       byEmployee,
@@ -157,6 +183,7 @@ export async function GET() {
       trend,
       statusBreakdown,
       agingBuckets,
+      projectedDaily,
     })
   })
 }
