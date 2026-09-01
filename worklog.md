@@ -829,3 +829,20 @@ Verification:
 - agent-browser: logo visible on login screen (white rounded square with blue/gold graphic) and dashboard sidebar (blue triangular icon next to "ArthWell Micro Finance" text).
 - VLM confirmed: logo image with blue and yellow/gold colors, stylized "A" shape, visible on both login and dashboard.
 - No console errors.
+
+---
+Task ID: 17 — Replace Logo with arthwell_microfinance.svg (COMPLETED)
+Agent: main (user request)
+Task: Use the uploaded arthwell_microfinance.svg as the logo on every page.
+
+Work Log:
+1. Copied the uploaded logo from /home/z/my-project/upload/arthwell_microfinance.svg to /home/z/my-project/public/arthwell-logo.svg (replacing the previous logo).
+2. The uploaded SVG (1.6MB) contains a base64-encoded PNG image with a transparent background, featuring the ArthWell Micro Finance branding (green plant/leaf design with blue accents).
+3. The logo references in all components already point to /arthwell-logo.svg, so no code changes were needed — only the file was replaced.
+4. Logo displays on: login screen, sidebar header (all views), footer (all views), receipts (print), customer statements (print), reports (print).
+
+Verification:
+- `bun run lint` — clean (0 errors).
+- agent-browser: logo visible on login screen (green plant/leaf design in white rounded square next to "ArthWell Micro Finance" text) and dashboard sidebar (stylized green and blue design next to "ArthWell" / "Micro Finance").
+- VLM confirmed: logo image visible on both login and dashboard pages.
+- No console errors.
