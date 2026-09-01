@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { SectionCard, EmptyState } from '@/components/ui-bits'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 const FIELDS = [
   { key: 'BRANCH_NAME', label: 'Branch Name', group: 'Branch', type: 'text' },
@@ -83,12 +84,27 @@ export function SettingsView() {
     }
   }
 
+  // Detect if there are unsaved changes
+  const hasChanges = FIELDS.some((f) => form[f.key] !== settings[f.key])
+
   if (!canManage) {
     return <EmptyState message="Only Admin or Branch Manager can manage settings." icon={ShieldAlert} />
   }
 
   return (
     <div className="space-y-4">
+      {hasChanges && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-2.5 flex items-center justify-between">
+          <p className="text-sm text-amber-800 dark:text-amber-300 flex items-center gap-2">
+            <ShieldAlert className="h-4 w-4" /> You have unsaved changes.
+          </p>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={load}>Discard</Button>
+            <Button size="sm" onClick={save} disabled={saving}><Save className="h-3.5 w-3.5 mr-1" /> {saving ? 'Saving…' : 'Save Now'}</Button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {GROUPS.map((group) => {
           const Icon = GROUP_ICONS[group]
@@ -100,33 +116,45 @@ export function SettingsView() {
                 <CardDescription>Configure {group.toLowerCase()} settings</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {fields.map((f) => (
-                  <div key={f.key} className="space-y-1.5">
-                    {f.type === 'bool' ? (
-                      <div className="flex items-center justify-between">
-                        <Label className="text-sm">{f.label}</Label>
-                        <Switch
-                          checked={form[f.key] === 'true'}
-                          onCheckedChange={(v) => setForm({ ...form, [f.key]: v ? 'true' : 'false' })}
-                        />
-                      </div>
-                    ) : (
-                      <>
-                        <Label className="text-xs text-muted-foreground">{f.label}</Label>
-                        <Input value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} disabled={loading} />
-                      </>
-                    )}
-                  </div>
-                ))}
+                {fields.map((f) => {
+                  const changed = form[f.key] !== settings[f.key]
+                  return (
+                    <div key={f.key} className={cn('space-y-1.5 rounded-md p-2 -mx-2 transition-colors', changed && 'bg-amber-50 dark:bg-amber-950/20')}>
+                      {f.type === 'bool' ? (
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <Label className="text-sm">{f.label}</Label>
+                            <p className="text-[10px] text-muted-foreground">{f.key === 'SMS_ENABLED' ? 'Send SMS notifications after collection' : 'Require manager approval before reversing transactions'}</p>
+                          </div>
+                          <Switch
+                            checked={form[f.key] === 'true'}
+                            onCheckedChange={(v) => setForm({ ...form, [f.key]: v ? 'true' : 'false' })}
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                            {f.label}
+                            {changed && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" title="Modified" />}
+                          </Label>
+                          <Input value={form[f.key] || ''} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} disabled={loading} className={cn(changed && 'border-amber-400')} />
+                        </>
+                      )}
+                    </div>
+                  )
+                })}
               </CardContent>
             </Card>
           )
         })}
       </div>
 
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={load}>Reset</Button>
-        <Button onClick={save} disabled={saving}><Save className="h-4 w-4 mr-1" /> {saving ? 'Saving…' : 'Save Settings'}</Button>
+      {/* Sticky save bar */}
+      <div className="sticky bottom-4 z-20 flex justify-end gap-2 rounded-lg border bg-background/95 backdrop-blur shadow-lg p-3">
+        <Button variant="outline" onClick={load} disabled={!hasChanges || saving}>Reset</Button>
+        <Button onClick={save} disabled={saving || !hasChanges}>
+          <Save className="h-4 w-4 mr-1" /> {saving ? 'Saving…' : hasChanges ? 'Save Changes' : 'No Changes'}
+        </Button>
       </div>
 
       <SectionCard title="System Information">
@@ -139,6 +167,40 @@ export function SettingsView() {
           <InfoRow label="Currency" value={form.CURRENCY || 'INR'} />
         </div>
       </SectionCard>
+
+      {/* Danger Zone */}
+      <Card className="border-red-300 dark:border-red-900">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base text-red-700 dark:text-red-400">
+            <ShieldAlert className="h-4 w-4" /> Danger Zone
+          </CardTitle>
+          <CardDescription>Irreversible and destructive actions</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-red-200 dark:border-red-900/50 p-3">
+            <div>
+              <p className="text-sm font-medium">Re-seed Demo Data</p>
+              <p className="text-xs text-muted-foreground">Erase ALL current data and reload demo data. This cannot be undone.</p>
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={async () => {
+                if (!confirm('This will ERASE ALL current data and reload demo data. This CANNOT be undone. Continue?')) return
+                try {
+                  await apiFetch('/api/seed', { method: 'POST' })
+                  toast.success('Demo data reloaded')
+                  setTimeout(() => location.reload(), 800)
+                } catch (e: any) {
+                  toast.error(e.message)
+                }
+              }}
+            >
+              <Database className="h-3.5 w-3.5 mr-1" /> Re-seed Data
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

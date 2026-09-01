@@ -15,7 +15,7 @@ import {
   Pencil,
   FileText,
 } from 'lucide-react'
-import { apiFetch, formatMoney, formatDate, STATUS_COLORS, ROLE_LABELS } from '@/lib/format'
+import { apiFetch, formatMoney, formatMoneyCompact, formatDate, STATUS_COLORS, ROLE_LABELS } from '@/lib/format'
 import { useApp } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -221,7 +221,35 @@ export function CustomersView() {
         </Button>
       </div>
 
-      <SectionCard title={`Customers (${items.length})`}>
+      {/* Summary stats */}
+      {!loading && items.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Customers</p>
+            <p className="text-lg font-bold">{items.length}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Active</p>
+            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{items.filter((c) => c.status === 'ACTIVE').length}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Blocked/Closed</p>
+            <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{items.filter((c) => c.status !== 'ACTIVE').length}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Outstanding</p>
+            <p className="text-lg font-bold text-primary">{formatMoneyCompact(items.reduce((s, c) => s + c.outstanding, 0))}</p>
+          </div>
+        </div>
+      )}
+
+      <SectionCard title={`Customers (${items.length})`} action={
+        (q || status !== 'ALL' || area) && !loading ? (
+          <Button variant="ghost" size="sm" onClick={() => { setQ(''); setStatus('ALL'); setArea('') }}>
+            <X className="h-3.5 w-3.5 mr-1" /> Clear Filters
+          </Button>
+        ) : undefined
+      }>
         {loading ? (
           <LoadingRows rows={6} />
         ) : items.length === 0 ? (
@@ -253,9 +281,21 @@ export function CustomersView() {
                       <td className="px-4 py-2.5">{c.primaryMobile}</td>
                       <td className="px-4 py-2.5 text-muted-foreground">{c.area || '—'}</td>
                       <td className="px-4 py-2.5 text-center">{c._count?.accounts ?? 0}</td>
-                      <td className="px-4 py-2.5 text-right font-semibold">{formatMoney(c.outstanding)}</td>
+                      <td className="px-4 py-2.5 text-right font-semibold">{c.outstanding > 0 ? formatMoney(c.outstanding) : <span className="text-muted-foreground">—</span>}</td>
                       <td className="px-4 py-2.5">
                         <Badge className={cn(STATUS_COLORS[c.status])}>{c.status}</Badge>
+                      </td>
+                      <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Actions"><MoreVertical className="h-3.5 w-3.5" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openCustomer(c.id)}><Eye className="h-3.5 w-3.5 mr-2" /> View Details</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => startCollection(c.id)}><HandCoins className="h-3.5 w-3.5 mr-2" /> New Collection</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { navigator.clipboard?.writeText(c.primaryMobile); toast.success('Mobile copied') }}><Phone className="h-3.5 w-3.5 mr-2" /> Copy Mobile</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   ))}

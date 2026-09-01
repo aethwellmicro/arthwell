@@ -14,7 +14,7 @@ import {
   Lock,
   HandCoins,
 } from 'lucide-react'
-import { apiFetch, formatMoney, formatDate, STATUS_COLORS } from '@/lib/format'
+import { apiFetch, formatMoney, formatMoneyCompact, formatDate, STATUS_COLORS } from '@/lib/format'
 import { useApp } from '@/lib/store'
 import { calculateLoan, type InterestType, type InterestPeriod, type InstallmentFreq } from '@/lib/calc'
 import { Button } from '@/components/ui/button'
@@ -190,6 +190,28 @@ export function AccountsView() {
           <Plus className="h-4 w-4 mr-1" /> New Account / Loan
         </Button>
       </div>
+
+      {/* Summary stats */}
+      {!loading && items.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Accounts</p>
+            <p className="text-lg font-bold">{items.length}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Active</p>
+            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{items.filter((a) => a.status === 'ACTIVE').length}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Disbursed</p>
+            <p className="text-lg font-bold text-primary">{formatMoneyCompact(items.reduce((s, a) => s + a.principal, 0))}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Outstanding</p>
+            <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{formatMoneyCompact(items.reduce((s, a) => s + a.outstanding, 0))}</p>
+          </div>
+        </div>
+      )}
 
       <SectionCard title={`Accounts / Loans (${items.length})`}>
         {loading ? (

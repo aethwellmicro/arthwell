@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { UserCog, Plus, Pencil, ShieldCheck, Mail, Phone, BadgeCheck } from 'lucide-react'
-import { apiFetch, formatMoney, formatDate, ROLE_LABELS, ROLE_COLORS } from '@/lib/format'
+import { UserCog, Plus, Pencil, ShieldCheck, Mail, Phone, BadgeCheck, Search } from 'lucide-react'
+import { apiFetch, formatMoney, formatMoneyCompact, formatDate, ROLE_LABELS, ROLE_COLORS } from '@/lib/format'
 import { useApp, canManageUsers } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -53,6 +53,8 @@ export function EmployeesView() {
   const [saving, setSaving] = useState(false)
   const [editTarget, setEditTarget] = useState<Employee | null>(null)
   const [editForm, setEditForm] = useState<any>({})
+  const [roleFilter, setRoleFilter] = useState('ALL')
+  const [search, setSearch] = useState('')
 
   const canManage = canManageUsers(user?.role)
 
@@ -67,6 +69,15 @@ export function EmployeesView() {
       setLoading(false)
     }
   }
+
+  const filteredItems = items.filter((e) => {
+    if (roleFilter !== 'ALL' && e.role !== roleFilter) return false
+    if (search) {
+      const q = search.toLowerCase()
+      return e.name.toLowerCase().includes(q) || e.email.toLowerCase().includes(q) || (e.employeeCode || '').toLowerCase().includes(q) || (e.phone || '').includes(search)
+    }
+    return true
+  })
 
   useEffect(() => {
     load()
@@ -110,12 +121,53 @@ export function EmployeesView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">Manage employee accounts, roles and access.</p>
-        <Button onClick={() => setShowNew(true)}><Plus className="h-4 w-4 mr-1" /> New Employee</Button>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex-1 min-w-[200px] relative">
+          <Label className="text-xs text-muted-foreground">Search</Label>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email, code, phone…" className="pl-8" />
+          </div>
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground">Role</Label>
+          <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Roles</SelectItem>
+              <SelectItem value="ADMIN">Admin</SelectItem>
+              <SelectItem value="BRANCH_MANAGER">Branch Manager</SelectItem>
+              <SelectItem value="ACCOUNTANT">Accountant</SelectItem>
+              <SelectItem value="COLLECTION_EMPLOYEE">Collection Employee</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button onClick={() => setShowNew(true)} className="ml-auto"><Plus className="h-4 w-4 mr-1" /> New Employee</Button>
       </div>
 
-      <SectionCard title={`Employees (${items.length})`}>
+      {/* Summary stats */}
+      {!loading && items.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Employees</p>
+            <p className="text-lg font-bold">{items.length}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Active</p>
+            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{items.filter((e) => e.active).length}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Collectors</p>
+            <p className="text-lg font-bold text-primary">{items.filter((e) => e.role === 'COLLECTION_EMPLOYEE').length}</p>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Collected</p>
+            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{formatMoneyCompact(items.reduce((s, e) => s + e.totalCollected, 0))}</p>
+          </div>
+        </div>
+      )}
+
+      <SectionCard title={`Employees (${filteredItems.length})`}>
         {loading ? (
           <LoadingRows rows={5} />
         ) : items.length === 0 ? (
@@ -137,7 +189,7 @@ export function EmployeesView() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((e) => (
+                {filteredItems.map((e) => (
                   <tr key={e.id} className="border-b last:border-0 hover:bg-muted/40">
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2">
@@ -155,9 +207,9 @@ export function EmployeesView() {
                       <p className="text-xs flex items-center gap-1"><Mail className="h-3 w-3" /> {e.email}</p>
                       <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="h-3 w-3" /> {e.phone || '—'}</p>
                     </td>
-                    <td className="px-3 py-2.5 text-right">{formatMoney(e.todayCollected)}</td>
-                    <td className="px-3 py-2.5 text-right">{formatMoney(e.weekCollected)}</td>
-                    <td className="px-3 py-2.5 text-right font-semibold">{formatMoney(e.totalCollected)}</td>
+                    <td className="px-3 py-2.5 text-right">{e.todayCollected > 0 ? formatMoney(e.todayCollected) : <span className="text-muted-foreground">—</span>}</td>
+                    <td className="px-3 py-2.5 text-right">{e.weekCollected > 0 ? formatMoney(e.weekCollected) : <span className="text-muted-foreground">—</span>}</td>
+                    <td className="px-3 py-2.5 text-right font-semibold">{e.totalCollected > 0 ? formatMoney(e.totalCollected) : <span className="text-muted-foreground">—</span>}</td>
                     <td className="px-3 py-2.5 text-center">{e.transactionCount}</td>
                     <td className="px-3 py-2.5">
                       {e.active ? <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Active</Badge> : <Badge variant="secondary">Inactive</Badge>}
