@@ -12,6 +12,8 @@ import {
   HandCoins,
   ArrowRight,
   RefreshCw,
+  BellRing,
+  ScrollText,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -28,7 +30,7 @@ import {
   Bar,
   Legend,
 } from 'recharts'
-import { apiFetch, formatMoney, formatMoneyCompact, formatDateTime, STATUS_COLORS } from '@/lib/format'
+import { apiFetch, formatMoney, formatMoneyCompact, formatDateTime, formatRelativeTime, STATUS_COLORS } from '@/lib/format'
 import { useApp } from '@/lib/store'
 import { StatCard, SectionCard, EmptyState, LoadingRows, SkeletonCard } from '@/components/ui-bits'
 import { Card, CardContent } from '@/components/ui/card'
@@ -36,6 +38,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 interface Dashboard {
   stats: {
@@ -78,6 +81,7 @@ export function DashboardView() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [trendMonths, setTrendMonths] = useState(6)
+  const [recentActivity, setRecentActivity] = useState<any[]>([])
 
   const loadDashboard = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
@@ -85,6 +89,11 @@ export function DashboardView() {
     try {
       const d = await apiFetch<Dashboard>('/api/dashboard')
       setData(d)
+      // Fetch recent activity (latest 6 audit logs)
+      try {
+        const logs = await apiFetch<{ items: any[] }>('/api/audit-logs?limit=6')
+        setRecentActivity(logs.items)
+      } catch {}
     } catch (e: any) {
     } finally {
       setLoading(false)
@@ -95,6 +104,23 @@ export function DashboardView() {
   useEffect(() => {
     loadDashboard()
   }, [])
+
+  async function sendReminder(account: { customer: string; customerId: string; mobile: string; overdueAmount: number; accountNumber: string }) {
+    try {
+      await apiFetch('/api/notifications', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'OVERDUE_REMINDER',
+          recipient: account.mobile,
+          message: `Dear ${account.customer}, your account ${account.accountNumber} has an overdue amount of ${account.overdueAmount.toFixed(2)}. Please make the payment at the earliest to avoid penalties. Thank you.`,
+          customerId: account.customerId,
+        }),
+      })
+      toast.success(`Reminder sent to ${account.customer}`, { description: `SMS queued for ${account.mobile}` })
+    } catch (e: any) {
+      toast.error(e.message)
+    }
+  }
 
   if (loading) {
     return (
@@ -423,9 +449,14 @@ export function DashboardView() {
                           </span>
                         </td>
                         <td className="px-4 py-2">
-                          <Button size="sm" variant="outline" onClick={() => startCollection(a.customerId)}>
-                            <HandCoins className="h-3 w-3 mr-1" /> Collect
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button size="sm" variant="outline" onClick={() => startCollection(a.customerId)}>
+                              <HandCoins className="h-3 w-3 mr-1" /> Collect
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600" onClick={() => sendReminder(a)} aria-label="Send reminder" title="Send reminder">
+                              <BellRing className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -438,6 +469,50 @@ export function DashboardView() {
           </div>
         </SectionCard>
       </div>
+
+      {/* Recent Activity Feed */}
+      <SectionCard
+        title="Recent Activity"
+        description="Latest system events"
+        action={<Button variant="ghost" size="sm" onClick={() => setView('audit')}>View all<ArrowRight className="h-3 w-3 ml-1" /></Button>}
+      >
+        <div className="max-h-72 overflow-y-auto scroll-area divide-y">
+          {recentActivity.length > 0 ? recentActivity.map((log) => {
+            const actionColor = log.action === 'CREATE' ? 'text-emerald-600 dark:text-emerald-400' :
+              log.action === 'UPDATE' ? 'text-teal-600 dark:text-teal-400' :
+              log.action === 'REVERSE' ? 'text-amber-600 dark:text-amber-400' :
+              log.action === 'DELETE' ? 'text-red-600 dark:text-red-400' :
+              'text-muted-foreground'
+            const actionIcon = log.action === 'CREATE' ? '➕' :
+              log.action === 'UPDATE' ? '✏️' :
+              log.action === 'REVERSE' ? '↩️' :
+              log.action === 'DELETE' ? '🗑️' :
+              log.action === 'LOGIN' ? '🔑' :
+              log.action === 'LOGOUT' ? '🚪' : '•'
+            return (
+              <div key={log.id} className="px-4 py-2.5 flex items-center gap-3 hover:bg-muted/40">
+                <span className="text-base shrink-0">{actionIcon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={cn('text-xs font-bold', actionColor)}>{log.action}</span>
+                    <Badge variant="outline" className="text-[10px]">{log.entity}</Badge>
+                    <span className="text-xs text-muted-foreground truncate flex-1">
+                      {log.reason || (log.newValue ? (typeof log.newValue === 'string' ? log.newValue.slice(0, 60) : '') : `${log.action.toLowerCase()} ${log.entity.toLowerCase()}`)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] text-muted-foreground">{log.user?.name || 'system'}</span>
+                    <span className="text-[10px] text-muted-foreground">·</span>
+                    <span className="text-[10px] text-muted-foreground">{formatRelativeTime(log.createdAt)}</span>
+                  </div>
+                </div>
+              </div>
+            )
+          }) : (
+            <EmptyState message="No recent activity." icon={ScrollText} />
+          )}
+        </div>
+      </SectionCard>
     </div>
   )
 }

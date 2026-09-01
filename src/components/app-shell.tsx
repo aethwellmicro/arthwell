@@ -425,6 +425,16 @@ export function AppShell() {
         </div>
       </div>
 
+      {/* Floating Action Button (mobile only) */}
+      <Button
+        onClick={() => startCollection()}
+        className="lg:hidden fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full shadow-lg p-0"
+        size="icon"
+        aria-label="Quick Collection"
+      >
+        <HandCoins className="h-6 w-6" />
+      </Button>
+
       {/* Footer */}
       <footer className="mt-auto border-t bg-sidebar/40">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 lg:px-6 py-3 text-xs text-muted-foreground">
