@@ -57,10 +57,11 @@ interface Dashboard {
   }
   byMode: Record<string, number>
   byEmployee: { name: string; role: string; amount: number }[]
-  overdueAccounts: { accountNumber: string; customer: string; customerId: string; mobile: string; overdueAmount: number }[]
+  overdueAccounts: { accountNumber: string; customer: string; customerId: string; mobile: string; overdueAmount: number; maxOverdueDays: number }[]
   todayCollections: any[]
   trend: { month: string; amount: number }[]
   statusBreakdown: Record<string, number>
+  agingBuckets: { '0-30': number; '31-60': number; '61-90': number; '90+': number }
 }
 
 const MODE_COLORS: Record<string, string> = {
@@ -304,6 +305,47 @@ export function DashboardView() {
         </SectionCard>
       </div>
 
+      {/* Aging bucket widget */}
+      {data.agingBuckets && (() => {
+        const total = data.agingBuckets['0-30'] + data.agingBuckets['31-60'] + data.agingBuckets['61-90'] + data.agingBuckets['90+']
+        if (total <= 0) return null
+        const buckets = [
+          { label: '0-30 days', value: data.agingBuckets['0-30'], color: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
+          { label: '31-60 days', value: data.agingBuckets['31-60'], color: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
+          { label: '61-90 days', value: data.agingBuckets['61-90'], color: 'bg-orange-500', text: 'text-orange-600 dark:text-orange-400' },
+          { label: '90+ days', value: data.agingBuckets['90+'], color: 'bg-red-500', text: 'text-red-600 dark:text-red-400' },
+        ]
+        return (
+          <SectionCard title="Overdue Aging Analysis" description="Outstanding by age bracket">
+            <div className="p-4 space-y-3">
+              {/* Stacked bar */}
+              <div className="flex h-8 rounded-lg overflow-hidden border">
+                {buckets.map((b, i) => b.value > 0 && (
+                  <div
+                    key={i}
+                    className={cn(b.color, 'transition-all')}
+                    style={{ width: `${(b.value / total) * 100}%` }}
+                    title={`${b.label}: ${formatMoney(b.value)}`}
+                  />
+                ))}
+              </div>
+              {/* Legend */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {buckets.map((b, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className={cn('h-3 w-3 rounded shrink-0', b.color)} />
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase text-muted-foreground truncate">{b.label}</p>
+                      <p className={cn('text-sm font-bold', b.text)}>{formatMoneyCompact(b.value)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </SectionCard>
+        )
+      })()}
+
       {/* Today collections + overdue */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Today's Collections" description="Latest 10 transactions">
@@ -327,7 +369,7 @@ export function DashboardView() {
                         <p className="text-xs text-muted-foreground">{c.customerId}</p>
                       </td>
                       <td className="px-4 py-2 font-mono text-xs">{c.receiptNumber}</td>
-                      <td className="px-4 py-2 text-right font-semibold">{formatMoney(c.amount)}</td>
+                      <td className="px-4 py-2 text-right font-semibold text-emerald-600 dark:text-emerald-400">{formatMoney(c.amount)}</td>
                       <td className="px-4 py-2">
                         <Badge variant="outline">{c.paymentMode}</Badge>
                       </td>
@@ -351,27 +393,43 @@ export function DashboardView() {
                     <th className="px-4 py-2 font-medium">Account</th>
                     <th className="px-4 py-2 font-medium">Customer</th>
                     <th className="px-4 py-2 font-medium text-right">Overdue</th>
+                    <th className="px-4 py-2 font-medium text-center">Days</th>
                     <th className="px-4 py-2 font-medium">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.overdueAccounts.map((a, i) => (
-                    <tr key={i} className="border-b last:border-0 hover:bg-muted/40">
-                      <td className="px-4 py-2 font-mono text-xs">{a.accountNumber}</td>
-                      <td className="px-4 py-2">
-                        <button className="font-medium hover:text-primary text-left" onClick={() => openCustomer(a.customerId)}>
-                          {a.customer}
-                        </button>
-                        <p className="text-xs text-muted-foreground">{a.mobile}</p>
-                      </td>
-                      <td className="px-4 py-2 text-right font-semibold text-amber-600 dark:text-amber-400">{formatMoney(a.overdueAmount)}</td>
-                      <td className="px-4 py-2">
-                        <Button size="sm" variant="outline" onClick={() => startCollection(a.customerId)}>
-                          <HandCoins className="h-3 w-3 mr-1" /> Collect
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
+                  {data.overdueAccounts.map((a, i) => {
+                    const days = a.maxOverdueDays || 0
+                    const severity = days > 60 ? 'critical' : days > 30 ? 'warning' : 'attention'
+                    const rowBg = severity === 'critical' ? 'bg-red-50/50 dark:bg-red-950/20' : severity === 'warning' ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''
+                    return (
+                      <tr key={i} className={cn('border-b last:border-0 hover:bg-muted/40', rowBg)}>
+                        <td className="px-4 py-2 font-mono text-xs">{a.accountNumber}</td>
+                        <td className="px-4 py-2">
+                          <button className="font-medium hover:text-primary text-left" onClick={() => openCustomer(a.customerId)}>
+                            {a.customer}
+                          </button>
+                          <p className="text-xs text-muted-foreground">{a.mobile}</p>
+                        </td>
+                        <td className="px-4 py-2 text-right font-semibold text-red-600 dark:text-red-400">{formatMoney(a.overdueAmount)}</td>
+                        <td className="px-4 py-2 text-center">
+                          <span className={cn(
+                            'inline-flex items-center justify-center min-w-[36px] px-1.5 py-0.5 rounded-full text-[10px] font-bold',
+                            severity === 'critical' && 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+                            severity === 'warning' && 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+                            severity === 'attention' && 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+                          )} title={`${days} days overdue`}>
+                            {days}d
+                          </span>
+                        </td>
+                        <td className="px-4 py-2">
+                          <Button size="sm" variant="outline" onClick={() => startCollection(a.customerId)}>
+                            <HandCoins className="h-3 w-3 mr-1" /> Collect
+                          </Button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             ) : (

@@ -57,14 +57,19 @@ export async function GET() {
       where: { dueDate: { lt: now }, status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] } },
       include: { account: { include: { customer: { select: { fullName: true, customerId: true, primaryMobile: true } } } } },
     })
-    const overdueAccountsMap = new Map<string, { accountNumber: string; customer: string; customerId: string; mobile: string; overdueAmount: number }>()
+    const overdueAccountsMap = new Map<string, { accountNumber: string; customer: string; customerId: string; mobile: string; overdueAmount: number; oldestDueDate: Date; maxOverdueDays: number }>()
     for (const inst of overdueInstallments) {
       const due = num(inst.amount) - num(inst.paidAmount)
       if (due <= 0) continue
       const key = inst.accountId
+      const overdueDays = Math.floor((now.getTime() - inst.dueDate.getTime()) / (24 * 60 * 60 * 1000))
       const existing = overdueAccountsMap.get(key)
       if (existing) {
         existing.overdueAmount += due
+        if (inst.dueDate < existing.oldestDueDate) {
+          existing.oldestDueDate = inst.dueDate
+          existing.maxOverdueDays = overdueDays
+        }
       } else {
         overdueAccountsMap.set(key, {
           accountNumber: inst.account.accountNumber,
@@ -72,11 +77,25 @@ export async function GET() {
           customerId: inst.account.customer.customerId,
           mobile: inst.account.customer.primaryMobile,
           overdueAmount: due,
+          oldestDueDate: inst.dueDate,
+          maxOverdueDays: overdueDays,
         })
       }
     }
     const overdueAccounts = Array.from(overdueAccountsMap.values()).sort((a, b) => b.overdueAmount - a.overdueAmount)
     const totalOverdue = overdueAccounts.reduce((s, a) => s + a.overdueAmount, 0)
+
+    // aging buckets: 0-30, 31-60, 61-90, 90+ days
+    const agingBuckets = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 }
+    for (const inst of overdueInstallments) {
+      const due = num(inst.amount) - num(inst.paidAmount)
+      if (due <= 0) continue
+      const days = Math.floor((now.getTime() - inst.dueDate.getTime()) / (24 * 60 * 60 * 1000))
+      if (days <= 30) agingBuckets['0-30'] += due
+      else if (days <= 60) agingBuckets['31-60'] += due
+      else if (days <= 90) agingBuckets['61-90'] += due
+      else agingBuckets['90+'] += due
+    }
 
     // today's due (sum of installments due today or earlier that are unpaid)
     const dueToday = await db.installment.findMany({
@@ -137,6 +156,7 @@ export async function GET() {
       })),
       trend,
       statusBreakdown,
+      agingBuckets,
     })
   })
 }

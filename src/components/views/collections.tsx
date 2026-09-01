@@ -10,8 +10,9 @@ import {
   Eye,
   Receipt as ReceiptIcon,
   X,
+  FileSpreadsheet,
 } from 'lucide-react'
-import { apiFetch, formatMoney, formatDateTime, todayInput, STATUS_COLORS } from '@/lib/format'
+import { apiFetch, formatMoney, formatDateTime, todayInput, STATUS_COLORS, downloadCSV } from '@/lib/format'
 import { useApp, canReverse } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -185,6 +186,26 @@ export function CollectionsView() {
     setTimeout(() => window.print(), 300)
   }
 
+  function exportCSV() {
+    if (!items.length) return toast.info('No collections to export')
+    downloadCSV(`collections-${new Date().toISOString().slice(0, 10)}.csv`, items.map((c) => ({
+      receiptNumber: c.receiptNumber,
+      date: formatDateTime(c.collectionDate),
+      customer: c.customer.fullName,
+      customerId: c.customer.customerId,
+      mobile: c.customer.primaryMobile,
+      account: c.account.accountNumber,
+      amount: c.amount,
+      paymentMode: c.paymentMode,
+      collectedBy: c.collectedBy.name,
+      previousOutstanding: c.previousOutstanding,
+      currentOutstanding: c.currentOutstanding,
+      status: c.status,
+      remarks: c.remarks || '',
+    })))
+    toast.success('Exported to CSV')
+  }
+
   const total = items.reduce((s, c) => s + (c.status === 'SUCCESSFUL' ? c.amount : 0), 0)
 
   const [page, setPage] = useState(1)
@@ -261,6 +282,9 @@ export function CollectionsView() {
               <X className="h-3.5 w-3.5 mr-1" /> Clear Filters
             </Button>
           )}
+          <Button variant="outline" onClick={exportCSV} disabled={!items.length}>
+            <FileSpreadsheet className="h-4 w-4 mr-1" /> Export
+          </Button>
           <Button onClick={() => { setForm(emptyForm); setShowNew(true) }}>
             <Plus className="h-4 w-4 mr-1" /> New Collection
           </Button>

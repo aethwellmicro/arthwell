@@ -138,6 +138,7 @@ function renderSidebar({
             >
               <Icon className={cn('h-4 w-4 shrink-0 transition-transform', active ? '' : 'group-hover:scale-110')} />
               <span className="flex-1 text-left">{item.label}</span>
+              {item.key === 'notifications' && <NotificationBadge active={active} />}
               {restricted && <Lock className="h-3 w-3 opacity-60" />}
             </button>
           )
@@ -150,6 +151,34 @@ function renderSidebar({
         <SidebarQuickStats />
       </div>
     </div>
+  )
+}
+
+function NotificationBadge({ active }: { active: boolean }) {
+  const [count, setCount] = useState(0)
+
+  useEffect(() => {
+    let cancel = false
+    async function load() {
+      try {
+        const data = await apiFetch<{ items: any[] }>('/api/notifications?status=PENDING&limit=100')
+        if (!cancel) setCount(data.items.length)
+      } catch {}
+    }
+    load()
+    const interval = setInterval(load, 30000) // refresh every 30s
+    return () => { cancel = true; clearInterval(interval) }
+  }, [])
+
+  if (count === 0) return null
+
+  return (
+    <span className={cn(
+      'inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold',
+      active ? 'bg-primary-foreground text-primary' : 'bg-red-500 text-white'
+    )}>
+      {count > 99 ? '99+' : count}
+    </span>
   )
 }
 
