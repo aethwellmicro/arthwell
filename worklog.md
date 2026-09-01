@@ -807,3 +807,25 @@ Verification:
 - `bun run lint` — clean (0 errors).
 - agent-browser: login screen shows "ArthWell Micro Finance" with logo image in top-left corner. Dashboard sidebar shows "ArthWell" / "Micro Finance" with logo. Footer shows "ArthWell Micro Finance · Collection & Loan Management" with logo.
 - VLM confirmed: logo image + brand name visible on both login and dashboard.
+
+---
+Task ID: 16 — Replace Logo with Uploaded SVG (COMPLETED)
+Agent: main (user request)
+Task: Use the uploaded arthwell_software_solutions_logo.svg as the logo on every page.
+
+Work Log:
+1. Copied the uploaded logo from /home/z/my-project/upload/arthwell_software_solutions_logo.svg to /home/z/my-project/public/arthwell-logo.svg (replacing the previous custom logo).
+2. The uploaded SVG features: a stylized "A" letter with a blue gradient, a golden upward swoosh/arrow, small software pixel squares, circular technology arcs, and text "SOFTWARE SOLUTIONS" with tagline "INNOVATE • BUILD • GROW".
+3. Adjusted logo display sizes for better visibility:
+   - Login screen: h-14 w-14 with white background container (bg-white p-1) so the logo's white background blends cleanly.
+   - Sidebar: h-10 w-10 shrink-0 (removed rounded-lg since the logo has its own shape).
+   - Receipts: h-12 w-12 (increased from h-8 for better print visibility).
+   - Customer statements: h-10 w-10 (unchanged).
+   - Print reports: h-10 w-10 (unchanged).
+   - Footer: h-4 w-4 (unchanged — small icon in footer text).
+
+Verification:
+- `bun run lint` — clean (0 errors).
+- agent-browser: logo visible on login screen (white rounded square with blue/gold graphic) and dashboard sidebar (blue triangular icon next to "ArthWell Micro Finance" text).
+- VLM confirmed: logo image with blue and yellow/gold colors, stylized "A" shape, visible on both login and dashboard.
+- No console errors.

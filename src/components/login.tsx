@@ -53,8 +53,8 @@ export function LoginScreen() {
       <div className="lg:w-1/2 bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-700 text-white p-8 lg:p-14 flex flex-col justify-between relative overflow-hidden">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 30%, white 2px, transparent 2px)', backgroundSize: '32px 32px' }} />
         <div className="relative flex items-center gap-3">
-          <div className="h-11 w-11 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center overflow-hidden">
-            <img src="/arthwell-logo.svg" alt="ArthWell" className="h-11 w-11" />
+          <div className="h-14 w-14 rounded-xl bg-white p-1 flex items-center justify-center overflow-hidden">
+            <img src="/arthwell-logo.svg" alt="ArthWell" className="h-full w-full" />
           </div>
           <div>
             <p className="font-semibold text-lg leading-tight">ArthWell Micro Finance</p>

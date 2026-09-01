@@ -27,8 +27,8 @@ export const ReceiptPrint = forwardRef<HTMLDivElement, { data: ReceiptData }>(fu
   return (
     <div ref={ref} className="print-area bg-white text-black mx-auto max-w-md p-6 font-sans">
       <div className="text-center border-b-2 border-black pb-3 mb-4">
-        <div className="flex items-center justify-center gap-2 mb-1">
-          <img src="/arthwell-logo.svg" alt="ArthWell" className="h-8 w-8" />
+        <div className="flex items-center justify-center gap-3 mb-1">
+          <img src="/arthwell-logo.svg" alt="ArthWell" className="h-12 w-12" />
           <span className="font-bold text-xl">ArthWell Micro Finance</span>
         </div>
         <p className="text-sm text-gray-700">{data.branchName || 'Main Branch - MG Road'}</p>

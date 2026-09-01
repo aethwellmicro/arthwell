@@ -111,7 +111,7 @@ function renderSidebar({
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2.5 px-5 h-16 border-b border-sidebar-border">
-        <img src="/arthwell-logo.svg" alt="ArthWell" className="h-9 w-9 rounded-lg" />
+        <img src="/arthwell-logo.svg" alt="ArthWell" className="h-10 w-10 shrink-0" />
         <div>
           <p className="font-semibold text-sm leading-tight">ArthWell</p>
           <p className="text-[11px] text-muted-foreground leading-tight">Micro Finance</p>
