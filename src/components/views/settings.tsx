@@ -159,7 +159,7 @@ export function SettingsView() {
 
       <SectionCard title="System Information">
         <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <InfoRow label="System Version" value="LoanLedger v1.0.0" />
+          <InfoRow label="System Version" value="ArthWell Micro Finance v1.0.0" />
           <InfoRow label="Database" value="SQLite (local)" />
           <InfoRow label="Encryption" value="Password hashing: scrypt" />
           <InfoRow label="Session Timeout" value="7 days" />

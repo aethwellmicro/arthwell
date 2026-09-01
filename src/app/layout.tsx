@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Collection & Loan Management System",
+  title: "ArthWell Micro Finance - Collection & Loan Management",
   description:
     "Internal web-based application for managing customer accounts, loan disbursement, collections, receipts, and reports.",
 };

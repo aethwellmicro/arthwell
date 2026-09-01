@@ -132,7 +132,7 @@ export async function POST(req: Request) {
       data: {
         collectionId: collection.id,
         receiptNumber,
-        branchName: 'Main Branch - MG Road',
+        branchName: 'ArthWell Micro Finance - Main Branch',
         printCount: 0,
       },
     })

@@ -111,12 +111,10 @@ function renderSidebar({
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2.5 px-5 h-16 border-b border-sidebar-border">
-        <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-          <Wallet className="h-5 w-5" />
-        </div>
+        <img src="/arthwell-logo.svg" alt="ArthWell" className="h-9 w-9 rounded-lg" />
         <div>
-          <p className="font-semibold text-sm leading-tight">LoanLedger</p>
-          <p className="text-[11px] text-muted-foreground leading-tight">Main Branch · MGR</p>
+          <p className="font-semibold text-sm leading-tight">ArthWell</p>
+          <p className="text-[11px] text-muted-foreground leading-tight">Micro Finance</p>
         </div>
       </div>
       <nav className="flex-1 overflow-y-auto scroll-area p-3 space-y-1">
@@ -440,8 +438,8 @@ export function AppShell() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 lg:px-6 py-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-              <Wallet className="h-3.5 w-3.5 text-primary" />
-              <span>LoanLedger · Collection & Loan Management</span>
+              <img src="/arthwell-logo.svg" alt="ArthWell" className="h-4 w-4" />
+              <span>ArthWell Micro Finance · Collection & Loan Management</span>
             </div>
             <span className="hidden sm:inline text-muted-foreground/40">·</span>
             <span className="hidden sm:inline">Shortcuts:</span>

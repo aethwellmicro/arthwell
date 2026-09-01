@@ -784,3 +784,26 @@ Stage Summary:
 - Customer registration form now includes an "Amount (₹)" field that is stored with the customer record.
 - Amount is displayed in customer details, editable, included in statements, and seeded with demo data.
 - Lint clean, API verified end-to-end.
+
+---
+Task ID: 15 — ArthWell Micro Finance Branding (COMPLETED)
+Agent: main (user request)
+Task: Add the ArthWell Micro Finance logo and brand name on every page.
+
+Work Log:
+1. Created custom logo SVG at public/arthwell-logo.svg — a stylized "A" (representing growth/mountain peak) inside a rounded emerald-to-teal gradient square with a coin accent, representing micro finance.
+2. Updated all brand references from "LoanLedger" to "ArthWell Micro Finance" across 9 files:
+   - app-shell.tsx: sidebar header (logo image + "ArthWell" / "Micro Finance"), footer (logo image + "ArthWell Micro Finance · Collection & Loan Management")
+   - login.tsx: brand panel (logo image + "ArthWell Micro Finance" / "Collection & Loan Management")
+   - receipt-print.tsx: receipt header (logo image + "ArthWell Micro Finance")
+   - customer-statement.tsx: statement header (logo image + "ArthWell Micro Finance") + footer text
+   - print-report.tsx: report header (logo image + "ArthWell Micro Finance") + footer text
+   - settings.tsx: system version info
+   - layout.tsx: page title metadata
+   - api/collections/route.ts: default branch name in receipt creation
+3. Logo appears on every page: login screen, sidebar (all views), footer (all views), receipts (print), customer statements (print), reports (print).
+
+Verification:
+- `bun run lint` — clean (0 errors).
+- agent-browser: login screen shows "ArthWell Micro Finance" with logo image in top-left corner. Dashboard sidebar shows "ArthWell" / "Micro Finance" with logo. Footer shows "ArthWell Micro Finance · Collection & Loan Management" with logo.
+- VLM confirmed: logo image + brand name visible on both login and dashboard.

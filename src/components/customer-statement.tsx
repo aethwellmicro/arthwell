@@ -44,9 +44,12 @@ export function CustomerStatement({
       {/* Header */}
       <div className="border-b-2 border-black pb-3 mb-4">
         <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-2xl font-bold">LoanLedger</h1>
-            <p className="text-sm text-gray-700">{branchName}</p>
+          <div className="flex items-center gap-3">
+            <img src="/arthwell-logo.svg" alt="ArthWell" className="h-10 w-10" />
+            <div>
+              <h1 className="text-2xl font-bold">ArthWell Micro Finance</h1>
+              <p className="text-sm text-gray-700">{branchName}</p>
+            </div>
           </div>
           <div className="text-right text-xs text-gray-600">
             <p>Generated: {formatDateTime(now)}</p>
@@ -128,7 +131,7 @@ export function CustomerStatement({
 
       {/* Footer */}
       <div className="mt-6 pt-3 border-t border-gray-300 text-[10px] text-gray-500 flex justify-between">
-        <span>LoanLedger - Internal Collection & Loan Management System</span>
+        <span>ArthWell Micro Finance - Internal Collection & Loan Management System</span>
         <span>This is a system-generated statement.</span>
       </div>
     </div>
