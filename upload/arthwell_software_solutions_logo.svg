@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1200" viewBox="0 0 1200 1200">
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#087FCE"/>
+      <stop offset="100%" stop-color="#073B91"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#B87900"/>
+      <stop offset="48%" stop-color="#F5B914"/>
+      <stop offset="100%" stop-color="#FFD35A"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#69C92B"/>
+      <stop offset="100%" stop-color="#159447"/>
+    </linearGradient>
+  </defs>
+
+  <!-- White background -->
+  <rect width="1200" height="1200" fill="#FFFFFF"/>
+
+  <!-- Circular technology/growth arc -->
+  <path d="M315 505 A285 285 0 0 1 855 305"
+        fill="none" stroke="url(#blue)" stroke-width="25"
+        stroke-linecap="round"/>
+  <path d="M890 360 A285 285 0 0 1 875 610"
+        fill="none" stroke="url(#blue)" stroke-width="20"
+        stroke-linecap="round"/>
+
+  <!-- Stylized A -->
+  <path d="M360 665 L535 270 Q550 238 575 270 L785 690
+           L675 690 L575 505 L510 625 L445 665 Z"
+        fill="url(#blue)"/>
+  <path d="M515 555 L575 505 L625 600 L545 600 Z" fill="#FFFFFF"/>
+
+  <!-- Golden upward arrow/swoosh -->
+  <path d="M300 705
+           C390 610 500 575 610 525
+           C715 478 790 415 865 315
+           L865 390
+           L935 300
+           L935 450
+           L875 405
+           C805 505 730 565 625 615
+           C510 670 405 690 300 735 Z"
+        fill="url(#gold)"/>
+
+  <!-- Small software pixels -->
+  <rect x="500" y="690" width="34" height="34" rx="4" fill="#0A4AA0"/>
+  <rect x="555" y="655" width="34" height="34" rx="4" fill="#087FCE"/>
+  <rect x="555" y="715" width="34" height="34" rx="4" fill="#0A4AA0"/>
+  <rect x="610" y="690" width="34" height="34" rx="4" fill="#5DBB2D"/>
+
+  <!-- Wordmark -->
+  <text x="600" y="855" text-anchor="middle"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="116" font-weight="800" letter-spacing="2">
+    <tspan fill="#06449A">ARTH</tspan><tspan fill="url(#green)">WELL</tspan>
+  </text>
+
+  <!-- Accent swoosh through A of wordmark -->
+  <path d="M112 875 Q165 825 235 840 Q195 845 145 880 Z" fill="url(#green)"/>
+
+  <!-- Divider lines -->
+  <line x1="105" y1="910" x2="220" y2="910" stroke="#06449A" stroke-width="7"/>
+  <line x1="980" y1="910" x2="1095" y2="910" stroke="#62B72B" stroke-width="7"/>
+
+  <!-- Software Solutions -->
+  <text x="600" y="930" text-anchor="middle"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="43" font-weight="500" letter-spacing="5"
+        fill="#333333">SOFTWARE SOLUTIONS</text>
+
+  <!-- Tagline -->
+  <text x="600" y="995" text-anchor="middle"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="25" font-weight="500" letter-spacing="7"
+        fill="#06449A">INNOVATE</text>
+  <circle cx="510" cy="987" r="6" fill="#5DBB2D"/>
+  <text x="600" y="995" text-anchor="middle"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="25" font-weight="500" letter-spacing="7"
+        fill="#06449A" opacity="0">INNOVATE</text>
+  <text x="600" y="995" text-anchor="middle"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="25" font-weight="500" letter-spacing="7"
+        fill="#06449A">INNOVATE   •   BUILD   •   GROW</text>
+</svg>
