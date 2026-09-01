@@ -22,7 +22,7 @@ import {
   Database,
 } from 'lucide-react'
 import { useApp, canManageUsers, canManageSettings, type ViewKey } from '@/lib/store'
-import { apiFetch } from '@/lib/format'
+import { apiFetch, formatMoneyCompact } from '@/lib/format'
 import { ROLE_LABELS, ROLE_COLORS } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -121,24 +121,59 @@ function renderSidebar({
               key={item.key}
               onClick={() => navClick(item)}
               className={cn(
-                'w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                'w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors group',
                 active
                   ? 'bg-primary text-primary-foreground shadow-sm'
                   : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                 restricted && !active && 'opacity-60'
               )}
             >
-              <Icon className="h-4 w-4 shrink-0" />
+              <Icon className={cn('h-4 w-4 shrink-0 transition-transform', active ? '' : 'group-hover:scale-110')} />
               <span className="flex-1 text-left">{item.label}</span>
               {restricted && <Lock className="h-3 w-3 opacity-60" />}
             </button>
           )
         })}
       </nav>
-      <div className="border-t border-sidebar-border p-3">
+      <div className="border-t border-sidebar-border p-3 space-y-2">
         <Button onClick={() => startCollection()} className="w-full" size="sm">
-          <HandCoins className="h-4 w-4 mr-2" /> New Collection
+          <HandCoins className="h-4 w-4 mr-2" /> Quick Collection
         </Button>
+        <SidebarQuickStats />
+      </div>
+    </div>
+  )
+}
+
+function SidebarQuickStats() {
+  const [stats, setStats] = useState<{ todayCollected: number; overdueCount: number } | null>(null)
+
+  useEffect(() => {
+    let cancel = false
+    async function load() {
+      try {
+        const d = await apiFetch<{ stats: { todayCollected: number; overdueAccountCount: number } }>('/api/dashboard')
+        if (!cancel) setStats({ todayCollected: d.stats.todayCollected, overdueCount: d.stats.overdueAccountCount })
+      } catch {}
+    }
+    load()
+    const interval = setInterval(load, 60000) // refresh every minute
+    return () => { cancel = true; clearInterval(interval) }
+  }, [])
+
+  if (!stats) return null
+
+  return (
+    <div className="rounded-lg bg-sidebar-accent/60 p-2.5 space-y-1.5">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 pulse-dot" /> Today
+        </span>
+        <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatMoneyCompact(stats.todayCollected)}</span>
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Overdue</span>
+        <span className={cn('text-sm font-bold', stats.overdueCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}>{stats.overdueCount}</span>
       </div>
     </div>
   )
@@ -151,8 +186,28 @@ export function AppShell() {
   const [searchVal, setSearchVal] = useState('')
 
   useEffect(() => {
-    // keyboard nav is fine; nothing extra needed
-  }, [])
+    function onKey(e: KeyboardEvent) {
+      // Skip if user is typing in an input/textarea/select
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable) return
+      // Ctrl/Cmd + K -> New Collection
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        startCollection()
+        toast.info('Quick Collection', { description: 'Press Ctrl+K anytime to start a new collection' })
+      }
+      // 'c' -> Customers, 'd' -> Dashboard, 'r' -> Reports (single-key shortcuts)
+      if (e.key.toLowerCase() === 'c' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        setView('customers')
+      } else if (e.key.toLowerCase() === 'd' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        setView('dashboard')
+      } else if (e.key.toLowerCase() === 'r' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        setView('reports')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [startCollection, setView])
 
   async function doLogout() {
     try {
@@ -222,7 +277,12 @@ export function AppShell() {
               <Menu className="h-5 w-5" />
             </Button>
             <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-semibold truncate">{TITLES[view]}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold tracking-tight truncate">{TITLES[view]}</h1>
+              </div>
+              <p className="text-xs text-muted-foreground hidden sm:block">
+                {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+              </p>
             </div>
             <form onSubmit={onSearchSubmit} className="hidden md:flex items-center">
               <div className="relative">
@@ -301,12 +361,25 @@ export function AppShell() {
       {/* Footer */}
       <footer className="mt-auto border-t bg-sidebar/40">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 lg:px-6 py-3 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Wallet className="h-3.5 w-3.5 text-primary" />
-            <span>LoanLedger · Internal Collection & Loan Management System</span>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Wallet className="h-3.5 w-3.5 text-primary" />
+              <span>LoanLedger · Collection & Loan Management</span>
+            </div>
+            <span className="hidden sm:inline text-muted-foreground/40">·</span>
+            <span className="hidden sm:inline">Shortcuts:</span>
+            <kbd className="hidden sm:inline-flex items-center gap-1 rounded border bg-background px-1.5 py-0.5 text-[10px] font-medium">
+              Ctrl+K <span className="text-muted-foreground">Collection</span>
+            </kbd>
+            <kbd className="hidden md:inline-flex items-center gap-1 rounded border bg-background px-1.5 py-0.5 text-[10px] font-medium">
+              D <span className="text-muted-foreground">Dashboard</span>
+            </kbd>
+            <kbd className="hidden md:inline-flex items-center gap-1 rounded border bg-background px-1.5 py-0.5 text-[10px] font-medium">
+              C <span className="text-muted-foreground">Customers</span>
+            </kbd>
           </div>
           <div className="flex items-center gap-3">
-            <span>Internal Use Only — Authorized Employees</span>
+            <span>Internal Use Only</span>
             {canManageSettings(user?.role) && (
               <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={reseed} aria-label="Re-seed">
                 <Database className="h-3 w-3 mr-1" /> Re-seed

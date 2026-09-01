@@ -4,6 +4,12 @@ import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Inbox } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 export function StatCard({
   label,
@@ -11,12 +17,14 @@ export function StatCard({
   sub,
   icon: Icon,
   tone = 'default',
+  fullValue,
 }: {
   label: string
   value: string
   sub?: string
   icon: React.ComponentType<{ className?: string }>
   tone?: 'default' | 'success' | 'warning' | 'danger' | 'info'
+  fullValue?: string // optional: if value is compact, show full on hover
 }) {
   const tones: Record<string, string> = {
     default: 'bg-primary/10 text-primary',
@@ -25,16 +33,32 @@ export function StatCard({
     danger: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
     info: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
   }
+  const valueEl = (
+    <p className="mt-1.5 text-2xl font-bold tracking-tight truncate">{value}</p>
+  )
   return (
     <Card className="overflow-hidden transition-all hover:shadow-md hover:-translate-y-0.5 duration-200">
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{label}</p>
-            <p className="mt-1.5 text-2xl font-bold tracking-tight truncate">{value}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-muted-foreground/80 uppercase tracking-wide">{label}</p>
+            {fullValue && fullValue !== value ? (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="block cursor-help">{valueEl}</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <span className="font-medium">{fullValue}</span>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              valueEl
+            )}
             {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
           </div>
-          <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-110', tones[tone])}>
+          <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', tones[tone])}>
             <Icon className="h-5 w-5" />
           </div>
         </div>

@@ -248,31 +248,31 @@ export function CollectionsView() {
         ) : (
           <>
           <div className="max-h-[55vh] overflow-y-auto scroll-area">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm zebra-table">
               <thead className="bg-muted/50 sticky top-0 z-10">
                 <tr className="text-left text-xs text-muted-foreground">
-                  <th className="px-3 py-2.5 font-medium">Receipt</th>
-                  <th className="px-3 py-2.5 font-medium">Date</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Receipt</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Date</th>
                   <th className="px-3 py-2.5 font-medium">Customer</th>
-                  <th className="px-3 py-2.5 font-medium">Account</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Account</th>
                   <th className="px-3 py-2.5 font-medium text-right">Amount</th>
                   <th className="px-3 py-2.5 font-medium">Mode</th>
                   <th className="px-3 py-2.5 font-medium">Collected By</th>
-                  <th className="px-3 py-2.5 font-medium text-right">Curr. Outstanding</th>
+                  <th className="px-3 py-2.5 font-medium text-right">Outstanding</th>
                   <th className="px-3 py-2.5 font-medium">Status</th>
                   <th className="px-3 py-2.5 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedItems.map((c) => (
-                  <tr key={c.id} className="border-b last:border-0 hover:bg-muted/40">
-                    <td className="px-3 py-2.5 font-mono text-xs">{c.receiptNumber}</td>
-                    <td className="px-3 py-2.5 text-xs">{formatDateTime(c.collectionDate)}</td>
+                  <tr key={c.id} className="border-b last:border-0">
+                    <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">{c.receiptNumber}</td>
+                    <td className="px-3 py-2.5 text-xs whitespace-nowrap">{formatDateTime(c.collectionDate)}</td>
                     <td className="px-3 py-2.5">
                       <p className="font-medium">{c.customer.fullName}</p>
                       <p className="text-xs text-muted-foreground">{c.customer.customerId}</p>
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-xs">{c.account.accountNumber}</td>
+                    <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">{c.account.accountNumber}</td>
                     <td className="px-3 py-2.5 text-right font-semibold">{formatMoney(c.amount)}</td>
                     <td className="px-3 py-2.5"><Badge variant="outline">{c.paymentMode}</Badge></td>
                     <td className="px-3 py-2.5 text-xs">{c.collectedBy.name}</td>

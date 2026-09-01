@@ -10,6 +10,17 @@ export const formatMoneyPlain = (v: number | string | undefined | null): string 
   return _fmtPlain(n)
 }
 
+// Compact money format for KPI cards / tight spaces: ₹4.7L, ₹1.2Cr, ₹12.5k
+export const formatMoneyCompact = (v: number | string | undefined | null): string => {
+  const n = typeof v === 'undefined' || v === null ? 0 : Number(v)
+  if (n === 0) return '₹0'
+  const abs = Math.abs(n)
+  if (abs >= 10000000) return `₹${(n / 10000000).toFixed(2)}Cr`
+  if (abs >= 100000) return `₹${(n / 100000).toFixed(2)}L`
+  if (abs >= 1000) return `₹${(n / 1000).toFixed(1)}k`
+  return `₹${n.toFixed(0)}`
+}
+
 export const formatDate = (d: string | Date | undefined | null): string => {
   if (!d) return '—'
   const dt = new Date(d)

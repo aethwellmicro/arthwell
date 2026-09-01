@@ -198,7 +198,7 @@ export function AccountsView() {
           <EmptyState message="No accounts found." icon={Landmark} />
         ) : (
           <div className="max-h-[60vh] overflow-y-auto scroll-area">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm zebra-table">
               <thead className="bg-muted/50 sticky top-0 z-10">
                 <tr className="text-left text-xs text-muted-foreground">
                   <th className="px-3 py-2.5 font-medium">Account</th>
@@ -346,7 +346,7 @@ function AccountDetailBody({
       <div className="px-4 py-3">
         <p className="text-sm font-semibold mb-2">Installment Schedule</p>
         <div className="max-h-[40vh] overflow-y-auto scroll-area border rounded-md">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm zebra-table">
             <thead className="bg-muted/50 sticky top-0">
               <tr className="text-left text-xs text-muted-foreground">
                 <th className="px-3 py-2 font-medium">#</th>

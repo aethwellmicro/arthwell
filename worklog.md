@@ -205,3 +205,81 @@ Unresolved / Next Phase Recommendations:
 - Advanced analytics / predictive overdue
 - Bulk collection import (CSV upload)
 - Data backup/restore UI
+
+---
+Task ID: 6 — Visual QA, Polish & New Features (COMPLETED)
+Agent: main (cron review round 2)
+Task: Assess project status, perform visual QA via agent-browser + VLM, fix styling issues, add features.
+
+Work Log:
+QA Methodology: Used agent-browser for functional testing + VLM (z-ai vision) for visual design analysis of screenshots.
+
+VLM Visual Analysis Findings:
+- KPI card values were truncated with "..." for large currency values (e.g., ₹4,70,00...)
+- Sidebar "New Collection" button was redundant with the dashboard's New Collection button
+- Header title was visually weak (text-lg font-semibold)
+- Tables lacked zebra striping and hover states
+- Chart empty states had no placeholders
+- Collection table columns had awkward wrapping (receipt/date too narrow, account too wide)
+- Dialog/Drawer/Sheet/AlertDialog all produced `aria-describedby` console warnings
+
+Bug Fixes:
+1. Drawer/Sheet/AlertDialog aria warnings: added `aria-describedby={undefined}` to DrawerContent (src/components/ui/drawer.tsx), SheetContent (src/components/ui/sheet.tsx), and AlertDialogContent (src/components/ui/alert-dialog.tsx) — in addition to the DialogContent fix from round 1. All console warnings now eliminated.
+
+New Features:
+2. Compact Money Format: added `formatMoneyCompact()` to src/lib/format.ts — formats large amounts as ₹4.70L, ₹1.2Cr, ₹12.5k for KPI cards and tight spaces.
+3. KPI Card Tooltips: enhanced StatCard with optional `fullValue` prop — shows compact value normally, full amount on hover via Tooltip. Applied to all 6 money-based dashboard KPIs.
+4. Sidebar Quick Stats Widget: replaced the redundant "New Collection" button with "Quick Collection" + a live stats card showing Today's collection (with pulse-dot indicator) and Overdue count. Auto-refreshes every 60 seconds via the dashboard API.
+5. Customer Statement PDF Export: created src/components/customer-statement.tsx — a print-only branded statement with customer info, summary (payable/collected/outstanding), and complete transaction history table. Added "Statement" button to customer detail drawer. Payments now load on mount (not just when tab opened) so statement always works.
+6. Dashboard Trend Period Toggle: added 3M/6M toggle on the Collection Trend chart header — dynamically slices the trend data and updates the chart + description.
+7. Keyboard Shortcuts: added global key listener in app-shell:
+   - Ctrl/Cmd+K → New Collection (with toast hint)
+   - D → Dashboard
+   - C → Customers
+   - R → Reports
+   (skips when typing in inputs). Added kbd hints to footer.
+
+Polish / Styling:
+8. Zebra striping: added `.zebra-table` CSS class (alternating row backgrounds + primary-tinted hover). Applied to all 7 data tables across views.
+9. Header title: increased to text-xl font-bold tracking-tight, added date subtitle (weekday, day, month, year).
+10. Nav icon hover: added group-hover:scale-110 transition on sidebar nav icons.
+11. Focus ring: added global `*:focus-visible` outline styling for accessibility.
+12. Collections table: added whitespace-nowrap to receipt/date/account columns, shortened "Curr. Outstanding" to "Outstanding", removed redundant hover:bg class (now handled by zebra-table).
+
+Verification:
+- `bun run lint` — clean (0 errors).
+- agent-browser end-to-end:
+  - Login as admin → no console warnings (all aria-describedby warnings eliminated).
+  - Dashboard: KPI values show compact format (₹4.70L, ₹89.7k, ₹1.04L) with hover tooltips showing full amounts.
+  - Sidebar: "Quick Collection" button + quick stats widget (Today ₹10.5k with pulse dot, Overdue 10) visible.
+  - Trend toggle: 3M/6M buttons work — clicking 3M updates chart to "Last 3 months".
+  - Ctrl+K: opens New Collection dialog + shows toast hint.
+  - Customers → CUST-0001 detail: Edit, Statement, Collect buttons all present.
+  - Statement button: triggers print without errors.
+  - Edit dialog: opens without console warnings.
+- VLM before/after comparison confirmed: KPI truncation fixed, sidebar cleaner, tables readable with zebra striping.
+
+Stage Summary:
+- 1 bug fixed (aria warnings on Drawer/Sheet/AlertDialog).
+- 6 new features (compact money, KPI tooltips, sidebar quick stats, customer statement PDF, trend period toggle, keyboard shortcuts).
+- 5 polish improvements (zebra striping, header prominence, nav icon hover, focus ring, table column widths).
+- Lint clean, zero console warnings, all features browser-verified + VLM-confirmed.
+
+Current Project Status: POLISHED & FEATURE-RICH
+- All previous features + 6 new enhancements working.
+- Zero console warnings across all dialogs/drawers/sheets.
+- Visual quality verified by VLM analysis (before/after).
+- Keyboard shortcuts + compact money formatting improve usability.
+
+Unresolved / Next Phase Recommendations:
+- Multi-branch support (schema has no branch entity yet)
+- Real SMS gateway integration (currently simulated as 'SENT')
+- Manager approval workflow enforcement for reversals (setting exists, not enforced in UI)
+- PWA / mobile collector interface optimization
+- GPS location capture for field collections
+- Customer allocation by route/area
+- Advanced analytics / predictive overdue
+- Bulk collection import (CSV upload)
+- Data backup/restore UI
+- Pie chart label positioning (minor — VLM noted cramped labels)
+- Dynamic Y-axis scaling for trend chart (minor)

@@ -257,7 +257,7 @@ export function ReportsView() {
           <EmptyState message="No records found for the selected report / filters." icon={BarChart3} />
         ) : isGrouped && data.grouped ? (
           <div className="max-h-[55vh] overflow-y-auto scroll-area">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm zebra-table">
               <thead className="bg-muted/50 sticky top-0">
                 <tr className="text-left text-xs text-muted-foreground">
                   <th className="px-3 py-2 font-medium">{type === 'customer' ? 'Customer' : type === 'employee' ? 'Employee' : type === 'paymentmode' ? 'Mode' : type === 'accountstatus' ? 'Status' : 'Collector'}</th>
@@ -284,7 +284,7 @@ export function ReportsView() {
           </div>
         ) : isBalance ? (
           <div className="max-h-[55vh] overflow-y-auto scroll-area">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm zebra-table">
               <thead className="bg-muted/50 sticky top-0">
                 <tr className="text-left text-xs text-muted-foreground">
                   <th className="px-3 py-2 font-medium">Account</th>
@@ -317,7 +317,7 @@ export function ReportsView() {
           </div>
         ) : (
           <div className="max-h-[55vh] overflow-y-auto scroll-area">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm zebra-table">
               <thead className="bg-muted/50 sticky top-0">
                 <tr className="text-left text-xs text-muted-foreground">
                   <th className="px-3 py-2 font-medium">Receipt</th>

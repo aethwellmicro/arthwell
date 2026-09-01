@@ -27,7 +27,7 @@ import {
   Bar,
   Legend,
 } from 'recharts'
-import { apiFetch, formatMoney, formatDateTime, STATUS_COLORS } from '@/lib/format'
+import { apiFetch, formatMoney, formatMoneyCompact, formatDateTime, STATUS_COLORS } from '@/lib/format'
 import { useApp } from '@/lib/store'
 import { StatCard, SectionCard, EmptyState, LoadingRows, SkeletonCard } from '@/components/ui-bits'
 import { Card, CardContent } from '@/components/ui/card'
@@ -74,6 +74,7 @@ export function DashboardView() {
   const { startCollection, setView, openCustomer, user } = useApp()
   const [data, setData] = useState<Dashboard | null>(null)
   const [loading, setLoading] = useState(true)
+  const [trendMonths, setTrendMonths] = useState(6)
 
   useEffect(() => {
     let cancel = false
@@ -109,6 +110,7 @@ export function DashboardView() {
   const { stats } = data
   const modeData = Object.entries(data.byMode).map(([k, v]) => ({ name: k, value: v }))
   const statusData = Object.entries(data.statusBreakdown).map(([k, v]) => ({ name: k, value: v }))
+  const trendData = trendMonths === 6 ? data.trend : data.trend.slice(-Math.min(trendMonths, data.trend.length))
 
   return (
     <div className="space-y-6">
@@ -170,33 +172,57 @@ export function DashboardView() {
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
         <StatCard label="Total Customers" value={String(stats.totalCustomers)} sub={`${stats.activeCustomers} active`} icon={Users} tone="default" />
         <StatCard label="Active Accounts" value={String(stats.totalAccounts)} sub="Loans disbursed" icon={Landmark} tone="info" />
-        <StatCard label="Total Disbursed" value={formatMoney(stats.totalDisbursed)} sub="Principal amount" icon={Banknote} tone="default" />
-        <StatCard label="Total Collected" value={formatMoney(stats.totalCollected)} sub={`6-mo: ${formatMoney(stats.sixMonthCollected)}`} icon={Wallet} tone="success" />
-        <StatCard label="Total Outstanding" value={formatMoney(stats.totalOutstanding)} sub="Across all accounts" icon={TrendingUp} tone="warning" />
-        <StatCard label="Total Overdue" value={formatMoney(stats.totalOverdue)} sub={`${stats.overdueAccountCount} accounts`} icon={AlertTriangle} tone="danger" />
-        <StatCard label="Today's Collection" value={formatMoney(stats.todayCollected)} sub={`Due: ${formatMoney(stats.todayDue)}`} icon={HandCoins} tone="success" />
-        <StatCard label="Today's Pending" value={formatMoney(stats.todayPending)} sub="Remaining due today" icon={CalendarClock} tone="warning" />
+        <StatCard label="Total Disbursed" value={formatMoneyCompact(stats.totalDisbursed)} fullValue={formatMoney(stats.totalDisbursed)} sub="Principal amount" icon={Banknote} tone="default" />
+        <StatCard label="Total Collected" value={formatMoneyCompact(stats.totalCollected)} fullValue={formatMoney(stats.totalCollected)} sub={`6-mo: ${formatMoneyCompact(stats.sixMonthCollected)}`} icon={Wallet} tone="success" />
+        <StatCard label="Total Outstanding" value={formatMoneyCompact(stats.totalOutstanding)} fullValue={formatMoney(stats.totalOutstanding)} sub="Across all accounts" icon={TrendingUp} tone="warning" />
+        <StatCard label="Total Overdue" value={formatMoneyCompact(stats.totalOverdue)} fullValue={formatMoney(stats.totalOverdue)} sub={`${stats.overdueAccountCount} accounts`} icon={AlertTriangle} tone="danger" />
+        <StatCard label="Today's Collection" value={formatMoneyCompact(stats.todayCollected)} fullValue={formatMoney(stats.todayCollected)} sub={`Due: ${formatMoneyCompact(stats.todayDue)}`} icon={HandCoins} tone="success" />
+        <StatCard label="Today's Pending" value={formatMoneyCompact(stats.todayPending)} fullValue={formatMoney(stats.todayPending)} sub="Remaining due today" icon={CalendarClock} tone="warning" />
       </div>
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <SectionCard title="Collection Trend" description="Last 6 months" className="lg:col-span-2">
+        <SectionCard
+          title="Collection Trend"
+          description={`Last ${trendMonths} months`}
+          className="lg:col-span-2"
+          action={
+            <div className="flex items-center gap-1 rounded-md bg-muted p-0.5">
+              {[3, 6].map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setTrendMonths(m)}
+                  className={cn(
+                    'px-2 py-0.5 text-xs font-medium rounded transition-colors',
+                    trendMonths === m ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {m}M
+                </button>
+              ))}
+            </div>
+          }
+        >
           <div className="h-72 p-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data.trend} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="cAmt" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" />
-                <YAxis tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(v: any) => formatMoney(Number(v))} contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                <Area type="monotone" dataKey="amount" stroke="#10b981" strokeWidth={2} fill="url(#cAmt)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            {trendData.some((t) => t.amount > 0) ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trendData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="cAmt" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" />
+                  <YAxis tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip formatter={(v: any) => formatMoney(Number(v))} contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
+                  <Area type="monotone" dataKey="amount" stroke="#10b981" strokeWidth={2} fill="url(#cAmt)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState message={`No collection data for the last ${trendMonths} months.`} icon={TrendingUp} />
+            )}
           </div>
         </SectionCard>
 
@@ -266,7 +292,7 @@ export function DashboardView() {
         <SectionCard title="Today's Collections" description="Latest 10 transactions">
           <div className="max-h-96 overflow-y-auto scroll-area">
             {data.todayCollections.length ? (
-              <table className="w-full text-sm">
+              <table className="w-full text-sm zebra-table">
                 <thead className="bg-muted/50 sticky top-0">
                   <tr className="text-left text-xs text-muted-foreground">
                     <th className="px-4 py-2 font-medium">Customer</th>
@@ -302,7 +328,7 @@ export function DashboardView() {
         <SectionCard title="Overdue Accounts" description="Top follow-up targets" action={<Button variant="ghost" size="sm" onClick={() => setView('reports')}>View all<ArrowRight className="h-3 w-3 ml-1" /></Button>}>
           <div className="max-h-96 overflow-y-auto scroll-area">
             {data.overdueAccounts.length ? (
-              <table className="w-full text-sm">
+              <table className="w-full text-sm zebra-table">
                 <thead className="bg-muted/50 sticky top-0">
                   <tr className="text-left text-xs text-muted-foreground">
                     <th className="px-4 py-2 font-medium">Account</th>

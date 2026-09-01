@@ -147,6 +147,23 @@
   animation: pulse-dot 2s ease-in-out infinite;
 }
 
+/* Data table zebra striping + hover */
+.zebra-table tbody tr:nth-child(even) {
+  background-color: color-mix(in oklch, var(--muted) 30%, transparent);
+}
+.zebra-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+.zebra-table tbody tr:hover {
+  background-color: color-mix(in oklch, var(--primary) 8%, transparent);
+}
+
+/* Smooth focus ring */
+*:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
 /* Custom scrollbar */
 .scroll-area::-webkit-scrollbar {
   width: 8px;

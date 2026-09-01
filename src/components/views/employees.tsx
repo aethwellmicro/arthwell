@@ -122,7 +122,7 @@ export function EmployeesView() {
           <EmptyState message="No employees yet." icon={UserCog} />
         ) : (
           <div className="max-h-[60vh] overflow-y-auto scroll-area">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm zebra-table">
               <thead className="bg-muted/50 sticky top-0 z-10">
                 <tr className="text-left text-xs text-muted-foreground">
                   <th className="px-3 py-2.5 font-medium">Employee</th>

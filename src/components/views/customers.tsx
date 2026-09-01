@@ -13,6 +13,7 @@ import {
   HandCoins,
   Landmark,
   Pencil,
+  FileText,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatDate, STATUS_COLORS, ROLE_LABELS } from '@/lib/format'
 import { useApp } from '@/lib/store'
@@ -44,6 +45,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { SectionCard, EmptyState, LoadingRows, StatCard } from '@/components/ui-bits'
 import { Pagination } from '@/components/pagination'
+import { CustomerStatement } from '@/components/customer-statement'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -227,7 +229,7 @@ export function CustomersView() {
         ) : (
           <>
             <div className="max-h-[55vh] overflow-y-auto scroll-area">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm zebra-table">
                 <thead className="bg-muted/50 sticky top-0 z-10">
                   <tr className="text-left text-xs text-muted-foreground">
                     <th className="px-4 py-2.5 font-medium">Customer ID</th>
@@ -358,11 +360,13 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
   }, [customer.id])
 
   useEffect(() => {
-    if (tab === 'payments') {
-      setLoadingP(true)
-      apiFetch<{ items: Payment[] }>(`/api/customers/${customer.id}/payments`).then((d) => setPayments(d.items)).finally(() => setLoadingP(false))
-    }
-  }, [tab, customer.id])
+    setLoadingP(true)
+    apiFetch<{ items: Payment[] }>(`/api/customers/${customer.id}/payments`).then((d) => setPayments(d.items)).finally(() => setLoadingP(false))
+  }, [customer.id])
+
+  function printStatement() {
+    setTimeout(() => window.print(), 200)
+  }
 
   function openEdit() {
     setEditForm({
@@ -413,8 +417,9 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
         <MiniStat label="Total Payable" value={formatMoney(customer.totalPayable)} />
         <MiniStat label="Total Collected" value={formatMoney(customer.totalCollected)} tone="success" />
         <MiniStat label="Outstanding" value={formatMoney(customer.outstanding)} tone="warning" />
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-2 flex-wrap">
           <Button size="sm" variant="outline" onClick={openEdit}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
+          <Button size="sm" variant="outline" onClick={printStatement}><FileText className="h-3.5 w-3.5 mr-1" /> Statement</Button>
           <Button size="sm" onClick={onCollect}><HandCoins className="h-3.5 w-3.5 mr-1" /> Collect</Button>
         </div>
       </div>
@@ -441,7 +446,7 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
             <EmptyState message="No accounts for this customer." icon={Landmark} />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm zebra-table">
                 <thead className="bg-muted/50">
                   <tr className="text-left text-xs text-muted-foreground">
                     <th className="px-3 py-2 font-medium">Account</th>
@@ -475,7 +480,7 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
             <EmptyState message="No payment history yet." icon={HandCoins} />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm zebra-table">
                 <thead className="bg-muted/50">
                   <tr className="text-left text-xs text-muted-foreground">
                     <th className="px-3 py-2 font-medium">Date</th>
@@ -554,6 +559,24 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Print-only customer statement */}
+      <CustomerStatement
+        customer={customer}
+        totalPayable={customer.totalPayable}
+        totalCollected={customer.totalCollected}
+        outstanding={customer.outstanding}
+        entries={payments.map((p) => ({
+          date: p.collectionDate,
+          receiptNumber: p.receiptNumber,
+          accountNumber: p.accountNumber,
+          amount: p.amount,
+          paymentMode: p.paymentMode,
+          collectedBy: p.collectedBy,
+          balanceAfter: p.balanceAfter,
+          status: p.status,
+        }))}
+      />
     </div>
   )
 }
