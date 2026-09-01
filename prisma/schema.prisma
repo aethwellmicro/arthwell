@@ -53,6 +53,7 @@ model Customer {
   photoUrl        String?
   idType          String? // Aadhaar, PAN, Voter ID, etc.
   idNumber        String?
+  amount          Float    @default(0) // Loan/credit amount requested at registration
   status          String   @default("ACTIVE") // ACTIVE, CLOSED, BLOCKED
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

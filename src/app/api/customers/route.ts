@@ -102,6 +102,7 @@ export async function POST(req: Request) {
         photoUrl: body.photoUrl || null,
         idType: body.idType || null,
         idNumber: body.idNumber || null,
+        amount: parseFloat(body.amount) || 0,
         status: 'ACTIVE',
         createdById: user.id,
       },

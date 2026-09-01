@@ -752,3 +752,35 @@ Unresolved / Next Phase Recommendations:
 - Risk score / probability of default column
 - Chart drill-down: click trend chart bar to view that month's transactions
 - Inline quick-edit for corrections in collections/receipts tables
+
+---
+Task ID: 14 — Customer Amount Field (COMPLETED)
+Agent: main (user request)
+Task: Add an "amount" field to the customer registration form that is stored with the customer when creating them.
+
+Work Log:
+1. Added `amount Float @default(0)` field to the Customer model in prisma/schema.prisma.
+2. Ran `bun run db:push` to sync the schema to the database.
+3. Updated the customers API POST handler to accept and store `amount: parseFloat(body.amount) || 0`.
+4. Updated the customers API PATCH handler to allow editing the amount field.
+5. Added `amount` field to the frontend Customer interface.
+6. Added `amount: ''` to the `emptyForm` default state.
+7. Added an "Amount (₹) *" input field to the New Customer registration dialog — prominent position right after Primary Mobile, with ₹ prefix icon, type="number", min=0, step=0.01.
+8. Added the same "Amount (₹)" field to the Edit Customer dialog.
+9. Updated `openEdit()` to pre-fill the amount from the existing customer record.
+10. Added amount display in the customer detail drawer's detail items bar (with Banknote icon) and Overview tab.
+11. Updated the CustomerStatement print component to include the amount field.
+12. Updated the seed data to include amounts for all 10 demo customers (₹15,000 - ₹1,00,000).
+13. Fixed Prisma Client stale cache issue by clearing the global instance on module reload.
+14. Verified: POST /api/customers with `amount: "75000"` creates customer with `amount: 75000`. GET /api/customers returns `"amount":50000` for Lakshmi Iyer.
+
+Verification:
+- `bun run lint` — clean (0 errors).
+- API tested: customer created with `amount: 75000` (CUST-0011 "Amount Test").
+- API tested: customer GET returns `"amount":50000` for CUST-0001.
+- Database verified: `db.customer.findFirst({select:{amount:true}})` returns `{"amount":50000}`.
+
+Stage Summary:
+- Customer registration form now includes an "Amount (₹)" field that is stored with the customer record.
+- Amount is displayed in customer details, editable, included in statements, and seeded with demo data.
+- Lint clean, API verified end-to-end.

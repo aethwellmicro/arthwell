@@ -86,16 +86,16 @@ export async function main() {
 
   // Customers
   const custData = [
-    { name: 'Lakshmi Iyer', mobile: '9000010001', city: 'Bengaluru', area: 'Indiranagar', occupation: 'Tailor', ref: 'Auto Stand' },
-    { name: 'Karthik Reddy', mobile: '9000010002', city: 'Bengaluru', area: 'Whitefield', occupation: 'Electrician', ref: 'Sharma Stores' },
-    { name: 'Fatima Sheikh', mobile: '9000010003', city: 'Bengaluru', area: 'Frazer Town', occupation: 'Boutique Owner', ref: 'Community Centre' },
-    { name: 'Joseph Dsouza', mobile: '9000010004', city: 'Bengaluru', area: 'Jayanagar', occupation: 'Plumber', ref: 'Parish' },
-    { name: 'Anjali Gupta', mobile: '9000010005', city: 'Bengaluru', area: 'Koramangala', occupation: 'Tiffin Service', ref: 'Apartment Sec' },
-    { name: 'Mohan Rao', mobile: '9000010006', city: 'Bengaluru', area: 'Malleshwaram', occupation: 'Florist', ref: 'Temple' },
-    { name: 'Zara Khan', mobile: '9000010007', city: 'Bengaluru', area: 'BTM Layout', occupation: 'Beautician', ref: 'Salon' },
-    { name: 'Pradeep Nair', mobile: '9000010008', city: 'Bengaluru', area: 'HSR Layout', occupation: 'Mechanic', ref: 'Garage' },
-    { name: 'Savithri Devi', mobile: '9000010009', city: 'Bengaluru', area: 'Rajajinagar', occupation: 'Vegetable Vendor', ref: 'Market' },
-    { name: 'Imran Pasha', mobile: '9000010010', city: 'Bengaluru', area: 'Shivajinagar', occupation: 'Carpenter', ref: 'Workshop' },
+    { name: 'Lakshmi Iyer', mobile: '9000010001', city: 'Bengaluru', area: 'Indiranagar', occupation: 'Tailor', ref: 'Auto Stand', amount: 50000 },
+    { name: 'Karthik Reddy', mobile: '9000010002', city: 'Bengaluru', area: 'Whitefield', occupation: 'Electrician', ref: 'Sharma Stores', amount: 30000 },
+    { name: 'Fatima Sheikh', mobile: '9000010003', city: 'Bengaluru', area: 'Frazer Town', occupation: 'Boutique Owner', ref: 'Community Centre', amount: 100000 },
+    { name: 'Joseph Dsouza', mobile: '9000010004', city: 'Bengaluru', area: 'Jayanagar', occupation: 'Plumber', ref: 'Parish', amount: 25000 },
+    { name: 'Anjali Gupta', mobile: '9000010005', city: 'Bengaluru', area: 'Koramangala', occupation: 'Tiffin Service', ref: 'Apartment Sec', amount: 75000 },
+    { name: 'Mohan Rao', mobile: '9000010006', city: 'Bengaluru', area: 'Malleshwaram', occupation: 'Florist', ref: 'Temple', amount: 40000 },
+    { name: 'Zara Khan', mobile: '9000010007', city: 'Bengaluru', area: 'BTM Layout', occupation: 'Beautician', ref: 'Salon', amount: 60000 },
+    { name: 'Pradeep Nair', mobile: '9000010008', city: 'Bengaluru', area: 'HSR Layout', occupation: 'Mechanic', ref: 'Garage', amount: 20000 },
+    { name: 'Savithri Devi', mobile: '9000010009', city: 'Bengaluru', area: 'Rajajinagar', occupation: 'Vegetable Vendor', ref: 'Market', amount: 15000 },
+    { name: 'Imran Pasha', mobile: '9000010010', city: 'Bengaluru', area: 'Shivajinagar', occupation: 'Carpenter', ref: 'Workshop', amount: 45000 },
   ]
 
   const customers = []
@@ -116,6 +116,7 @@ export async function main() {
         referenceMobile: '9900000000',
         idType: 'Aadhaar',
         idNumber: `XXXX-XXXX-${1000 + i}`,
+        amount: c.amount,
         status: 'ACTIVE',
         createdById,
       },

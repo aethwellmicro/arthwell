@@ -21,6 +21,7 @@ interface CustomerStatementProps {
     area?: string | null
     city?: string | null
     address?: string | null
+    amount?: number | null
   }
   totalPayable: number
   totalCollected: number
@@ -68,6 +69,7 @@ export function CustomerStatement({
           <p><span className="text-gray-600">Mobile:</span> {customer.primaryMobile}</p>
         </div>
         <div className="space-y-1 text-sm">
+          <p><span className="text-gray-600">Amount:</span> <span className="font-bold">{customer.amount ? formatMoney(customer.amount) : '—'}</span></p>
           <p><span className="text-gray-600">Area:</span> {customer.area || '—'}</p>
           <p><span className="text-gray-600">City:</span> {customer.city || '—'}</p>
           <p><span className="text-gray-600">Address:</span> {customer.address || '—'}</p>

@@ -17,6 +17,7 @@ import {
   MoreVertical,
   Eye,
   FileSpreadsheet,
+  Banknote,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatMoneyCompact, formatDate, STATUS_COLORS, ROLE_LABELS, downloadCSV } from '@/lib/format'
 import { useApp } from '@/lib/store'
@@ -74,6 +75,7 @@ interface Customer {
   referenceMobile?: string | null
   idType?: string | null
   idNumber?: string | null
+  amount?: number | null
   status: string
   createdAt: string
   createdBy?: { name: string }
@@ -127,6 +129,7 @@ const emptyForm = {
   referenceMobile: '',
   idType: 'Aadhaar',
   idNumber: '',
+  amount: '',
 }
 
 export function CustomersView() {
@@ -426,6 +429,12 @@ export function CustomersView() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
             <Field label="Full Name *"><Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></Field>
             <Field label="Primary Mobile *"><Input value={form.primaryMobile} onChange={(e) => setForm({ ...form, primaryMobile: e.target.value })} /></Field>
+            <Field label="Amount (₹) *">
+              <div className="relative">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">₹</span>
+                <Input type="number" min="0" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" className="pl-7" />
+              </div>
+            </Field>
             <Field label="Alternate Mobile"><Input value={form.alternateMobile} onChange={(e) => setForm({ ...form, alternateMobile: e.target.value })} /></Field>
             <Field label="Occupation"><Input value={form.occupation} onChange={(e) => setForm({ ...form, occupation: e.target.value })} /></Field>
             <Field label="Address" full><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></Field>
@@ -523,6 +532,7 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
       referenceMobile: customer.referenceMobile || '',
       idType: customer.idType || 'Aadhaar',
       idNumber: customer.idNumber || '',
+      amount: customer.amount != null ? String(customer.amount) : '',
       status: customer.status,
     })
     setShowEdit(true)
@@ -553,7 +563,7 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
         <DetailItem icon={Phone} label="Mobile" value={customer.primaryMobile} />
         <DetailItem icon={MapPin} label="Area" value={customer.area || '—'} />
         <DetailItem icon={Briefcase} label="Occupation" value={customer.occupation || '—'} />
-        <DetailItem icon={Users} label="Customer ID" value={customer.customerId} />
+        <DetailItem icon={Banknote} label="Amount" value={customer.amount ? formatMoney(Number(customer.amount)) : '—'} />
       </div>
       <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 border-b bg-muted/20">
         <MiniStat label="Total Payable" value={formatMoney(customer.totalPayable)} />
@@ -573,6 +583,7 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
         </TabsList>
         <TabsContent value="overview" className="mt-3 pb-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <InfoRow label="Amount" value={customer.amount ? formatMoney(Number(customer.amount)) : '—'} />
             <InfoRow label="Alternate Mobile" value={customer.alternateMobile || '—'} />
             <InfoRow label="City" value={customer.city || '—'} />
             <InfoRow label="Address" value={customer.address || '—'} />
@@ -664,6 +675,12 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
             <Field label="Full Name"><Input value={editForm.fullName || ''} onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })} /></Field>
             <Field label="Primary Mobile"><Input value={editForm.primaryMobile || ''} onChange={(e) => setEditForm({ ...editForm, primaryMobile: e.target.value })} /></Field>
+            <Field label="Amount (₹)">
+              <div className="relative">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">₹</span>
+                <Input type="number" min="0" step="0.01" value={editForm.amount || ''} onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })} placeholder="0.00" className="pl-7" />
+              </div>
+            </Field>
             <Field label="Alternate Mobile"><Input value={editForm.alternateMobile || ''} onChange={(e) => setEditForm({ ...editForm, alternateMobile: e.target.value })} /></Field>
             <Field label="Occupation"><Input value={editForm.occupation || ''} onChange={(e) => setEditForm({ ...editForm, occupation: e.target.value })} /></Field>
             <Field label="Address" full><Input value={editForm.address || ''} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} /></Field>

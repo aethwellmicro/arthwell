@@ -46,6 +46,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     for (const k of ['fullName', 'primaryMobile', 'alternateMobile', 'address', 'city', 'area', 'occupation', 'referenceName', 'referenceMobile', 'photoUrl', 'idType', 'idNumber', 'status']) {
       if (body[k] !== undefined) data[k] = body[k] === '' ? null : body[k]
     }
+    if (body.amount !== undefined) data.amount = parseFloat(body.amount) || 0
     const updated = await db.customer.update({ where: { id }, data })
     await logAudit({ user, action: 'UPDATE', entity: 'CUSTOMER', entityId: id, oldValue: existing, newValue: data })
     return json(updated)
