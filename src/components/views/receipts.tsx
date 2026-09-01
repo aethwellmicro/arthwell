@@ -1,12 +1,19 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
-import { ReceiptText, Search, Printer, Eye } from 'lucide-react'
-import { apiFetch, formatMoney, formatDateTime, STATUS_COLORS, formatDateInput } from '@/lib/format'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { ReceiptText, Search, Printer, Eye, RefreshCw, FileSpreadsheet } from 'lucide-react'
+import { apiFetch, formatMoney, formatDateTime, STATUS_COLORS, downloadCSV } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -39,26 +46,52 @@ export function ReceiptsView() {
   const [items, setItems] = useState<Receipt[]>([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [paymentMode, setPaymentMode] = useState('ALL')
+  const [statusFilter, setStatusFilter] = useState('ALL')
   const [view, setView] = useState<Receipt | null>(null)
   const receiptRef = useRef<HTMLDivElement>(null)
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
       const data = await apiFetch<{ items: Receipt[] }>(`/api/collections?limit=500`)
       let filtered = data.items
-      if (q) filtered = filtered.filter((r) => r.receiptNumber.toLowerCase().includes(q.toLowerCase()) || r.customer.fullName.toLowerCase().includes(q.toLowerCase()))
+      if (q) {
+        const ql = q.toLowerCase()
+        filtered = filtered.filter((r) =>
+          r.receiptNumber.toLowerCase().includes(ql) ||
+          r.customer.fullName.toLowerCase().includes(ql) ||
+          r.customer.primaryMobile.includes(q) ||
+          r.account.accountNumber.toLowerCase().includes(ql)
+        )
+      }
+      if (from) {
+        const fd = new Date(from)
+        filtered = filtered.filter((r) => new Date(r.collectionDate) >= fd)
+      }
+      if (to) {
+        const td = new Date(to + 'T23:59:59')
+        filtered = filtered.filter((r) => new Date(r.collectionDate) <= td)
+      }
+      if (paymentMode !== 'ALL') {
+        filtered = filtered.filter((r) => r.paymentMode === paymentMode)
+      }
+      if (statusFilter !== 'ALL') {
+        filtered = filtered.filter((r) => r.status === statusFilter)
+      }
       setItems(filtered)
     } catch (e: any) {
       toast.error(e.message)
     } finally {
       setLoading(false)
     }
-  }
+  }, [q, from, to, paymentMode, statusFilter])
 
   useEffect(() => {
     load()
-  }, [q])
+  }, [load])
 
   async function printReceipt(r: Receipt) {
     try {
@@ -67,17 +100,97 @@ export function ReceiptsView() {
     const full = await apiFetch<any>(`/api/collections/${r.id}`)
     setView(full)
     setTimeout(() => window.print(), 300)
+    load() // refresh print count
   }
+
+  function exportCSV() {
+    if (!items.length) return toast.info('No receipts to export')
+    downloadCSV(`receipts-${new Date().toISOString().slice(0, 10)}.csv`, items.map((r) => ({
+      receiptNumber: r.receiptNumber,
+      date: formatDateTime(r.collectionDate),
+      customer: r.customer.fullName,
+      customerId: r.customer.customerId,
+      mobile: r.customer.primaryMobile,
+      account: r.account.accountNumber,
+      amount: r.amount,
+      paymentMode: r.paymentMode,
+      collectedBy: r.collectedBy.name,
+      status: r.status,
+      printCount: r.receipt?.printCount ?? 0,
+    })))
+    toast.success('Exported to CSV')
+  }
+
+  const totalAmount = items.reduce((s, r) => s + (r.status === 'SUCCESSFUL' ? r.amount : 0), 0)
+  const totalPrints = items.reduce((s, r) => s + (r.receipt?.printCount ?? 0), 0)
 
   return (
     <div className="space-y-4">
+      {/* Filter bar */}
       <div className="flex flex-wrap items-end gap-3">
-        <div className="flex-1 min-w-[240px] relative">
+        <div className="flex-1 min-w-[200px] relative">
           <Label className="text-xs text-muted-foreground">Search</Label>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Receipt no. or customer name…" className="pl-8" />
+            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Receipt no, customer, mobile, account…" className="pl-8" />
           </div>
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground">From</Label>
+          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-[140px]" />
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground">To</Label>
+          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-[140px]" />
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground">Mode</Label>
+          <Select value={paymentMode} onValueChange={setPaymentMode}>
+            <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All</SelectItem>
+              <SelectItem value="CASH">Cash</SelectItem>
+              <SelectItem value="UPI">UPI</SelectItem>
+              <SelectItem value="BANK">Bank</SelectItem>
+              <SelectItem value="OTHER">Other</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground">Status</Label>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All</SelectItem>
+              <SelectItem value="SUCCESSFUL">Successful</SelectItem>
+              <SelectItem value="REVERSED">Reversed</SelectItem>
+              <SelectItem value="CANCELLED">Cancelled</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="ml-auto flex gap-2">
+          <Button variant="outline" onClick={load} disabled={loading}>
+            <RefreshCw className={cn('h-4 w-4 mr-1', loading && 'animate-spin')} /> Refresh
+          </Button>
+          <Button variant="outline" onClick={exportCSV} disabled={!items.length}>
+            <FileSpreadsheet className="h-4 w-4 mr-1" /> Export
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-lg border bg-card p-3">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Receipts</p>
+          <p className="text-lg font-bold">{items.length}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-3">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Amount</p>
+          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{formatMoney(totalAmount)}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-3">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Prints</p>
+          <p className="text-lg font-bold">{totalPrints}</p>
         </div>
       </div>
 
@@ -85,36 +198,38 @@ export function ReceiptsView() {
         {loading ? (
           <LoadingRows rows={6} />
         ) : items.length === 0 ? (
-          <EmptyState message="No receipts found." icon={ReceiptText} />
+          <EmptyState message="No receipts found for the selected filters." icon={ReceiptText} />
         ) : (
           <div className="max-h-[60vh] overflow-y-auto scroll-area">
             <table className="w-full text-sm zebra-table">
               <thead className="bg-muted/50 sticky top-0 z-10">
                 <tr className="text-left text-xs text-muted-foreground">
-                  <th className="px-3 py-2.5 font-medium">Receipt No</th>
-                  <th className="px-3 py-2.5 font-medium">Date</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Receipt No</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Date</th>
                   <th className="px-3 py-2.5 font-medium">Customer</th>
-                  <th className="px-3 py-2.5 font-medium">Account</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Account</th>
                   <th className="px-3 py-2.5 font-medium text-right">Amount</th>
                   <th className="px-3 py-2.5 font-medium">Mode</th>
                   <th className="px-3 py-2.5 font-medium">Collector</th>
+                  <th className="px-3 py-2.5 font-medium">Status</th>
                   <th className="px-3 py-2.5 font-medium text-center">Prints</th>
                   <th className="px-3 py-2.5 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((r) => (
-                  <tr key={r.id} className="border-b last:border-0 hover:bg-muted/40">
-                    <td className="px-3 py-2.5 font-mono text-xs">{r.receiptNumber}</td>
-                    <td className="px-3 py-2.5 text-xs">{formatDateTime(r.collectionDate)}</td>
+                  <tr key={r.id} className="border-b last:border-0">
+                    <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">{r.receiptNumber}</td>
+                    <td className="px-3 py-2.5 text-xs whitespace-nowrap">{formatDateTime(r.collectionDate)}</td>
                     <td className="px-3 py-2.5">
                       <p className="font-medium">{r.customer.fullName}</p>
                       <p className="text-xs text-muted-foreground">{r.customer.customerId}</p>
                     </td>
-                    <td className="px-3 py-2.5 font-mono text-xs">{r.account.accountNumber}</td>
+                    <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">{r.account.accountNumber}</td>
                     <td className="px-3 py-2.5 text-right font-semibold">{formatMoney(r.amount)}</td>
                     <td className="px-3 py-2.5"><Badge variant="outline">{r.paymentMode}</Badge></td>
                     <td className="px-3 py-2.5 text-xs">{r.collectedBy.name}</td>
+                    <td className="px-3 py-2.5"><Badge className={cn(STATUS_COLORS[r.status])}>{r.status}</Badge></td>
                     <td className="px-3 py-2.5 text-center text-xs">{r.receipt?.printCount ?? 0}</td>
                     <td className="px-3 py-2.5">
                       <div className="flex justify-end gap-1">

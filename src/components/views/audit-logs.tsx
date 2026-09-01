@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { ScrollText, ChevronDown, ChevronRight, Search } from 'lucide-react'
-import { apiFetch, formatDateTime } from '@/lib/format'
+import { useEffect, useState, useCallback } from 'react'
+import { ScrollText, ChevronDown, ChevronRight, Search, RefreshCw, FileSpreadsheet } from 'lucide-react'
+import { apiFetch, formatDateTime, formatRelativeTime, downloadCSV } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -40,6 +40,24 @@ const ACTION_COLORS: Record<string, string> = {
   LOGOUT: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
 }
 
+const ACTION_BORDERS: Record<string, string> = {
+  CREATE: 'border-l-emerald-500',
+  UPDATE: 'border-l-teal-500',
+  DELETE: 'border-l-red-500',
+  REVERSE: 'border-l-amber-500',
+  LOGIN: 'border-l-slate-400',
+  LOGOUT: 'border-l-slate-400',
+}
+
+const ACTION_ICONS: Record<string, any> = {
+  CREATE: '➕',
+  UPDATE: '✏️',
+  DELETE: '🗑️',
+  REVERSE: '↩️',
+  LOGIN: '🔑',
+  LOGOUT: '🚪',
+}
+
 export function AuditLogsView() {
   const [items, setItems] = useState<AuditLog[]>([])
   const [loading, setLoading] = useState(true)
@@ -47,12 +65,12 @@ export function AuditLogsView() {
   const [entity, setEntity] = useState('ALL')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
+  const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(25)
-  const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize)
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({ limit: '300' })
@@ -68,11 +86,28 @@ export function AuditLogsView() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [action, entity, from, to])
 
   useEffect(() => {
     load()
-  }, [action, entity, from, to])
+  }, [load])
+
+  // client-side search filter
+  const filteredItems = search
+    ? items.filter((l) => {
+        const q = search.toLowerCase()
+        return (
+          (l.user?.name || '').toLowerCase().includes(q) ||
+          l.action.toLowerCase().includes(q) ||
+          l.entity.toLowerCase().includes(q) ||
+          (l.reason || '').toLowerCase().includes(q) ||
+          (l.newValue || '').toLowerCase().includes(q) ||
+          (l.entityId || '').toLowerCase().includes(q)
+        )
+      })
+    : items
+
+  const paginatedItems = filteredItems.slice((page - 1) * pageSize, page * pageSize)
 
   function prettyJson(s?: string | null) {
     if (!s) return null
@@ -83,9 +118,33 @@ export function AuditLogsView() {
     }
   }
 
+  function exportCSV() {
+    if (!filteredItems.length) return toast.info('No audit logs to export')
+    downloadCSV(`audit-logs-${new Date().toISOString().slice(0, 10)}.csv`, filteredItems.map((l) => ({
+      timestamp: formatDateTime(l.createdAt),
+      user: l.user?.name || 'system',
+      email: l.user?.email || '',
+      role: l.user?.role || '',
+      action: l.action,
+      entity: l.entity,
+      entityId: l.entityId || '',
+      reason: l.reason || '',
+      oldValue: l.oldValue || '',
+      newValue: l.newValue || '',
+    })))
+    toast.success('Exported to CSV')
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
+        <div className="flex-1 min-w-[200px] relative">
+          <Label className="text-xs text-muted-foreground">Search</Label>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }} placeholder="Search user, entity, reason…" className="pl-8" />
+          </div>
+        </div>
         <div>
           <Label className="text-xs text-muted-foreground">Action</Label>
           <Select value={action} onValueChange={setAction}>
@@ -125,12 +184,20 @@ export function AuditLogsView() {
           <Label className="text-xs text-muted-foreground">To</Label>
           <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-[150px]" />
         </div>
+        <div className="ml-auto flex gap-2">
+          <Button variant="outline" onClick={load} disabled={loading}>
+            <RefreshCw className={cn('h-4 w-4 mr-1', loading && 'animate-spin')} /> Refresh
+          </Button>
+          <Button variant="outline" onClick={exportCSV} disabled={!filteredItems.length}>
+            <FileSpreadsheet className="h-4 w-4 mr-1" /> Export
+          </Button>
+        </div>
       </div>
 
-      <SectionCard title={`Audit Logs (${items.length})`} description="Complete chronological activity trail">
+      <SectionCard title={`Audit Logs (${filteredItems.length})`} description="Complete chronological activity trail">
         {loading ? (
           <LoadingRows rows={6} />
-        ) : items.length === 0 ? (
+        ) : filteredItems.length === 0 ? (
           <EmptyState message="No audit entries for the selected filters." icon={ScrollText} />
         ) : (
           <>
@@ -141,7 +208,7 @@ export function AuditLogsView() {
               const newJ = prettyJson(l.newValue)
               const hasDetail = !!(oldJ || newJ || l.reason)
               return (
-                <div key={l.id} className="px-4 py-2.5 hover:bg-muted/40">
+                <div key={l.id} className={cn('px-4 py-2.5 hover:bg-muted/40 border-l-4', ACTION_BORDERS[l.action] || 'border-l-slate-300')}>
                   <button
                     className="w-full flex items-center gap-3 text-left"
                     onClick={() => setExpanded(hasDetail ? (isOpen ? null : l.id) : null)}
@@ -149,14 +216,17 @@ export function AuditLogsView() {
                     {hasDetail ? (
                       isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                     ) : <span className="w-4" />}
+                    <span className="text-base shrink-0" aria-hidden>{ACTION_ICONS[l.action] || '•'}</span>
                     <Badge className={cn(ACTION_COLORS[l.action] || 'bg-slate-200 text-slate-700')}>{l.action}</Badge>
                     <Badge variant="outline">{l.entity}</Badge>
-                    {l.entityId && <span className="font-mono text-xs text-muted-foreground">{l.entityId.slice(0, 12)}</span>}
+                    {l.entityId && <span className="font-mono text-xs text-muted-foreground hidden md:inline">{l.entityId.slice(0, 12)}</span>}
                     <span className="text-sm flex-1 truncate">
                       {l.reason || (newJ ? newJ.slice(0, 80) : l.action.toLowerCase() + ' ' + l.entity.toLowerCase())}
                     </span>
                     <span className="text-xs text-muted-foreground hidden sm:block">{l.user?.name || 'system'}</span>
-                    <span className="text-xs text-muted-foreground">{formatDateTime(l.createdAt)}</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap" title={formatDateTime(l.createdAt)}>
+                      {formatRelativeTime(l.createdAt)}
+                    </span>
                   </button>
                   {isOpen && hasDetail && (
                     <div className="mt-2 ml-7 grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -183,11 +253,11 @@ export function AuditLogsView() {
               )
             })}
           </div>
-          {items.length > pageSize && (
+          {filteredItems.length > pageSize && (
             <Pagination
               page={page}
               pageSize={pageSize}
-              total={items.length}
+              total={filteredItems.length}
               onPageChange={setPage}
               onPageSizeChange={(s) => { setPageSize(s); setPage(1) }}
             />

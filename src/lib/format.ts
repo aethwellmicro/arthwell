@@ -59,6 +59,25 @@ export const todayInput = (): string => {
   return new Date().toISOString().slice(0, 10)
 }
 
+// Relative time: "2h ago", "3d ago", "just now"
+export const formatRelativeTime = (d: string | Date | undefined | null): string => {
+  if (!d) return '—'
+  const dt = new Date(d)
+  if (isNaN(dt.getTime())) return '—'
+  const diff = Date.now() - dt.getTime()
+  const sec = Math.floor(diff / 1000)
+  if (sec < 60) return 'just now'
+  const min = Math.floor(sec / 60)
+  if (min < 60) return `${min}m ago`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `${hr}h ago`
+  const day = Math.floor(hr / 24)
+  if (day < 7) return `${day}d ago`
+  const wk = Math.floor(day / 7)
+  if (wk < 4) return `${wk}w ago`
+  return formatDate(d)
+}
+
 export async function apiFetch<T = any>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     credentials: 'same-origin',

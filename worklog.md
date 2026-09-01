@@ -283,3 +283,77 @@ Unresolved / Next Phase Recommendations:
 - Data backup/restore UI
 - Pie chart label positioning (minor — VLM noted cramped labels)
 - Dynamic Y-axis scaling for trend chart (minor)
+
+---
+Task ID: 7 — Bug Fix, View Enhancements & Polish (COMPLETED)
+Agent: main (cron review round 3)
+Task: Assess project status, perform QA via agent-browser + VLM, fix bugs, enhance views, add features.
+
+Work Log:
+QA Methodology: Used agent-browser for functional testing + VLM (z-ai vision) for visual design analysis of notifications, audit logs, and dashboard screenshots.
+
+Bug Fixes:
+1. Notifications amount display bug: `formatDate(n.collection.amount)` was passing a number to formatDate — produced garbage like "01 Jan 5500". Fixed to `formatMoney(Number(n.collection.amount))` showing proper "₹5,500.00". Removed unused formatDate import, added formatMoney import.
+
+New Features:
+2. Relative Time Helper: added `formatRelativeTime()` to src/lib/format.ts — formats as "just now", "5m ago", "3h ago", "2d ago", "1w ago", or full date for older. Used in notifications and audit logs.
+3. Notifications View Complete Revamp:
+   - Type-specific icons (CheckCircle2 for payment, CalendarClock for due, AlertTriangle for overdue, PartyPopper for completion).
+   - Left-border color coding by status (emerald=sent, amber=pending, red=failed).
+   - Relative time display with full timestamp on hover (title attribute).
+   - Stats bar (Total / Sent / Pending / Failed counts).
+   - Date range filter (from/to).
+   - Search filter (message, recipient, receipt number).
+   - Refresh + Export CSV buttons.
+   - Better message hierarchy (type label bold, message prominent, recipient muted).
+4. Audit Logs View Enhancements:
+   - Search filter (user, entity, reason, newValue, entityId).
+   - Refresh button with spin animation.
+   - Export CSV (timestamp, user, email, role, action, entity, reason, old/new values).
+   - Action emoji icons (➕ CREATE, ✏️ UPDATE, 🗑️ DELETE, ↩️ REVERSE, 🔑 LOGIN, 🚪 LOGOUT).
+   - Left-border color coding by action (emerald/teal/red/amber/slate).
+   - Relative time with full timestamp on hover.
+   - Pagination now uses filteredItems count.
+5. Receipts View Complete Revamp:
+   - Comprehensive filters: search, date range (from/to), payment mode, status.
+   - Stats bar (Total Receipts, Total Amount, Total Prints).
+   - Refresh + Export CSV buttons.
+   - Added Status column (was missing).
+   - whitespace-nowrap on receipt/date/account columns.
+   - Print count refreshes after printing.
+6. Dashboard Refresh Button: added manual refresh button (ghost icon) in the quick actions bar with spinning animation during refresh. Extracted loadDashboard function.
+7. Dashboard Pie Chart Improvement: replaced cramped inline labels with a donut chart (innerRadius=35) + separate legend below showing colored dots + status name + count. Much more readable.
+
+Verification:
+- `bun run lint` — clean (0 errors).
+- agent-browser end-to-end:
+  - Login as admin → no console warnings.
+  - Dashboard: refresh button works (spin animation), pie chart shows donut + legend "ACTIVE 9, OVERDUE 1".
+  - Notifications: receipts now show "₹5,500.00" (bug fixed), relative time "1h ago", type-specific icons, left-border colors, stats bar (Total/Sent/Pending/Failed), search + date filters, export CSV.
+  - Audit Logs: search filter, refresh button, export CSV (toast "Exported to CSV"), action emoji icons, left-border colors, relative time "1m ago".
+  - Receipts: filters (mode/status/date range/search), stats bar, refresh + export buttons, status column.
+- VLM verification confirmed: pie chart readable with legend, refresh button visible, no critical issues.
+
+Stage Summary:
+- 1 bug fixed (notifications amount display).
+- 6 view enhancements (relative time, notifications revamp, audit logs enhancements, receipts revamp, dashboard refresh, pie chart legend).
+- Lint clean, zero console warnings, all features browser-verified + VLM-confirmed.
+
+Current Project Status: ENHANCED & POLISHED (Round 3)
+- All views now have consistent filter/search/refresh/export patterns.
+- Relative time + left-border color coding applied to notifications + audit logs.
+- Dashboard has manual refresh + improved chart readability.
+- Zero console warnings across all components.
+
+Unresolved / Next Phase Recommendations:
+- Multi-branch support (schema has no branch entity yet)
+- Real SMS gateway integration (currently simulated as 'SENT')
+- Manager approval workflow enforcement for reversals (setting exists, not enforced in UI)
+- PWA / mobile collector interface optimization
+- GPS location capture for field collections
+- Customer allocation by route/area
+- Advanced analytics / predictive overdue
+- Bulk collection import (CSV upload)
+- Data backup/restore UI
+- Standardize pie chart legend font sizes (minor — VLM noted)
+- Add hover tooltips on pie segments for percentages (minor)

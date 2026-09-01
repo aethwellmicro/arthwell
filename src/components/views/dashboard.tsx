@@ -11,6 +11,7 @@ import {
   CalendarClock,
   HandCoins,
   ArrowRight,
+  RefreshCw,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -74,22 +75,24 @@ export function DashboardView() {
   const { startCollection, setView, openCustomer, user } = useApp()
   const [data, setData] = useState<Dashboard | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [trendMonths, setTrendMonths] = useState(6)
 
-  useEffect(() => {
-    let cancel = false
-    ;(async () => {
-      try {
-        const d = await apiFetch<Dashboard>('/api/dashboard')
-        if (!cancel) setData(d)
-      } catch (e: any) {
-      } finally {
-        if (!cancel) setLoading(false)
-      }
-    })()
-    return () => {
-      cancel = true
+  const loadDashboard = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true)
+    else setLoading(true)
+    try {
+      const d = await apiFetch<Dashboard>('/api/dashboard')
+      setData(d)
+    } catch (e: any) {
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
     }
+  }
+
+  useEffect(() => {
+    loadDashboard()
   }, [])
 
   if (loading) {
@@ -124,6 +127,9 @@ export function DashboardView() {
         </Button>
         <Button variant="outline" onClick={() => setView('reports')}>
           View Reports <ArrowRight className="h-4 w-4 ml-2" />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={() => loadDashboard(true)} disabled={refreshing} aria-label="Refresh dashboard" className="ml-auto">
+          <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
         </Button>
       </div>
 
@@ -268,18 +274,29 @@ export function DashboardView() {
         </SectionCard>
 
         <SectionCard title="Account Status" description="Distribution">
-          <div className="h-64 p-4">
+          <div className="h-64 p-4 flex flex-col items-center">
             {statusData.length ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={(e) => `${e.name}: ${e.value}`} labelLine={false} style={{ fontSize: 11 }}>
-                    {statusData.map((_, i) => (
-                      <Cell key={i} fill={STATUS_PIE_COLORS[i % STATUS_PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                </PieChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height="70%">
+                  <PieChart>
+                    <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} innerRadius={35} paddingAngle={2}>
+                      {statusData.map((_, i) => (
+                        <Cell key={i} fill={STATUS_PIE_COLORS[i % STATUS_PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex flex-wrap gap-2 justify-center mt-2">
+                  {statusData.map((s, i) => (
+                    <div key={i} className="flex items-center gap-1.5 text-xs">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: STATUS_PIE_COLORS[i % STATUS_PIE_COLORS.length] }} />
+                      <span className="text-muted-foreground">{s.name}</span>
+                      <span className="font-semibold">{s.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
             ) : (
               <EmptyState message="No accounts yet." />
             )}
