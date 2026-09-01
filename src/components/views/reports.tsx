@@ -1,0 +1,307 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import {
+  BarChart3,
+  Calendar,
+  FileSpreadsheet,
+  Printer,
+  Users,
+  UserCog,
+  CreditCard,
+  AlertTriangle,
+  Landmark,
+  Scale,
+} from 'lucide-react'
+import { apiFetch, formatMoney, formatDate, formatDateTime, STATUS_COLORS, ROLE_LABELS, downloadCSV } from '@/lib/format'
+import { useApp } from '@/lib/store'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { SectionCard, EmptyState, LoadingRows, StatCard } from '@/components/ui-bits'
+import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+
+type ReportType =
+  | 'daily' | 'weekly' | 'monthly' | 'sixmonthly' | 'yearly'
+  | 'customer' | 'employee' | 'paymentmode'
+  | 'outstanding' | 'overdue' | 'accountstatus' | 'reconciliation'
+
+const REPORTS: { key: ReportType; label: string; icon: any; group: string }[] = [
+  { key: 'daily', label: 'Daily', icon: Calendar, group: 'Period' },
+  { key: 'weekly', label: 'Weekly', icon: Calendar, group: 'Period' },
+  { key: 'monthly', label: 'Monthly', icon: Calendar, group: 'Period' },
+  { key: 'sixmonthly', label: 'Six-Month', icon: Calendar, group: 'Period' },
+  { key: 'yearly', label: 'Yearly', icon: Calendar, group: 'Period' },
+  { key: 'customer', label: 'Customer-wise', icon: Users, group: 'Group' },
+  { key: 'employee', label: 'Employee-wise', icon: UserCog, group: 'Group' },
+  { key: 'paymentmode', label: 'Payment Mode', icon: CreditCard, group: 'Group' },
+  { key: 'outstanding', label: 'Outstanding', icon: Landmark, group: 'Balance' },
+  { key: 'overdue', label: 'Overdue', icon: AlertTriangle, group: 'Balance' },
+  { key: 'accountstatus', label: 'Account Status', icon: BarChart3, group: 'Status' },
+  { key: 'reconciliation', label: 'Reconciliation', icon: Scale, group: 'Status' },
+]
+
+export function ReportsView() {
+  const [type, setType] = useState<ReportType>('daily')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [employeeId, setEmployeeId] = useState('')
+  const [paymentMode, setPaymentMode] = useState('ALL')
+  const [statusFilter, setStatusFilter] = useState('SUCCESSFUL')
+  const [area, setArea] = useState('')
+  const [employees, setEmployees] = useState<any[]>([])
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    apiFetch<{ items: any[] }>('/api/employees').then((d) => setEmployees(d.items)).catch(() => {})
+  }, [])
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({ type })
+      if (from) params.set('from', from)
+      if (to) params.set('to', to + 'T23:59:59')
+      if (employeeId) params.set('employeeId', employeeId)
+      if (paymentMode !== 'ALL') params.set('paymentMode', paymentMode)
+      if (statusFilter !== 'ALL') params.set('status', statusFilter)
+      if (area) params.set('area', area)
+      const d = await apiFetch<any>(`/api/reports?${params}`)
+      setData(d)
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    load()
+  }, [type, from, to, employeeId, paymentMode, statusFilter, area])
+
+  function exportCSV() {
+    if (!data) return
+    const rows = (data.items || []).map((it: any) => {
+      const o: any = {}
+      for (const [k, v] of Object.entries(it)) {
+        if (v instanceof Date) o[k] = formatDate(v)
+        else if (typeof v === 'object' && v !== null) o[k] = JSON.stringify(v)
+        else o[k] = v
+      }
+      return o
+    })
+    downloadCSV(`${type}-report-${new Date().toISOString().slice(0, 10)}.csv`, rows)
+    toast.success('Exported to CSV')
+  }
+
+  function printReport() {
+    window.print()
+  }
+
+  const report = REPORTS.find((r) => r.key === type)!
+  const isBalance = type === 'outstanding' || type === 'overdue'
+  const isGrouped = type === 'customer' || type === 'employee' || type === 'paymentmode' || type === 'accountstatus' || type === 'reconciliation'
+  const showDateFilters = !isBalance && type !== 'accountstatus'
+
+  return (
+    <div className="space-y-4">
+      {/* Report type selector */}
+      <div className="flex flex-wrap gap-1.5 no-print">
+        {REPORTS.map((r) => {
+          const Icon = r.icon
+          return (
+            <Button
+              key={r.key}
+              variant={type === r.key ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setType(r.key)}
+              className="gap-1.5"
+            >
+              <Icon className="h-3.5 w-3.5" /> {r.label}
+            </Button>
+          )
+        })}
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-end gap-3 no-print">
+        {showDateFilters && (
+          <>
+            <div>
+              <Label className="text-xs text-muted-foreground">From</Label>
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-[150px]" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">To</Label>
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-[150px]" />
+            </div>
+          </>
+        )}
+        {type !== 'employee' && type !== 'accountstatus' && (
+          <div>
+            <Label className="text-xs text-muted-foreground">Employee</Label>
+            <Select value={employeeId || 'ALL'} onValueChange={(v) => setEmployeeId(v === 'ALL' ? '' : v)}>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="All" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All</SelectItem>
+                {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        {(type === 'daily' || type === 'weekly' || type === 'monthly' || type === 'sixmonthly' || type === 'yearly' || type === 'customer' || type === 'employee' || type === 'paymentmode' || type === 'reconciliation') && (
+          <div>
+            <Label className="text-xs text-muted-foreground">Payment Mode</Label>
+            <Select value={paymentMode} onValueChange={setPaymentMode}>
+              <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All</SelectItem>
+                <SelectItem value="CASH">Cash</SelectItem>
+                <SelectItem value="UPI">UPI</SelectItem>
+                <SelectItem value="BANK">Bank</SelectItem>
+                <SelectItem value="OTHER">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        {type === 'outstanding' || type === 'overdue' ? (
+          <div>
+            <Label className="text-xs text-muted-foreground">Area</Label>
+            <Input value={area} onChange={(e) => setArea(e.target.value)} placeholder="Area filter" className="w-[140px]" />
+          </div>
+        ) : null}
+        <div className="ml-auto flex gap-2">
+          <Button variant="outline" onClick={exportCSV} disabled={!data}><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
+          <Button variant="outline" onClick={printReport} disabled={!data}><Printer className="h-4 w-4 mr-1" /> PDF</Button>
+        </div>
+      </div>
+
+      {/* Summary */}
+      {data?.summary && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard label="Total Amount" value={formatMoney(data.summary.total || 0)} sub={`${data.summary.count || 0} records`} icon={BarChart3} />
+          <StatCard label="Cash" value={formatMoney(data.summary.cashTotal || 0)} icon={CreditCard} tone="success" />
+          <StatCard label="UPI" value={formatMoney(data.summary.upiTotal || 0)} icon={CreditCard} tone="info" />
+          <StatCard label="Bank" value={formatMoney(data.summary.bankTotal || 0)} icon={CreditCard} tone="default" />
+          {isBalance && (
+            <>
+              <StatCard label={type === 'overdue' ? 'Overdue Total' : 'Outstanding Total'} value={formatMoney(data.summary.total || 0)} icon={AlertTriangle} tone="warning" />
+              <StatCard label="Accounts" value={String(data.summary.count || 0)} icon={Landmark} />
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Data table */}
+      <SectionCard title={report.label + ' Report'} description={data?.summary ? `From ${formatDate(data.summary.dateFrom)} to ${formatDate(data.summary.dateTo)}` : undefined}>
+        {loading ? (
+          <LoadingRows rows={6} />
+        ) : !data || !data.items || data.items.length === 0 ? (
+          <EmptyState message="No records found for the selected report / filters." icon={BarChart3} />
+        ) : isGrouped && data.grouped ? (
+          <div className="max-h-[55vh] overflow-y-auto scroll-area">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 sticky top-0">
+                <tr className="text-left text-xs text-muted-foreground">
+                  <th className="px-3 py-2 font-medium">{type === 'customer' ? 'Customer' : type === 'employee' ? 'Employee' : type === 'paymentmode' ? 'Mode' : type === 'accountstatus' ? 'Status' : 'Collector'}</th>
+                  <th className="px-3 py-2 font-medium text-right">Count</th>
+                  <th className="px-3 py-2 font-medium text-right">Total Amount</th>
+                  {type === 'accountstatus' && <th className="px-3 py-2 font-medium text-right">Disbursed</th>}
+                  {type === 'accountstatus' && <th className="px-3 py-2 font-medium text-right">Payable</th>}
+                  {type === 'reconciliation' && <><th className="px-3 py-2 font-medium text-right">Cash</th><th className="px-3 py-2 font-medium text-right">UPI</th><th className="px-3 py-2 font-medium text-right">Bank</th></>}
+                </tr>
+              </thead>
+              <tbody>
+                {data.grouped.map((g: any, i: number) => (
+                  <tr key={i} className="border-b last:border-0 hover:bg-muted/40">
+                    <td className="px-3 py-2 font-medium">{g.key}</td>
+                    <td className="px-3 py-2 text-right">{g.count}</td>
+                    <td className="px-3 py-2 text-right font-semibold">{formatMoney(g.total || g.payable || 0)}</td>
+                    {type === 'accountstatus' && <td className="px-3 py-2 text-right">{formatMoney(g.disbursed || 0)}</td>}
+                    {type === 'accountstatus' && <td className="px-3 py-2 text-right">{formatMoney(g.payable || 0)}</td>}
+                    {type === 'reconciliation' && <><td className="px-3 py-2 text-right">{formatMoney(g.cash || 0)}</td><td className="px-3 py-2 text-right">{formatMoney(g.upi || 0)}</td><td className="px-3 py-2 text-right">{formatMoney(g.bank || 0)}</td></>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : isBalance ? (
+          <div className="max-h-[55vh] overflow-y-auto scroll-area">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 sticky top-0">
+                <tr className="text-left text-xs text-muted-foreground">
+                  <th className="px-3 py-2 font-medium">Account</th>
+                  <th className="px-3 py-2 font-medium">Customer</th>
+                  <th className="px-3 py-2 font-medium">Mobile</th>
+                  <th className="px-3 py-2 font-medium text-right">Payable</th>
+                  <th className="px-3 py-2 font-medium text-right">Paid</th>
+                  <th className="px-3 py-2 font-medium text-right">Outstanding</th>
+                  {type === 'overdue' && <th className="px-3 py-2 font-medium text-right">Overdue</th>}
+                  {type === 'overdue' && <th className="px-3 py-2 font-medium">Days</th>}
+                  <th className="px-3 py-2 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((it: any, i: number) => (
+                  <tr key={i} className="border-b last:border-0 hover:bg-muted/40">
+                    <td className="px-3 py-2 font-mono text-xs">{it.accountNumber}</td>
+                    <td className="px-3 py-2 font-medium">{it.customerName}</td>
+                    <td className="px-3 py-2 text-xs">{it.mobile}</td>
+                    <td className="px-3 py-2 text-right">{formatMoney(it.totalPayable)}</td>
+                    <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400">{formatMoney(it.paid)}</td>
+                    <td className="px-3 py-2 text-right font-semibold">{formatMoney(it.outstanding)}</td>
+                    {type === 'overdue' && <td className="px-3 py-2 text-right text-amber-600 dark:text-amber-400">{formatMoney(it.overdueAmount)}</td>}
+                    {type === 'overdue' && <td className="px-3 py-2 text-center">{it.overdueDays}</td>}
+                    <td className="px-3 py-2"><Badge className={cn(STATUS_COLORS[it.status])}>{it.status}</Badge></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="max-h-[55vh] overflow-y-auto scroll-area">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 sticky top-0">
+                <tr className="text-left text-xs text-muted-foreground">
+                  <th className="px-3 py-2 font-medium">Receipt</th>
+                  <th className="px-3 py-2 font-medium">Date</th>
+                  <th className="px-3 py-2 font-medium">Customer</th>
+                  <th className="px-3 py-2 font-medium">Account</th>
+                  <th className="px-3 py-2 font-medium text-right">Amount</th>
+                  <th className="px-3 py-2 font-medium">Mode</th>
+                  <th className="px-3 py-2 font-medium">Collector</th>
+                  <th className="px-3 py-2 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((it: any, i: number) => (
+                  <tr key={i} className="border-b last:border-0 hover:bg-muted/40">
+                    <td className="px-3 py-2 font-mono text-xs">{it.receiptNumber}</td>
+                    <td className="px-3 py-2 text-xs">{formatDate(it.collectionDate)}</td>
+                    <td className="px-3 py-2 font-medium">{it.customerName}</td>
+                    <td className="px-3 py-2 font-mono text-xs">{it.accountNumber}</td>
+                    <td className="px-3 py-2 text-right font-semibold">{formatMoney(it.amount)}</td>
+                    <td className="px-3 py-2"><Badge variant="outline">{it.paymentMode}</Badge></td>
+                    <td className="px-3 py-2 text-xs">{it.collectedBy}</td>
+                    <td className="px-3 py-2"><Badge className={cn(STATUS_COLORS[it.status])}>{it.status}</Badge></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+    </div>
+  )
+}

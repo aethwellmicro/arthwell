@@ -1,0 +1,178 @@
+// Prisma schema for Internal Collection & Loan Management System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  passwordHash  String
+  role          String   @default("COLLECTION_EMPLOYEE") // ADMIN, BRANCH_MANAGER, ACCOUNTANT, COLLECTION_EMPLOYEE
+  employeeCode  String?  @unique
+  phone         String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  collections   Collection[]
+  customers     Customer[]   @relation("CreatedBy")
+  accounts      Account[]    @relation("CreatedBy")
+  auditLogs     AuditLog[]
+  notifications Notification[]
+  sessions      Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Customer {
+  id              String   @id @default(cuid())
+  customerId      String   @unique // CUST-0001
+  fullName        String
+  primaryMobile   String
+  alternateMobile String?
+  address         String?
+  city            String?
+  area            String?
+  occupation      String?
+  referenceName   String?
+  referenceMobile String?
+  photoUrl        String?
+  idType          String? // Aadhaar, PAN, Voter ID, etc.
+  idNumber        String?
+  status          String   @default("ACTIVE") // ACTIVE, CLOSED, BLOCKED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdById     String
+  createdBy       User     @relation("CreatedBy", fields: [createdById], references: [id])
+
+  accounts        Account[]
+  collections     Collection[]
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  accountNumber     String   @unique // LN-0001
+  customerId        String
+  customer          Customer @relation(fields: [customerId], references: [id])
+
+  principal         Decimal  
+  interestRate      Decimal  
+  interestType      String   // FLAT, REDUCING
+  interestPeriod    String   // MONTHLY, YEARLY, FLAT_PERIOD
+  tenure            Int      // number of installments
+  installmentFreq   String   // DAILY, WEEKLY, MONTHLY
+  installmentAmount Decimal  
+  totalPayable      Decimal  
+  totalInterest     Decimal  
+
+  startDate        DateTime
+  firstDueDate     DateTime
+  maturityDate     DateTime
+  status           String   @default("ACTIVE") // ACTIVE, COMPLETED, OVERDUE, CLOSED
+  remarks          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  createdById      String
+  createdBy        User     @relation("CreatedBy", fields: [createdById], references: [id])
+
+  installments     Installment[]
+  collections      Collection[]
+}
+
+model Installment {
+  id         String   @id @default(cuid())
+  accountId  String
+  account    Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  installNo  Int
+  dueDate    DateTime
+  amount     Decimal  
+  paidAmount Decimal  @default(0) 
+  status     String   @default("PENDING") // PENDING, PAID, PARTIAL, OVERDUE
+  paidDate   DateTime?
+  createdAt  DateTime @default(now())
+}
+
+model Collection {
+  id                  String   @id @default(cuid())
+  receiptNumber       String   @unique // RCP-0001
+  customerId          String
+  customer            Customer @relation(fields: [customerId], references: [id])
+  accountId           String
+  account             Account  @relation(fields: [accountId], references: [id])
+
+  collectionDate      DateTime
+  amount              Decimal  
+  paymentMode         String   // CASH, UPI, BANK, OTHER
+  collectedById       String
+  collectedBy         User     @relation(fields: [collectedById], references: [id])
+
+  previousOutstanding Decimal  
+  currentOutstanding  Decimal  
+  remarks             String?
+  status              String   @default("SUCCESSFUL") // SUCCESSFUL, REVERSED, CANCELLED
+  reversalReason      String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  receipt             Receipt?
+  notification        Notification?
+}
+
+model Receipt {
+  id            String   @id @default(cuid())
+  collectionId  String   @unique
+  collection    Collection @relation(fields: [collectionId], references: [id])
+  receiptNumber String   @unique
+  branchName    String   @default("Main Branch")
+  printCount    Int      @default(0)
+  createdAt     DateTime @default(now())
+}
+
+model Notification {
+  id           String   @id @default(cuid())
+  collectionId String?  @unique
+  collection   Collection? @relation(fields: [collectionId], references: [id])
+  customerId   String?
+  type         String   // PAYMENT_CONFIRMATION, DUE_REMINDER, OVERDUE_REMINDER, ACCOUNT_COMPLETION
+  message      String
+  recipient    String
+  status       String   @default("PENDING") // PENDING, SENT, FAILED
+  createdAt    DateTime @default(now())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String   // CREATE, UPDATE, DELETE, REVERSE, LOGIN, LOGOUT
+  entity    String   // CUSTOMER, ACCOUNT, COLLECTION, USER, etc.
+  entityId  String?
+  oldValue  String?
+  newValue  String?
+  reason    String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
