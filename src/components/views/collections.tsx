@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import {
   HandCoins,
   Search,
@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/dialog'
 import { SectionCard, EmptyState, LoadingRows } from '@/components/ui-bits'
 import { Pagination } from '@/components/pagination'
+import { SortableHeader, sortArray } from '@/components/sortable-header'
 import { ReceiptPrint } from '@/components/receipt-print'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -187,7 +188,25 @@ export function CollectionsView() {
 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(25)
-  const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize)
+  const [sortKey, setSortKey] = useState<string | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
+
+  function handleSort(key: string) {
+    if (sortKey === key) {
+      if (sortDir === 'asc') setSortDir('desc')
+      else { setSortKey(null); setSortDir(null) }
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
+  const sortedItems = useMemo(() => {
+    if (sortKey && sortDir) return sortArray(items, sortKey, sortDir)
+    return items
+  }, [items, sortKey, sortDir])
+
+  const paginatedItems = sortedItems.slice((page - 1) * pageSize, page * pageSize)
 
   return (
     <div className="space-y-4">
@@ -250,17 +269,17 @@ export function CollectionsView() {
           <div className="max-h-[55vh] overflow-y-auto scroll-area">
             <table className="w-full text-sm zebra-table">
               <thead className="bg-muted/50 sticky top-0 z-10">
-                <tr className="text-left text-xs text-muted-foreground">
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Receipt</th>
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Date</th>
-                  <th className="px-3 py-2.5 font-medium">Customer</th>
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Account</th>
-                  <th className="px-3 py-2.5 font-medium text-right">Amount</th>
-                  <th className="px-3 py-2.5 font-medium">Mode</th>
-                  <th className="px-3 py-2.5 font-medium">Collected By</th>
-                  <th className="px-3 py-2.5 font-medium text-right">Outstanding</th>
-                  <th className="px-3 py-2.5 font-medium">Status</th>
-                  <th className="px-3 py-2.5 font-medium text-right">Actions</th>
+                <tr>
+                  <SortableHeader label="Receipt" sortKey="receiptNumber" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                  <SortableHeader label="Date" sortKey="collectionDate" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                  <SortableHeader label="Customer" sortKey="customer.fullName" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                  <SortableHeader label="Account" sortKey="account.accountNumber" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                  <SortableHeader label="Amount" sortKey="amount" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                  <SortableHeader label="Mode" sortKey="paymentMode" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                  <SortableHeader label="Collected By" sortKey="collectedBy.name" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                  <SortableHeader label="Outstanding" sortKey="currentOutstanding" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                  <SortableHeader label="Status" sortKey="status" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                  <th className="px-3 py-2.5 font-medium text-right text-xs text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>

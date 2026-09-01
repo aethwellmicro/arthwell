@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { UserCog, Plus, Pencil, ShieldCheck, Mail, Phone, BadgeCheck, Search } from 'lucide-react'
 import { apiFetch, formatMoney, formatMoneyCompact, formatDate, ROLE_LABELS, ROLE_COLORS } from '@/lib/format'
 import { useApp, canManageUsers } from '@/lib/store'
@@ -24,6 +24,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { SectionCard, EmptyState, LoadingRows } from '@/components/ui-bits'
+import { SortableHeader, sortArray } from '@/components/sortable-header'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -78,6 +79,24 @@ export function EmployeesView() {
     }
     return true
   })
+
+  const [sortKey, setSortKey] = useState<string | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
+
+  function handleSort(key: string) {
+    if (sortKey === key) {
+      if (sortDir === 'asc') setSortDir('desc')
+      else { setSortKey(null); setSortDir(null) }
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
+
+  const sortedFilteredItems = useMemo(() => {
+    if (sortKey && sortDir) return sortArray(filteredItems, sortKey, sortDir)
+    return filteredItems
+  }, [filteredItems, sortKey, sortDir])
 
   useEffect(() => {
     load()
@@ -167,7 +186,7 @@ export function EmployeesView() {
         </div>
       )}
 
-      <SectionCard title={`Employees (${filteredItems.length})`}>
+      <SectionCard title={`Employees (${sortedFilteredItems.length})`}>
         {loading ? (
           <LoadingRows rows={5} />
         ) : items.length === 0 ? (
@@ -176,20 +195,20 @@ export function EmployeesView() {
           <div className="max-h-[60vh] overflow-y-auto scroll-area">
             <table className="w-full text-sm zebra-table">
               <thead className="bg-muted/50 sticky top-0 z-10">
-                <tr className="text-left text-xs text-muted-foreground">
-                  <th className="px-3 py-2.5 font-medium">Employee</th>
-                  <th className="px-3 py-2.5 font-medium">Role</th>
-                  <th className="px-3 py-2.5 font-medium">Contact</th>
-                  <th className="px-3 py-2.5 font-medium text-right">Today</th>
-                  <th className="px-3 py-2.5 font-medium text-right">Week</th>
-                  <th className="px-3 py-2.5 font-medium text-right">Total</th>
-                  <th className="px-3 py-2.5 font-medium text-center">Txns</th>
-                  <th className="px-3 py-2.5 font-medium">Status</th>
-                  <th className="px-3 py-2.5 font-medium text-right">Action</th>
+                <tr>
+                  <SortableHeader label="Employee" sortKey="name" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                  <SortableHeader label="Role" sortKey="role" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                  <th className="px-3 py-2.5 font-medium text-left text-xs text-muted-foreground">Contact</th>
+                  <SortableHeader label="Today" sortKey="todayCollected" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                  <SortableHeader label="Week" sortKey="weekCollected" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                  <SortableHeader label="Total" sortKey="totalCollected" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                  <SortableHeader label="Txns" sortKey="transactionCount" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="center" />
+                  <SortableHeader label="Status" sortKey="active" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                  <th className="px-3 py-2.5 font-medium text-right text-xs text-muted-foreground">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredItems.map((e) => (
+                {sortedFilteredItems.map((e) => (
                   <tr key={e.id} className="border-b last:border-0 hover:bg-muted/40">
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2">

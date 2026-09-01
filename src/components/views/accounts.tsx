@@ -13,8 +13,12 @@ import {
   RotateCcw,
   Lock,
   HandCoins,
+  MoreVertical,
+  Eye,
+  RefreshCw,
+  FileSpreadsheet,
 } from 'lucide-react'
-import { apiFetch, formatMoney, formatMoneyCompact, formatDate, STATUS_COLORS } from '@/lib/format'
+import { apiFetch, formatMoney, formatMoneyCompact, formatDate, STATUS_COLORS, downloadCSV } from '@/lib/format'
 import { useApp } from '@/lib/store'
 import { calculateLoan, type InterestType, type InterestPeriod, type InstallmentFreq } from '@/lib/calc'
 import { Button } from '@/components/ui/button'
@@ -42,7 +46,14 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from '@/components/ui/drawer'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
 import { SectionCard, EmptyState, LoadingRows } from '@/components/ui-bits'
+import { SortableHeader, sortArray } from '@/components/sortable-header'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -89,16 +100,29 @@ const emptyForm = {
 }
 
 export function AccountsView() {
-  const { openCustomer } = useApp()
+  const { openCustomer, startCollection } = useApp()
   const [items, setItems] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('ALL')
+  const [interestType, setInterestType] = useState('ALL')
   const [showNew, setShowNew] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [selected, setSelected] = useState<Account | null>(null)
   const [schedule, setSchedule] = useState<any[]>([])
+  const [sortKey, setSortKey] = useState<string | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
+
+  function handleSort(key: string) {
+    if (sortKey === key) {
+      if (sortDir === 'asc') setSortDir('desc')
+      else { setSortKey(null); setSortDir(null) }
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
 
   const load = async () => {
     setLoading(true)
@@ -118,6 +142,35 @@ export function AccountsView() {
   useEffect(() => {
     load()
   }, [q, status])
+
+  // client-side interest type filter
+  const filteredItems = interestType !== 'ALL' ? items.filter((a) => a.interestType === interestType) : items
+  const sortedItems = useMemo(() => {
+    if (sortKey && sortDir) return sortArray(filteredItems, sortKey, sortDir)
+    return filteredItems
+  }, [filteredItems, sortKey, sortDir])
+
+  function exportCSV() {
+    if (!sortedItems.length) return toast.info('No accounts to export')
+    downloadCSV(`accounts-${new Date().toISOString().slice(0, 10)}.csv`, sortedItems.map((a) => ({
+      accountNumber: a.accountNumber,
+      customer: a.customer.fullName,
+      customerId: a.customer.customerId,
+      principal: a.principal,
+      interestRate: a.interestRate,
+      interestType: a.interestType,
+      tenure: a.tenure,
+      installmentFreq: a.installmentFreq,
+      installmentAmount: a.installmentAmount,
+      totalPayable: a.totalPayable,
+      paidAmount: a.paidAmount,
+      outstanding: a.outstanding,
+      status: a.status,
+      startDate: formatDate(a.startDate),
+      maturityDate: formatDate(a.maturityDate),
+    })))
+    toast.success('Exported to CSV')
+  }
 
   // live calculation preview
   const preview = useMemo(() => {
@@ -186,9 +239,28 @@ export function AccountsView() {
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={() => setShowNew(true)} className="ml-auto">
-          <Plus className="h-4 w-4 mr-1" /> New Account / Loan
-        </Button>
+        <div>
+          <Label className="text-xs text-muted-foreground">Interest Type</Label>
+          <Select value={interestType} onValueChange={setInterestType}>
+            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All</SelectItem>
+              <SelectItem value="FLAT">Flat</SelectItem>
+              <SelectItem value="REDUCING">Reducing</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="ml-auto flex gap-2">
+          <Button variant="outline" onClick={load} disabled={loading}>
+            <RefreshCw className={cn('h-4 w-4 mr-1', loading && 'animate-spin')} /> Refresh
+          </Button>
+          <Button variant="outline" onClick={exportCSV} disabled={!sortedItems.length}>
+            <FileSpreadsheet className="h-4 w-4 mr-1" /> Export
+          </Button>
+          <Button onClick={() => setShowNew(true)}>
+            <Plus className="h-4 w-4 mr-1" /> New Account
+          </Button>
+        </div>
       </div>
 
       {/* Summary stats */}
@@ -213,46 +285,59 @@ export function AccountsView() {
         </div>
       )}
 
-      <SectionCard title={`Accounts / Loans (${items.length})`}>
+      <SectionCard title={`Accounts / Loans (${sortedItems.length})`}>
         {loading ? (
           <LoadingRows rows={6} />
-        ) : items.length === 0 ? (
-          <EmptyState message="No accounts found." icon={Landmark} />
+        ) : sortedItems.length === 0 ? (
+          <EmptyState message="No accounts found for the selected filters." icon={Landmark} />
         ) : (
           <div className="max-h-[60vh] overflow-y-auto scroll-area">
             <table className="w-full text-sm zebra-table">
               <thead className="bg-muted/50 sticky top-0 z-10">
-                <tr className="text-left text-xs text-muted-foreground">
-                  <th className="px-3 py-2.5 font-medium">Account</th>
-                  <th className="px-3 py-2.5 font-medium">Customer</th>
-                  <th className="px-3 py-2.5 font-medium text-right">Principal</th>
-                  <th className="px-3 py-2.5 font-medium">Rate / Type</th>
-                  <th className="px-3 py-2.5 font-medium text-center">Tenure</th>
-                  <th className="px-3 py-2.5 font-medium text-right">Installment</th>
-                  <th className="px-3 py-2.5 font-medium text-right">Paid</th>
-                  <th className="px-3 py-2.5 font-medium text-right">Outstanding</th>
-                  <th className="px-3 py-2.5 font-medium">Status</th>
+                <tr>
+                  <SortableHeader label="Account" sortKey="accountNumber" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                  <SortableHeader label="Customer" sortKey="customer.fullName" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                  <SortableHeader label="Principal" sortKey="principal" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                  <th className="px-3 py-2.5 font-medium text-left text-xs text-muted-foreground whitespace-nowrap">Rate / Type</th>
+                  <SortableHeader label="Tenure" sortKey="tenure" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="center" />
+                  <SortableHeader label="Installment" sortKey="installmentAmount" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                  <SortableHeader label="Paid" sortKey="paidAmount" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                  <SortableHeader label="Outstanding" sortKey="outstanding" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                  <SortableHeader label="Status" sortKey="status" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                  <th className="px-3 py-2.5 font-medium text-right text-xs text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((a) => (
+                {sortedItems.map((a) => (
                   <tr
                     key={a.id}
                     onClick={() => { setSelected(a); setSchedule([]); loadSchedule(a.id) }}
                     className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
                   >
-                    <td className="px-3 py-2.5 font-mono text-xs">{a.accountNumber}</td>
+                    <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">{a.accountNumber}</td>
                     <td className="px-3 py-2.5">
                       <p className="font-medium">{a.customer.fullName}</p>
                       <p className="text-xs text-muted-foreground">{a.customer.customerId}</p>
                     </td>
                     <td className="px-3 py-2.5 text-right">{formatMoney(a.principal)}</td>
-                    <td className="px-3 py-2.5 text-xs">{a.interestRate}% · {a.interestType}</td>
+                    <td className="px-3 py-2.5 text-xs whitespace-nowrap">{a.interestRate}% · {a.interestType}</td>
                     <td className="px-3 py-2.5 text-center">{a.tenure} {a.installmentFreq.slice(0, 1)}</td>
                     <td className="px-3 py-2.5 text-right">{formatMoney(a.installmentAmount)}</td>
-                    <td className="px-3 py-2.5 text-right text-emerald-600 dark:text-emerald-400">{formatMoney(a.paidAmount)}</td>
-                    <td className="px-3 py-2.5 text-right font-semibold">{formatMoney(a.outstanding)}</td>
+                    <td className="px-3 py-2.5 text-right text-emerald-600 dark:text-emerald-400">{a.paidAmount > 0 ? formatMoney(a.paidAmount) : <span className="text-muted-foreground">—</span>}</td>
+                    <td className="px-3 py-2.5 text-right font-semibold">{a.outstanding > 0 ? formatMoney(a.outstanding) : <span className="text-muted-foreground">—</span>}</td>
                     <td className="px-3 py-2.5"><Badge className={cn(STATUS_COLORS[a.status])}>{a.status}</Badge></td>
+                    <td className="px-3 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Actions"><MoreVertical className="h-3.5 w-3.5" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => { setSelected(a); setSchedule([]); loadSchedule(a.id) }}><Eye className="h-3.5 w-3.5 mr-2" /> View Details</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => startCollection(a.customerId, a.id)}><HandCoins className="h-3.5 w-3.5 mr-2" /> New Collection</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openCustomer(a.customerId)}><Landmark className="h-3.5 w-3.5 mr-2" /> View Customer</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
                   </tr>
                 ))}
               </tbody>

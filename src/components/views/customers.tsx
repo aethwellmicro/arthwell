@@ -14,6 +14,8 @@ import {
   Landmark,
   Pencil,
   FileText,
+  MoreVertical,
+  Eye,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatMoneyCompact, formatDate, STATUS_COLORS, ROLE_LABELS } from '@/lib/format'
 import { useApp } from '@/lib/store'
@@ -43,8 +45,15 @@ import {
 } from '@/components/ui/drawer'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
 import { SectionCard, EmptyState, LoadingRows, StatCard } from '@/components/ui-bits'
 import { Pagination } from '@/components/pagination'
+import { SortableHeader, sortArray } from '@/components/sortable-header'
 import { CustomerStatement } from '@/components/customer-statement'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -130,6 +139,23 @@ export function CustomersView() {
   const [selected, setSelected] = useState<Customer | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(25)
+  const [sortKey, setSortKey] = useState<string | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
+
+  function handleSort(key: string) {
+    if (sortKey === key) {
+      if (sortDir === 'asc') {
+        setSortDir('desc')
+      } else {
+        // cycle: null -> asc -> desc -> null
+        setSortKey(null)
+        setSortDir(null)
+      }
+    } else {
+      setSortKey(key)
+      setSortDir('asc')
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -149,10 +175,17 @@ export function CustomersView() {
     }
   }, [q, status, area])
 
+  const sortedItems = useMemo(() => {
+    if (sortKey && sortDir) {
+      return sortArray(items, sortKey, sortDir)
+    }
+    return items
+  }, [items, sortKey, sortDir])
+
   const paginatedItems = useMemo(() => {
     const start = (page - 1) * pageSize
-    return items.slice(start, start + pageSize)
-  }, [items, page, pageSize])
+    return sortedItems.slice(start, start + pageSize)
+  }, [sortedItems, page, pageSize])
 
   useEffect(() => {
     if (searchQuery) {
@@ -259,14 +292,15 @@ export function CustomersView() {
             <div className="max-h-[55vh] overflow-y-auto scroll-area">
               <table className="w-full text-sm zebra-table">
                 <thead className="bg-muted/50 sticky top-0 z-10">
-                  <tr className="text-left text-xs text-muted-foreground">
-                    <th className="px-4 py-2.5 font-medium">Customer ID</th>
-                    <th className="px-4 py-2.5 font-medium">Name</th>
-                    <th className="px-4 py-2.5 font-medium">Mobile</th>
-                    <th className="px-4 py-2.5 font-medium">Area</th>
-                    <th className="px-4 py-2.5 font-medium text-center">Accounts</th>
-                    <th className="px-4 py-2.5 font-medium text-right">Outstanding</th>
-                    <th className="px-4 py-2.5 font-medium">Status</th>
+                  <tr>
+                    <SortableHeader label="Customer ID" sortKey="customerId" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="Name" sortKey="fullName" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="Mobile" sortKey="primaryMobile" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="Area" sortKey="area" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="Accounts" sortKey="_count.accounts" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="center" />
+                    <SortableHeader label="Outstanding" sortKey="outstanding" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                    <SortableHeader label="Status" sortKey="status" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <th className="px-4 py-2.5 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
