@@ -73,6 +73,8 @@ interface Account {
   paidAmount: number
   outstanding: number
   overdueAmount: number
+  progressPercent: number
+  nextDueDate: string | null
   status: string
   startDate: string
   maturityDate: string
@@ -311,6 +313,8 @@ export function AccountsView() {
                   <SortableHeader label="Installment" sortKey="installmentAmount" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
                   <SortableHeader label="Paid" sortKey="paidAmount" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
                   <SortableHeader label="Outstanding" sortKey="outstanding" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                  <SortableHeader label="Progress" sortKey="progressPercent" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="center" />
+                  <SortableHeader label="Next Due" sortKey="nextDueDate" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
                   <SortableHeader label="Status" sortKey="status" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
                   <th className="px-3 py-2.5 font-medium text-right text-xs text-muted-foreground">Actions</th>
                 </tr>
@@ -333,6 +337,23 @@ export function AccountsView() {
                     <td className="px-3 py-2.5 text-right">{formatMoney(a.installmentAmount)}</td>
                     <td className="px-3 py-2.5 text-right text-emerald-600 dark:text-emerald-400">{a.paidAmount > 0 ? formatMoney(a.paidAmount) : <span className="text-muted-foreground">—</span>}</td>
                     <td className="px-3 py-2.5 text-right font-semibold">{a.outstanding > 0 ? formatMoney(a.outstanding) : <span className="text-muted-foreground">—</span>}</td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex-1 min-w-[40px] h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={cn(
+                              'h-full rounded-full transition-all',
+                              a.progressPercent >= 100 ? 'bg-emerald-500' : a.progressPercent >= 50 ? 'bg-teal-500' : 'bg-amber-500'
+                            )}
+                            style={{ width: `${a.progressPercent}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-medium text-muted-foreground w-8 text-right">{a.progressPercent}%</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                      {a.nextDueDate ? formatDate(a.nextDueDate) : <span className="text-muted-foreground">—</span>}
+                    </td>
                     <td className="px-3 py-2.5"><Badge className={cn(STATUS_COLORS[a.status])}>{a.status}</Badge></td>
                     <td className="px-3 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>

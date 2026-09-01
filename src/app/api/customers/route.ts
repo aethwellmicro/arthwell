@@ -46,15 +46,22 @@ export async function GET(req: Request) {
         })
         const collections = await db.collection.findMany({
           where: { customerId: c.id, status: 'SUCCESSFUL' },
-          select: { amount: true },
+          select: { amount: true, collectionDate: true },
+          orderBy: { collectionDate: 'desc' },
+          take: 1,
         })
         const totalPayable = accounts.reduce((s, a) => s + Number(a.totalPayable), 0)
-        const totalCollected = collections.reduce((s, c) => s + Number(c.amount), 0)
+        const totalCollected = await db.collection.aggregate({
+          where: { customerId: c.id, status: 'SUCCESSFUL' },
+          _sum: { amount: true },
+        })
+        const lastPaymentDate = collections[0]?.collectionDate || null
         return {
           ...c,
           totalPayable,
-          totalCollected,
-          outstanding: Math.max(totalPayable - totalCollected, 0),
+          totalCollected: Number(totalCollected._sum.amount || 0),
+          outstanding: Math.max(totalPayable - Number(totalCollected._sum.amount || 0), 0),
+          lastPaymentDate,
         }
       })
     )

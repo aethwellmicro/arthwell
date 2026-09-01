@@ -560,3 +560,69 @@ Unresolved / Next Phase Recommendations:
 - Responsive table-to-card layout for mobile
 - Bulk checkbox selection for mass operations
 - KPI sparkline trends (↑↓ arrows with % change)
+
+---
+Task ID: 11 — Last Activity, Bulk Selection & Progress Tracking (COMPLETED)
+Agent: main (cron review round 7)
+Task: Assess project status, perform QA via agent-browser + VLM, add last activity column, bulk selection, and progress tracking.
+
+Work Log:
+QA Methodology: Used agent-browser for functional testing + VLM (z-ai vision) for visual design analysis of dashboard, customers, and accounts screenshots. VLM suggested: KPI quick action modals, bulk selection, advanced filtering, last activity tracking.
+
+New Features:
+1. Customer "Last Payment" Column:
+   - Updated customers API to fetch `lastPaymentDate` (most recent successful collection date) for each customer.
+   - Added "Last Payment" sortable column to the customers table showing the date or "—" if no payments.
+   - Uses `formatDate` for display, `whitespace-nowrap` to prevent wrapping.
+   - Sortable via SortableHeader (sorts by lastPaymentDate).
+2. Bulk Selection + Bulk Action Bar on Customers View:
+   - Added `selectedIds` Set state to track selected customer IDs.
+   - Added a "Select all" checkbox in the table header (selects/deselects all items on the current page).
+   - Added a per-row checkbox with proper aria-labels (e.g., "Select QA Test Customer Updated").
+   - Selected rows highlighted with `bg-primary/5` tint.
+   - Bulk action bar appears when items are selected, showing: count ("N selected"), "Clear" button, "Export Selected" (CSV), "Copy Mobiles" (copies all selected mobile numbers to clipboard).
+   - Checkboxes use `stopPropagation` to avoid triggering row click.
+   - Added Checkbox component import + FileSpreadsheet/downloadCSV imports.
+3. Account "Progress" Column with Progress Bar:
+   - Updated accounts API to compute `progressPercent` (paidAmount / totalPayable * 100, capped at 100).
+   - Added "Progress" sortable column to the accounts table with a visual progress bar:
+     - Emerald bar when >= 100% (completed).
+     - Teal bar when >= 50% (on track).
+     - Amber bar when < 50% (behind).
+     - Percentage text displayed next to the bar.
+4. Account "Next Due" Column:
+   - Updated accounts API to fetch `nextDueDate` (earliest unpaid installment due date).
+   - Added "Next Due" sortable column to the accounts table showing the date or "—" if no pending installments.
+   - Sortable via SortableHeader.
+
+Verification:
+- `bun run lint` — clean (0 errors).
+- agent-browser end-to-end:
+  - Login as admin → no console warnings.
+  - Customers: "Last Payment" column visible in headers. "Select all" checkbox present. Per-row checkboxes with aria-labels. Selected a customer → bulk action bar appeared with "Export Selected" button.
+  - Accounts: "Progress" and "Next Due" columns visible in headers.
+  - All API calls returning 200, no runtime errors.
+
+Stage Summary:
+- 4 new features (last payment column, bulk selection + action bar, progress bar, next due column).
+- Lint clean, zero console warnings, all features browser-verified.
+
+Current Project Status: DATA-ENHANCED (Round 7)
+- Customers table shows last payment activity + supports bulk operations.
+- Accounts table shows collection progress bar + next due date.
+- Bulk selection enables efficient mass operations (export, copy).
+
+Unresolved / Next Phase Recommendations:
+- Multi-branch support (schema has no branch entity yet)
+- Real SMS gateway integration (currently simulated as 'SENT')
+- Manager approval workflow enforcement for reversals (setting exists, not enforced in UI)
+- PWA / mobile collector interface optimization
+- GPS location capture for field collections
+- Customer allocation by route/area
+- Advanced analytics / predictive overdue
+- Bulk collection import (CSV upload)
+- Data backup/restore UI
+- Responsive table-to-card layout for mobile
+- KPI sparkline trends (↑↓ arrows with % change)
+- Smart insights / AI assistant widget
+- Forecasting & projections in trend chart

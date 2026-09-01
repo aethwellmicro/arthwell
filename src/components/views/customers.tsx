@@ -16,13 +16,15 @@ import {
   FileText,
   MoreVertical,
   Eye,
+  FileSpreadsheet,
 } from 'lucide-react'
-import { apiFetch, formatMoney, formatMoneyCompact, formatDate, STATUS_COLORS, ROLE_LABELS } from '@/lib/format'
+import { apiFetch, formatMoney, formatMoneyCompact, formatDate, STATUS_COLORS, ROLE_LABELS, downloadCSV } from '@/lib/format'
 import { useApp } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -78,6 +80,7 @@ interface Customer {
   totalPayable: number
   totalCollected: number
   outstanding: number
+  lastPaymentDate?: string | null
   _count?: { accounts: number; collections: number }
 }
 
@@ -139,6 +142,7 @@ export function CustomersView() {
   const [selected, setSelected] = useState<Customer | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(25)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
 
@@ -276,6 +280,41 @@ export function CustomersView() {
         </div>
       )}
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">{selectedIds.size} selected</span>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>Clear</Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => {
+              const selectedItems = items.filter((c) => selectedIds.has(c.id))
+              downloadCSV(`customers-${new Date().toISOString().slice(0, 10)}.csv`, selectedItems.map((c) => ({
+                customerId: c.customerId,
+                name: c.fullName,
+                mobile: c.primaryMobile,
+                area: c.area || '',
+                outstanding: c.outstanding,
+                status: c.status,
+              })))
+              toast.success(`Exported ${selectedIds.size} customers`)
+            }}>
+              <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> Export Selected
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => {
+              const selectedItems = items.filter((c) => selectedIds.has(c.id))
+              selectedItems.forEach((c) => {
+                navigator.clipboard?.writeText(c.primaryMobile)
+              })
+              toast.success(`Copied ${selectedIds.size} mobile numbers`)
+            }}>
+              <Phone className="h-3.5 w-3.5 mr-1" /> Copy Mobiles
+            </Button>
+          </div>
+        </div>
+      )}
+
       <SectionCard title={`Customers (${items.length})`} action={
         (q || status !== 'ALL' || area) && !loading ? (
           <Button variant="ghost" size="sm" onClick={() => { setQ(''); setStatus('ALL'); setArea('') }}>
@@ -293,12 +332,28 @@ export function CustomersView() {
               <table className="w-full text-sm zebra-table">
                 <thead className="bg-muted/50 sticky top-0 z-10">
                   <tr>
+                    <th className="px-4 py-2.5 w-10">
+                      <Checkbox
+                        checked={paginatedItems.length > 0 && paginatedItems.every((c) => selectedIds.has(c.id))}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedIds(new Set([...selectedIds, ...paginatedItems.map((c) => c.id)]))
+                          } else {
+                            const next = new Set(selectedIds)
+                            paginatedItems.forEach((c) => next.delete(c.id))
+                            setSelectedIds(next)
+                          }
+                        }}
+                        aria-label="Select all"
+                      />
+                    </th>
                     <SortableHeader label="Customer ID" sortKey="customerId" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
                     <SortableHeader label="Name" sortKey="fullName" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
                     <SortableHeader label="Mobile" sortKey="primaryMobile" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
                     <SortableHeader label="Area" sortKey="area" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
                     <SortableHeader label="Accounts" sortKey="_count.accounts" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="center" />
                     <SortableHeader label="Outstanding" sortKey="outstanding" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                    <SortableHeader label="Last Payment" sortKey="lastPaymentDate" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
                     <SortableHeader label="Status" sortKey="status" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
                     <th className="px-4 py-2.5 font-medium text-right">Actions</th>
                   </tr>
@@ -308,14 +363,27 @@ export function CustomersView() {
                     <tr
                       key={c.id}
                       onClick={() => openCustomer(c.id)}
-                      className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
+                      className={cn('border-b last:border-0 hover:bg-muted/40 cursor-pointer', selectedIds.has(c.id) && 'bg-primary/5')}
                     >
+                      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds.has(c.id)}
+                          onCheckedChange={(checked) => {
+                            const next = new Set(selectedIds)
+                            if (checked) next.add(c.id)
+                            else next.delete(c.id)
+                            setSelectedIds(next)
+                          }}
+                          aria-label={`Select ${c.fullName}`}
+                        />
+                      </td>
                       <td className="px-4 py-2.5 font-mono text-xs">{c.customerId}</td>
                       <td className="px-4 py-2.5 font-medium">{c.fullName}</td>
                       <td className="px-4 py-2.5">{c.primaryMobile}</td>
                       <td className="px-4 py-2.5 text-muted-foreground">{c.area || '—'}</td>
                       <td className="px-4 py-2.5 text-center">{c._count?.accounts ?? 0}</td>
                       <td className="px-4 py-2.5 text-right font-semibold">{c.outstanding > 0 ? formatMoney(c.outstanding) : <span className="text-muted-foreground">—</span>}</td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{c.lastPaymentDate ? formatDate(c.lastPaymentDate) : <span className="text-muted-foreground">—</span>}</td>
                       <td className="px-4 py-2.5">
                         <Badge className={cn(STATUS_COLORS[c.status])}>{c.status}</Badge>
                       </td>

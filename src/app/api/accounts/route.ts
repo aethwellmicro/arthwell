@@ -39,12 +39,19 @@ export async function GET(req: Request) {
         const paid = Number(collected._sum.amount || 0)
         const totalPayable = Number(a.totalPayable)
         const outstanding = Math.max(totalPayable - paid, 0)
+        const progressPercent = totalPayable > 0 ? Math.min(Math.round((paid / totalPayable) * 100), 100) : 0
         // overdue: due installments with dueDate < now and not fully paid
         const overdueInstallments = await db.installment.findMany({
           where: { accountId: a.id, dueDate: { lt: new Date() }, status: 'PENDING' },
           select: { amount: true, paidAmount: true },
         })
         const overdueAmount = overdueInstallments.reduce((s, i) => s + (Number(i.amount) - Number(i.paidAmount)), 0)
+        // next due: earliest unpaid installment
+        const nextDue = await db.installment.findFirst({
+          where: { accountId: a.id, status: { in: ['PENDING', 'PARTIAL'] } },
+          orderBy: { dueDate: 'asc' },
+          select: { dueDate: true, amount: true, paidAmount: true },
+        })
         return {
           ...a,
           principal: Number(a.principal),
@@ -55,6 +62,8 @@ export async function GET(req: Request) {
           paidAmount: paid,
           outstanding,
           overdueAmount,
+          progressPercent,
+          nextDueDate: nextDue?.dueDate || null,
         }
       })
     )
