@@ -10,6 +10,9 @@ import {
   Wallet,
   AlertTriangle,
   Calculator,
+  RotateCcw,
+  Lock,
+  HandCoins,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatDate, STATUS_COLORS } from '@/lib/format'
 import { useApp } from '@/lib/store'
@@ -261,52 +264,112 @@ export function AccountsView() {
             </DrawerTitle>
           </DrawerHeader>
           {selected && (
-            <div className="flex flex-col">
-              <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 border-b bg-muted/30">
-                <MiniStat icon={Wallet} label="Principal" value={formatMoney(selected.principal)} />
-                <MiniStat icon={TrendingUp} label="Total Payable" value={formatMoney(selected.totalPayable)} />
-                <MiniStat icon={Calculator} label="Installment" value={formatMoney(selected.installmentAmount)} tone="info" />
-                <MiniStat icon={AlertTriangle} label="Outstanding" value={formatMoney(selected.outstanding)} tone="warning" />
-              </div>
-              <div className="px-4 py-2 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs border-b">
-                <Info label="Interest">{selected.interestRate}% {selected.interestType} ({selected.interestPeriod})</Info>
-                <Info label="Tenure">{selected.tenure} × {selected.installmentFreq.toLowerCase()}</Info>
-                <Info label="Start Date">{formatDate(selected.startDate)}</Info>
-                <Info label="First Due">{formatDate(selected.firstDueDate)}</Info>
-                <Info label="Maturity">{formatDate(selected.maturityDate)}</Info>
-                <Info label="Customer">{selected.customer.fullName} ({selected.customer.customerId})</Info>
-              </div>
-              <div className="px-4 py-3">
-                <p className="text-sm font-semibold mb-2">Installment Schedule</p>
-                <div className="max-h-[40vh] overflow-y-auto scroll-area border rounded-md">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50 sticky top-0">
-                      <tr className="text-left text-xs text-muted-foreground">
-                        <th className="px-3 py-2 font-medium">#</th>
-                        <th className="px-3 py-2 font-medium">Due Date</th>
-                        <th className="px-3 py-2 font-medium text-right">Amount</th>
-                        <th className="px-3 py-2 font-medium text-right">Paid</th>
-                        <th className="px-3 py-2 font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {schedule.map((s) => (
-                        <tr key={s.id} className="border-b last:border-0">
-                          <td className="px-3 py-2">{s.installNo}</td>
-                          <td className="px-3 py-2">{formatDate(s.dueDate)}</td>
-                          <td className="px-3 py-2 text-right">{formatMoney(Number(s.amount))}</td>
-                          <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400">{formatMoney(Number(s.paidAmount))}</td>
-                          <td className="px-3 py-2"><Badge className={cn(STATUS_COLORS[s.status])}>{s.status}</Badge></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+            <AccountDetailBody
+              account={selected}
+              schedule={schedule}
+              onUpdated={(a) => setSelected(a)}
+            />
           )}
         </DrawerContent>
       </Drawer>
+    </div>
+  )
+}
+
+function AccountDetailBody({
+  account,
+  schedule,
+  onUpdated,
+}: {
+  account: Account
+  schedule: any[]
+  onUpdated: (a: Account) => void
+}) {
+  const { startCollection } = useApp()
+  const [updating, setUpdating] = useState(false)
+
+  async function changeStatus(newStatus: string) {
+    setUpdating(true)
+    try {
+      const updated = await apiFetch<any>(`/api/accounts/${account.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus }),
+      })
+      toast.success(`Account marked as ${newStatus}`)
+      onUpdated({ ...account, status: newStatus })
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col">
+      <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 border-b bg-muted/30">
+        <MiniStat icon={Wallet} label="Principal" value={formatMoney(account.principal)} />
+        <MiniStat icon={TrendingUp} label="Total Payable" value={formatMoney(account.totalPayable)} />
+        <MiniStat icon={Calculator} label="Installment" value={formatMoney(account.installmentAmount)} tone="info" />
+        <MiniStat icon={AlertTriangle} label="Outstanding" value={formatMoney(account.outstanding)} tone="warning" />
+      </div>
+      <div className="px-4 py-2 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs border-b">
+        <Info label="Interest">{account.interestRate}% {account.interestType} ({account.interestPeriod})</Info>
+        <Info label="Tenure">{account.tenure} × {account.installmentFreq.toLowerCase()}</Info>
+        <Info label="Start Date">{formatDate(account.startDate)}</Info>
+        <Info label="First Due">{formatDate(account.firstDueDate)}</Info>
+        <Info label="Maturity">{formatDate(account.maturityDate)}</Info>
+        <Info label="Customer">{account.customer.fullName} ({account.customer.customerId})</Info>
+      </div>
+      <div className="px-4 py-3 flex flex-wrap items-center gap-2 border-b bg-muted/20">
+        <span className="text-xs text-muted-foreground mr-1">Status actions:</span>
+        {account.status !== 'ACTIVE' && (
+          <Button size="sm" variant="outline" disabled={updating} onClick={() => changeStatus('ACTIVE')}>
+            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Reopen
+          </Button>
+        )}
+        {account.status !== 'OVERDUE' && (
+          <Button size="sm" variant="outline" disabled={updating} onClick={() => changeStatus('OVERDUE')}>
+            <AlertTriangle className="h-3.5 w-3.5 mr-1" /> Mark Overdue
+          </Button>
+        )}
+        {account.status !== 'CLOSED' && (
+          <Button size="sm" variant="outline" disabled={updating} onClick={() => changeStatus('CLOSED')}>
+            <Lock className="h-3.5 w-3.5 mr-1" /> Close
+          </Button>
+        )}
+        <div className="ml-auto">
+          <Button size="sm" onClick={() => startCollection(account.customerId, account.id)}>
+            <HandCoins className="h-3.5 w-3.5 mr-1" /> New Collection
+          </Button>
+        </div>
+      </div>
+      <div className="px-4 py-3">
+        <p className="text-sm font-semibold mb-2">Installment Schedule</p>
+        <div className="max-h-[40vh] overflow-y-auto scroll-area border rounded-md">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 sticky top-0">
+              <tr className="text-left text-xs text-muted-foreground">
+                <th className="px-3 py-2 font-medium">#</th>
+                <th className="px-3 py-2 font-medium">Due Date</th>
+                <th className="px-3 py-2 font-medium text-right">Amount</th>
+                <th className="px-3 py-2 font-medium text-right">Paid</th>
+                <th className="px-3 py-2 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {schedule.map((s) => (
+                <tr key={s.id} className="border-b last:border-0">
+                  <td className="px-3 py-2">{s.installNo}</td>
+                  <td className="px-3 py-2">{formatDate(s.dueDate)}</td>
+                  <td className="px-3 py-2 text-right">{formatMoney(Number(s.amount))}</td>
+                  <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400">{formatMoney(Number(s.paidAmount))}</td>
+                  <td className="px-3 py-2"><Badge className={cn(STATUS_COLORS[s.status])}>{s.status}</Badge></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }

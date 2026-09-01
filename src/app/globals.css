@@ -123,6 +123,30 @@
   }
 }
 
+/* View transition animation */
+@keyframes view-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.view-fade-in {
+  animation: view-fade-in 0.25s ease-out;
+}
+
+/* Subtle pulse for live indicators */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
 /* Custom scrollbar */
 .scroll-area::-webkit-scrollbar {
   width: 8px;
@@ -157,5 +181,32 @@
   }
   .no-print {
     display: none !important;
+  }
+  /* Full report print layout */
+  .print-report {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    background: white;
+    color: black;
+  }
+  .print-report * {
+    visibility: visible;
+  }
+  .print-report table {
+    page-break-inside: auto;
+  }
+  .print-report tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  .print-report thead {
+    display: table-header-group;
+  }
+  @page {
+    margin: 1.5cm;
   }
 }

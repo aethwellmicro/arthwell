@@ -32,6 +32,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { SectionCard, EmptyState, LoadingRows } from '@/components/ui-bits'
+import { Pagination } from '@/components/pagination'
 import { ReceiptPrint } from '@/components/receipt-print'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -106,6 +107,7 @@ export function CollectionsView() {
       if (statusFilter !== 'ALL') params.set('status', statusFilter)
       const data = await apiFetch<{ items: Collection[] }>(`/api/collections?${params}`)
       setItems(data.items)
+      setPage(1)
     } catch (e: any) {
       toast.error(e.message)
     } finally {
@@ -183,6 +185,10 @@ export function CollectionsView() {
 
   const total = items.reduce((s, c) => s + (c.status === 'SUCCESSFUL' ? c.amount : 0), 0)
 
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
+  const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize)
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
@@ -240,7 +246,8 @@ export function CollectionsView() {
         ) : items.length === 0 ? (
           <EmptyState message="No collections found for the selected filters." icon={HandCoins} />
         ) : (
-          <div className="max-h-[60vh] overflow-y-auto scroll-area">
+          <>
+          <div className="max-h-[55vh] overflow-y-auto scroll-area">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 sticky top-0 z-10">
                 <tr className="text-left text-xs text-muted-foreground">
@@ -257,7 +264,7 @@ export function CollectionsView() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((c) => (
+                {paginatedItems.map((c) => (
                   <tr key={c.id} className="border-b last:border-0 hover:bg-muted/40">
                     <td className="px-3 py-2.5 font-mono text-xs">{c.receiptNumber}</td>
                     <td className="px-3 py-2.5 text-xs">{formatDateTime(c.collectionDate)}</td>
@@ -292,6 +299,16 @@ export function CollectionsView() {
               </tfoot>
             </table>
           </div>
+          {items.length > pageSize && (
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={items.length}
+              onPageChange={setPage}
+              onPageSizeChange={(s) => { setPageSize(s); setPage(1) }}
+            />
+          )}
+          </>
         )}
       </SectionCard>
 

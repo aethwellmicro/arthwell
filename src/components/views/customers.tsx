@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   Users,
   Plus,
@@ -12,6 +12,7 @@ import {
   X,
   HandCoins,
   Landmark,
+  Pencil,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatDate, STATUS_COLORS, ROLE_LABELS } from '@/lib/format'
 import { useApp } from '@/lib/store'
@@ -42,6 +43,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { SectionCard, EmptyState, LoadingRows, StatCard } from '@/components/ui-bits'
+import { Pagination } from '@/components/pagination'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -124,6 +126,8 @@ export function CustomersView() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [selected, setSelected] = useState<Customer | null>(null)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -132,14 +136,21 @@ export function CustomersView() {
       if (q) params.set('q', q)
       if (status !== 'ALL') params.set('status', status)
       if (area) params.set('area', area)
+      params.set('limit', '500')
       const data = await apiFetch<{ items: Customer[] }>(`/api/customers?${params}`)
       setItems(data.items)
+      setPage(1)
     } catch (e: any) {
       toast.error(e.message)
     } finally {
       setLoading(false)
     }
   }, [q, status, area])
+
+  const paginatedItems = useMemo(() => {
+    const start = (page - 1) * pageSize
+    return items.slice(start, start + pageSize)
+  }, [items, page, pageSize])
 
   useEffect(() => {
     if (searchQuery) {
@@ -214,40 +225,51 @@ export function CustomersView() {
         ) : items.length === 0 ? (
           <EmptyState message="No customers found. Add your first customer." icon={Users} />
         ) : (
-          <div className="max-h-[60vh] overflow-y-auto scroll-area">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 sticky top-0 z-10">
-                <tr className="text-left text-xs text-muted-foreground">
-                  <th className="px-4 py-2.5 font-medium">Customer ID</th>
-                  <th className="px-4 py-2.5 font-medium">Name</th>
-                  <th className="px-4 py-2.5 font-medium">Mobile</th>
-                  <th className="px-4 py-2.5 font-medium">Area</th>
-                  <th className="px-4 py-2.5 font-medium text-center">Accounts</th>
-                  <th className="px-4 py-2.5 font-medium text-right">Outstanding</th>
-                  <th className="px-4 py-2.5 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((c) => (
-                  <tr
-                    key={c.id}
-                    onClick={() => openCustomer(c.id)}
-                    className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
-                  >
-                    <td className="px-4 py-2.5 font-mono text-xs">{c.customerId}</td>
-                    <td className="px-4 py-2.5 font-medium">{c.fullName}</td>
-                    <td className="px-4 py-2.5">{c.primaryMobile}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground">{c.area || '—'}</td>
-                    <td className="px-4 py-2.5 text-center">{c._count?.accounts ?? 0}</td>
-                    <td className="px-4 py-2.5 text-right font-semibold">{formatMoney(c.outstanding)}</td>
-                    <td className="px-4 py-2.5">
-                      <Badge className={cn(STATUS_COLORS[c.status])}>{c.status}</Badge>
-                    </td>
+          <>
+            <div className="max-h-[55vh] overflow-y-auto scroll-area">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 sticky top-0 z-10">
+                  <tr className="text-left text-xs text-muted-foreground">
+                    <th className="px-4 py-2.5 font-medium">Customer ID</th>
+                    <th className="px-4 py-2.5 font-medium">Name</th>
+                    <th className="px-4 py-2.5 font-medium">Mobile</th>
+                    <th className="px-4 py-2.5 font-medium">Area</th>
+                    <th className="px-4 py-2.5 font-medium text-center">Accounts</th>
+                    <th className="px-4 py-2.5 font-medium text-right">Outstanding</th>
+                    <th className="px-4 py-2.5 font-medium">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {paginatedItems.map((c) => (
+                    <tr
+                      key={c.id}
+                      onClick={() => openCustomer(c.id)}
+                      className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
+                    >
+                      <td className="px-4 py-2.5 font-mono text-xs">{c.customerId}</td>
+                      <td className="px-4 py-2.5 font-medium">{c.fullName}</td>
+                      <td className="px-4 py-2.5">{c.primaryMobile}</td>
+                      <td className="px-4 py-2.5 text-muted-foreground">{c.area || '—'}</td>
+                      <td className="px-4 py-2.5 text-center">{c._count?.accounts ?? 0}</td>
+                      <td className="px-4 py-2.5 text-right font-semibold">{formatMoney(c.outstanding)}</td>
+                      <td className="px-4 py-2.5">
+                        <Badge className={cn(STATUS_COLORS[c.status])}>{c.status}</Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {items.length > pageSize && (
+              <Pagination
+                page={page}
+                pageSize={pageSize}
+                total={items.length}
+                onPageChange={setPage}
+                onPageSizeChange={(s) => { setPageSize(s); setPage(1) }}
+              />
+            )}
+          </>
         )}
       </SectionCard>
 
@@ -298,7 +320,13 @@ export function CustomersView() {
               {selected && <Badge className={cn(STATUS_COLORS[selected.status])}>{selected.status}</Badge>}
             </DrawerTitle>
           </DrawerHeader>
-          {selected && <CustomerDetail customer={selected} onCollect={() => { startCollection(selected.id); setSelected(null) }} />}
+          {selected && (
+            <CustomerDetail
+              customer={selected}
+              onCollect={() => { startCollection(selected.id); setSelected(null) }}
+              onUpdated={(c) => setSelected(c)}
+            />
+          )}
         </DrawerContent>
       </Drawer>
     </div>
@@ -314,12 +342,15 @@ function Field({ label, children, full }: { label: string; children: React.React
   )
 }
 
-function CustomerDetail({ customer, onCollect }: { customer: Customer; onCollect: () => void }) {
+function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer; onCollect: () => void; onUpdated: (c: Customer) => void }) {
   const [tab, setTab] = useState('overview')
   const [accounts, setAccounts] = useState<Account[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
   const [loadingA, setLoadingA] = useState(false)
   const [loadingP, setLoadingP] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
+  const [editForm, setEditForm] = useState<any>({})
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     setLoadingA(true)
@@ -333,6 +364,43 @@ function CustomerDetail({ customer, onCollect }: { customer: Customer; onCollect
     }
   }, [tab, customer.id])
 
+  function openEdit() {
+    setEditForm({
+      fullName: customer.fullName,
+      primaryMobile: customer.primaryMobile,
+      alternateMobile: customer.alternateMobile || '',
+      address: customer.address || '',
+      city: customer.city || '',
+      area: customer.area || '',
+      occupation: customer.occupation || '',
+      referenceName: customer.referenceName || '',
+      referenceMobile: customer.referenceMobile || '',
+      idType: customer.idType || 'Aadhaar',
+      idNumber: customer.idNumber || '',
+      status: customer.status,
+    })
+    setShowEdit(true)
+  }
+
+  async function saveEdit() {
+    setSaving(true)
+    try {
+      const updated = await apiFetch<Customer>(`/api/customers/${customer.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(editForm),
+      })
+      toast.success('Customer updated')
+      setShowEdit(false)
+      // re-fetch enriched detail
+      const full = await apiFetch<Customer>(`/api/customers/${customer.id}`)
+      onUpdated(full)
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <div className="flex flex-col">
       <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 border-b bg-muted/30">
@@ -345,8 +413,9 @@ function CustomerDetail({ customer, onCollect }: { customer: Customer; onCollect
         <MiniStat label="Total Payable" value={formatMoney(customer.totalPayable)} />
         <MiniStat label="Total Collected" value={formatMoney(customer.totalCollected)} tone="success" />
         <MiniStat label="Outstanding" value={formatMoney(customer.outstanding)} tone="warning" />
-        <div className="flex items-end">
-          <Button size="sm" onClick={onCollect}><HandCoins className="h-3.5 w-3.5 mr-1" /> New Collection</Button>
+        <div className="flex items-end gap-2">
+          <Button size="sm" variant="outline" onClick={openEdit}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
+          <Button size="sm" onClick={onCollect}><HandCoins className="h-3.5 w-3.5 mr-1" /> Collect</Button>
         </div>
       </div>
       <Tabs value={tab} onValueChange={setTab} className="px-4 pt-3">
@@ -364,6 +433,7 @@ function CustomerDetail({ customer, onCollect }: { customer: Customer; onCollect
             <InfoRow label="KYC" value={customer.idType ? `${customer.idType}: ${customer.idNumber}` : '—'} />
             <InfoRow label="Registered On" value={formatDate(customer.createdAt)} />
             <InfoRow label="Created By" value={customer.createdBy?.name || '—'} />
+            <InfoRow label="Status" value={customer.status} />
           </div>
         </TabsContent>
         <TabsContent value="accounts" className="mt-3 pb-4">
@@ -437,6 +507,53 @@ function CustomerDetail({ customer, onCollect }: { customer: Customer; onCollect
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Edit customer dialog */}
+      <Dialog open={showEdit} onOpenChange={setShowEdit}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Pencil className="h-5 w-5 text-primary" /> Edit Customer</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+            <Field label="Full Name"><Input value={editForm.fullName || ''} onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })} /></Field>
+            <Field label="Primary Mobile"><Input value={editForm.primaryMobile || ''} onChange={(e) => setEditForm({ ...editForm, primaryMobile: e.target.value })} /></Field>
+            <Field label="Alternate Mobile"><Input value={editForm.alternateMobile || ''} onChange={(e) => setEditForm({ ...editForm, alternateMobile: e.target.value })} /></Field>
+            <Field label="Occupation"><Input value={editForm.occupation || ''} onChange={(e) => setEditForm({ ...editForm, occupation: e.target.value })} /></Field>
+            <Field label="Address" full><Input value={editForm.address || ''} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} /></Field>
+            <Field label="City"><Input value={editForm.city || ''} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} /></Field>
+            <Field label="Area"><Input value={editForm.area || ''} onChange={(e) => setEditForm({ ...editForm, area: e.target.value })} /></Field>
+            <Field label="Reference Name"><Input value={editForm.referenceName || ''} onChange={(e) => setEditForm({ ...editForm, referenceName: e.target.value })} /></Field>
+            <Field label="Reference Mobile"><Input value={editForm.referenceMobile || ''} onChange={(e) => setEditForm({ ...editForm, referenceMobile: e.target.value })} /></Field>
+            <Field label="KYC Type">
+              <Select value={editForm.idType || 'Aadhaar'} onValueChange={(v) => setEditForm({ ...editForm, idType: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Aadhaar">Aadhaar</SelectItem>
+                  <SelectItem value="PAN">PAN</SelectItem>
+                  <SelectItem value="Voter ID">Voter ID</SelectItem>
+                  <SelectItem value="Driving License">Driving License</SelectItem>
+                  <SelectItem value="Passport">Passport</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="KYC Number" full><Input value={editForm.idNumber || ''} onChange={(e) => setEditForm({ ...editForm, idNumber: e.target.value })} /></Field>
+            <Field label="Status">
+              <Select value={editForm.status || 'ACTIVE'} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="CLOSED">Closed</SelectItem>
+                  <SelectItem value="BLOCKED">Blocked</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEdit(false)}>Cancel</Button>
+            <Button onClick={saveEdit} disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

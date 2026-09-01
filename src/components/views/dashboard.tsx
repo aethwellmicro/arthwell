@@ -29,7 +29,8 @@ import {
 } from 'recharts'
 import { apiFetch, formatMoney, formatDateTime, STATUS_COLORS } from '@/lib/format'
 import { useApp } from '@/lib/store'
-import { StatCard, SectionCard, EmptyState, LoadingRows } from '@/components/ui-bits'
+import { StatCard, SectionCard, EmptyState, LoadingRows, SkeletonCard } from '@/components/ui-bits'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -70,7 +71,7 @@ const MODE_COLORS: Record<string, string> = {
 const STATUS_PIE_COLORS = ['#10b981', '#0891b2', '#f59e0b', '#64748b', '#ef4444']
 
 export function DashboardView() {
-  const { startCollection, setView, openCustomer } = useApp()
+  const { startCollection, setView, openCustomer, user } = useApp()
   const [data, setData] = useState<Dashboard | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -90,7 +91,19 @@ export function DashboardView() {
     }
   }, [])
 
-  if (loading) return <LoadingRows rows={6} />
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Card className="lg:col-span-2"><CardContent className="p-4 h-72"><LoadingRows rows={4} /></CardContent></Card>
+          <Card><CardContent className="p-4 h-72"><LoadingRows rows={4} /></CardContent></Card>
+        </div>
+      </div>
+    )
+  }
   if (!data) return <EmptyState message="Could not load dashboard data." />
 
   const { stats } = data
@@ -111,6 +124,47 @@ export function DashboardView() {
           View Reports <ArrowRight className="h-4 w-4 ml-2" />
         </Button>
       </div>
+
+      {/* My performance banner (for collection employees / managers) */}
+      {user && (user.role === 'COLLECTION_EMPLOYEE' || user.role === 'BRANCH_MANAGER' || user.role === 'ACCOUNTANT') && (() => {
+        const myStats = data.byEmployee.find((e) => e.name === user.name)
+        const myTodayCount = data.todayCollections.filter((c) => c.collectedBy === user.name).length
+        const myTodayAmount = data.todayCollections.filter((c) => c.collectedBy === user.name).reduce((s, c) => s + c.amount, 0)
+        return (
+          <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-transparent">
+            <CardContent className="p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg">
+                    {user.name.split(' ').map((s) => s[0]).slice(0, 2).join('')}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">{user.name}</p>
+                    <p className="text-xs text-muted-foreground">Your collection performance</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4 sm:gap-6">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Today</p>
+                    <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{formatMoney(myTodayAmount)}</p>
+                    <p className="text-[10px] text-muted-foreground">{myTodayCount} txns</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">All-Time</p>
+                    <p className="text-lg font-bold">{formatMoney(myStats?.amount || 0)}</p>
+                    <p className="text-[10px] text-muted-foreground">total collected</p>
+                  </div>
+                  <div className="hidden sm:block">
+                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Rank</p>
+                    <p className="text-lg font-bold">#{data.byEmployee.findIndex((e) => e.name === user.name) + 1 || '—'}</p>
+                    <p className="text-[10px] text-muted-foreground">of {data.byEmployee.length} collectors</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })()}
 
       {/* KPI grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">

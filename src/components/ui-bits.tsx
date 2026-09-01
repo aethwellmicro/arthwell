@@ -26,7 +26,7 @@ export function StatCard({
     info: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
   }
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden transition-all hover:shadow-md hover:-translate-y-0.5 duration-200">
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -34,7 +34,7 @@ export function StatCard({
             <p className="mt-1.5 text-2xl font-bold tracking-tight truncate">{value}</p>
             {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
           </div>
-          <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', tones[tone])}>
+          <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-110', tones[tone])}>
             <Icon className="h-5 w-5" />
           </div>
         </div>
@@ -74,11 +74,11 @@ export function SectionCard({
 
 export function EmptyState({ message = 'No records found.', icon: Icon = Inbox }: { message?: string; icon?: React.ComponentType<{ className?: string }> }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-        <Icon className="h-6 w-6" />
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="h-16 w-16 rounded-2xl bg-muted/60 flex items-center justify-center text-muted-foreground/60">
+        <Icon className="h-7 w-7" />
       </div>
-      <p className="mt-3 text-sm text-muted-foreground">{message}</p>
+      <p className="mt-4 text-sm text-muted-foreground max-w-xs">{message}</p>
     </div>
   )
 }
@@ -87,9 +87,29 @@ export function LoadingRows({ rows = 5 }: { rows?: number }) {
   return (
     <div className="p-4 space-y-3">
       {Array.from({ length: rows }).map((_, i) => (
-        <Skeleton key={i} className="h-10 w-full" />
+        <div key={i} className="flex items-center gap-3">
+          <Skeleton className="h-4 w-4 rounded-full" />
+          <Skeleton className="h-8 w-full" />
+        </div>
       ))}
     </div>
+  )
+}
+
+export function SkeletonCard() {
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-7 w-28" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+          <Skeleton className="h-10 w-10 rounded-lg" />
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

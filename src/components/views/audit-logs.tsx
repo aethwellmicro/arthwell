@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { SectionCard, EmptyState, LoadingRows } from '@/components/ui-bits'
+import { Pagination } from '@/components/pagination'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -47,6 +48,9 @@ export function AuditLogsView() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
+  const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize)
 
   const load = async () => {
     setLoading(true)
@@ -58,6 +62,7 @@ export function AuditLogsView() {
       if (to) params.set('to', to + 'T23:59:59')
       const data = await apiFetch<{ items: AuditLog[] }>(`/api/audit-logs?${params}`)
       setItems(data.items)
+      setPage(1)
     } catch (e: any) {
       toast.error(e.message)
     } finally {
@@ -128,8 +133,9 @@ export function AuditLogsView() {
         ) : items.length === 0 ? (
           <EmptyState message="No audit entries for the selected filters." icon={ScrollText} />
         ) : (
-          <div className="max-h-[65vh] overflow-y-auto scroll-area divide-y">
-            {items.map((l) => {
+          <>
+          <div className="max-h-[60vh] overflow-y-auto scroll-area divide-y">
+            {paginatedItems.map((l) => {
               const isOpen = expanded === l.id
               const oldJ = prettyJson(l.oldValue)
               const newJ = prettyJson(l.newValue)
@@ -177,6 +183,16 @@ export function AuditLogsView() {
               )
             })}
           </div>
+          {items.length > pageSize && (
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={items.length}
+              onPageChange={setPage}
+              onPageSizeChange={(s) => { setPageSize(s); setPage(1) }}
+            />
+          )}
+          </>
         )}
       </SectionCard>
     </div>

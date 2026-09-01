@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import {
   BarChart3,
   Calendar,
@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { SectionCard, EmptyState, LoadingRows, StatCard } from '@/components/ui-bits'
+import { PrintReport } from '@/components/print-report'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -106,13 +107,58 @@ export function ReportsView() {
   }
 
   function printReport() {
-    window.print()
+    setTimeout(() => window.print(), 200)
   }
 
   const report = REPORTS.find((r) => r.key === type)!
   const isBalance = type === 'outstanding' || type === 'overdue'
   const isGrouped = type === 'customer' || type === 'employee' || type === 'paymentmode' || type === 'accountstatus' || type === 'reconciliation'
   const showDateFilters = !isBalance && type !== 'accountstatus'
+
+  // Determine columns for print layout
+  const printColumns = useMemo(() => {
+    if (isBalance) {
+      const cols = [
+        { key: 'accountNumber', label: 'Account' },
+        { key: 'customerName', label: 'Customer' },
+        { key: 'mobile', label: 'Mobile' },
+        { key: 'totalPayable', label: 'Payable', align: 'right' as const },
+        { key: 'paid', label: 'Paid', align: 'right' as const },
+        { key: 'outstanding', label: 'Outstanding', align: 'right' as const },
+      ]
+      if (type === 'overdue') {
+        cols.push({ key: 'overdueAmount', label: 'Overdue', align: 'right' as const })
+        cols.push({ key: 'overdueDays', label: 'Days', align: 'center' as const })
+      }
+      cols.push({ key: 'status', label: 'Status' })
+      return cols
+    }
+    if (isGrouped) {
+      const cols = [{ key: 'key', label: type === 'customer' ? 'Customer' : type === 'employee' ? 'Employee' : type === 'paymentmode' ? 'Mode' : type === 'accountstatus' ? 'Status' : 'Collector' }]
+      cols.push({ key: 'count', label: 'Count', align: 'right' as const })
+      cols.push({ key: 'total', label: 'Total', align: 'right' as const })
+      if (type === 'accountstatus') {
+        cols.push({ key: 'disbursed', label: 'Disbursed', align: 'right' as const })
+        cols.push({ key: 'payable', label: 'Payable', align: 'right' as const })
+      }
+      if (type === 'reconciliation') {
+        cols.push({ key: 'cash', label: 'Cash', align: 'right' as const })
+        cols.push({ key: 'upi', label: 'UPI', align: 'right' as const })
+        cols.push({ key: 'bank', label: 'Bank', align: 'right' as const })
+      }
+      return cols
+    }
+    return [
+      { key: 'receiptNumber', label: 'Receipt' },
+      { key: 'collectionDate', label: 'Date' },
+      { key: 'customerName', label: 'Customer' },
+      { key: 'accountNumber', label: 'Account' },
+      { key: 'amount', label: 'Amount', align: 'right' as const },
+      { key: 'paymentMode', label: 'Mode' },
+      { key: 'collectedBy', label: 'Collector' },
+      { key: 'status', label: 'Status' },
+    ]
+  }, [type, isBalance, isGrouped])
 
   return (
     <div className="space-y-4">
@@ -302,6 +348,24 @@ export function ReportsView() {
           </div>
         )}
       </SectionCard>
+
+      {/* Print-only report layout */}
+      {data && (
+        <PrintReport
+          title={`${report.label} Report`}
+          subtitle={data.summary ? `${data.summary.count || 0} records` : undefined}
+          dateFrom={data.summary?.dateFrom}
+          dateTo={data.summary?.dateTo}
+          summary={data.summary ? [
+            { label: 'Total', value: formatMoney(data.summary.total || 0) },
+            { label: 'Count', value: String(data.summary.count || 0) },
+            { label: 'Cash', value: formatMoney(data.summary.cashTotal || 0) },
+            { label: 'UPI', value: formatMoney(data.summary.upiTotal || 0) },
+          ] : undefined}
+          columns={printColumns}
+          rows={data.grouped && isGrouped ? data.grouped : data.items}
+        />
+      )}
     </div>
   )
 }

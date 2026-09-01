@@ -31,7 +31,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   Sheet,
   SheetContent,
-  SheetTrigger,
   SheetTitle,
 } from '@/components/ui/sheet'
 import {
@@ -213,13 +212,15 @@ export function AppShell() {
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
           <header className="sticky top-0 z-30 h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center gap-3 px-4 lg:px-6">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-            </Sheet>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              aria-label="Open menu"
+              onClick={() => setMobileOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
             <div className="flex-1 min-w-0">
               <h1 className="text-lg font-semibold truncate">{TITLES[view]}</h1>
             </div>
@@ -281,16 +282,18 @@ export function AppShell() {
 
           {/* View content */}
           <main className="flex-1 p-4 lg:p-6">
-            {view === 'dashboard' && <DashboardView />}
-            {view === 'customers' && <CustomersView />}
-            {view === 'accounts' && <AccountsView />}
-            {view === 'collections' && <CollectionsView />}
-            {view === 'receipts' && <ReceiptsView />}
-            {view === 'reports' && <ReportsView />}
-            {view === 'employees' && <EmployeesView />}
-            {view === 'audit' && <AuditLogsView />}
-            {view === 'notifications' && <NotificationsView />}
-            {view === 'settings' && <SettingsView />}
+            <div key={view} className="view-fade-in">
+              {view === 'dashboard' && <DashboardView />}
+              {view === 'customers' && <CustomersView />}
+              {view === 'accounts' && <AccountsView />}
+              {view === 'collections' && <CollectionsView />}
+              {view === 'receipts' && <ReceiptsView />}
+              {view === 'reports' && <ReportsView />}
+              {view === 'employees' && <EmployeesView />}
+              {view === 'audit' && <AuditLogsView />}
+              {view === 'notifications' && <NotificationsView />}
+              {view === 'settings' && <SettingsView />}
+            </div>
           </main>
         </div>
       </div>
