@@ -132,8 +132,11 @@ const emptyForm = {
   amount: '',
 }
 
-export function CustomersView() {
-  const { searchQuery, selectedCustomerId, openCustomer, startCollection, setSearchQuery } = useApp()
+import { useRouter } from 'next/navigation'
+
+export function CustomersView({ customerId }: { customerId?: string }) {
+  const { searchQuery, setSearchQuery } = useApp()
+  const router = useRouter()
   const [items, setItems] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
@@ -206,10 +209,12 @@ export function CustomersView() {
   }, [load])
 
   useEffect(() => {
-    if (selectedCustomerId) {
-      apiFetch<Customer>(`/api/customers/${selectedCustomerId}`).then(setSelected).catch(() => {})
+    if (customerId) {
+      apiFetch<Customer>(`/api/customers/${customerId}`).then(setSelected).catch(() => {})
+    } else {
+      setSelected(null)
     }
-  }, [selectedCustomerId])
+  }, [customerId])
 
   async function save() {
     if (!form.fullName || !form.primaryMobile) {
@@ -365,7 +370,7 @@ export function CustomersView() {
                   {paginatedItems.map((c) => (
                     <tr
                       key={c.id}
-                      onClick={() => openCustomer(c.id)}
+                      onClick={() => router.push(`/customers/${c.id}`)}
                       className={cn('border-b last:border-0 hover:bg-muted/40 cursor-pointer', selectedIds.has(c.id) && 'bg-primary/5')}
                     >
                       <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
@@ -396,8 +401,8 @@ export function CustomersView() {
                             <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Actions"><MoreVertical className="h-3.5 w-3.5" /></Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openCustomer(c.id)}><Eye className="h-3.5 w-3.5 mr-2" /> View Details</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => startCollection(c.id)}><HandCoins className="h-3.5 w-3.5 mr-2" /> New Collection</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => router.push(`/customers/${c.id}`)}><Eye className="h-3.5 w-3.5 mr-2" /> View Details</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => router.push(`/collections?customer=${c.id}`)}><HandCoins className="h-3.5 w-3.5 mr-2" /> New Collection</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => { navigator.clipboard?.writeText(c.primaryMobile); toast.success('Mobile copied') }}><Phone className="h-3.5 w-3.5 mr-2" /> Copy Mobile</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -464,7 +469,7 @@ export function CustomersView() {
       </Dialog>
 
       {/* Customer detail drawer */}
-      <Drawer open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); openCustomer('') } }}>
+      <Drawer open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); router.push('/customers') } }}>
         <DrawerContent className="max-h-[92vh]">
           <DrawerHeader className="border-b">
             <DrawerTitle className="flex items-center gap-2">
@@ -476,7 +481,7 @@ export function CustomersView() {
           {selected && (
             <CustomerDetail
               customer={selected}
-              onCollect={() => { startCollection(selected.id); setSelected(null) }}
+              onCollect={() => { router.push(`/collections?customer=${selected.id}`); setSelected(null) }}
               onUpdated={(c) => setSelected(c)}
             />
           )}

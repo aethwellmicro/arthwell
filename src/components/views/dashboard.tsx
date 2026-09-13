@@ -35,6 +35,7 @@ import {
 } from 'recharts'
 import { apiFetch, formatMoney, formatMoneyCompact, formatDateTime, formatRelativeTime, STATUS_COLORS } from '@/lib/format'
 import { useApp } from '@/lib/store'
+import { useRouter } from 'next/navigation'
 import { StatCard, SectionCard, EmptyState, LoadingRows, SkeletonCard } from '@/components/ui-bits'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -80,7 +81,9 @@ const MODE_COLORS: Record<string, string> = {
 const STATUS_PIE_COLORS = ['#10b981', '#0891b2', '#f59e0b', '#64748b', '#ef4444']
 
 export function DashboardView() {
-  const { startCollection, setView, openCustomer, user } = useApp()
+  const router = useRouter()
+  const { user } = useApp()
+  const setView = (view: string) => router.push(`/${view}`)
   const [data, setData] = useState<Dashboard | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -154,7 +157,7 @@ export function DashboardView() {
         <Button onClick={() => setView('customers')}>
           <Users className="h-4 w-4 mr-2" /> New Customer
         </Button>
-        <Button variant="secondary" onClick={() => startCollection()}>
+        <Button variant="secondary" onClick={() => router.push('/collections')}>
           <HandCoins className="h-4 w-4 mr-2" /> New Collection
         </Button>
         <Button variant="outline" onClick={() => setView('reports')}>
@@ -488,7 +491,7 @@ export function DashboardView() {
                       <tr key={i} className={cn('border-b last:border-0 hover:bg-muted/40', rowBg)}>
                         <td className="px-4 py-2 font-mono text-xs">{a.accountNumber}</td>
                         <td className="px-4 py-2">
-                          <button className="font-medium hover:text-primary text-left" onClick={() => openCustomer(a.customerId)}>
+                          <button className="font-medium hover:text-primary text-left" onClick={() => router.push(`/customers/${a.customerId}`)}>
                             {a.customer}
                           </button>
                           <div className="flex items-center gap-1">
@@ -518,7 +521,7 @@ export function DashboardView() {
                         </td>
                         <td className="px-4 py-2">
                           <div className="flex items-center gap-1">
-                            <Button size="sm" variant="outline" onClick={() => startCollection(a.customerId)}>
+                            <Button size="sm" variant="outline" onClick={() => router.push(`/collections?customer=${a.customerId}`)}>
                               <HandCoins className="h-3 w-3 mr-1" /> Collect
                             </Button>
                             <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600" onClick={() => sendReminder(a)} aria-label="Send reminder" title="Send reminder">

@@ -44,8 +44,11 @@ interface Receipt {
   remarks?: string | null
 }
 
-export function ReceiptsView() {
+import { useRouter } from 'next/navigation'
+
+export function ReceiptsView({ receiptId }: { receiptId?: string }) {
   const { searchQuery, setSearchQuery } = useApp()
+  const router = useRouter()
   const [items, setItems] = useState<Receipt[]>([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
@@ -105,13 +108,20 @@ export function ReceiptsView() {
     load()
   }, [load])
 
+  useEffect(() => {
+    if (receiptId) {
+      apiFetch<Receipt>(`/api/collections/${receiptId}`).then(setView).catch(() => {})
+    } else {
+      setView(null)
+    }
+  }, [receiptId])
+
   async function printReceipt(r: Receipt) {
     try {
       await apiFetch(`/api/collections/${r.id}/receipt`, { method: 'POST' })
     } catch {}
-    const full = await apiFetch<any>(`/api/collections/${r.id}`)
-    setView(full)
-    setTimeout(() => window.print(), 300)
+    router.push(`/receipts/${r.id}`)
+    setTimeout(() => window.print(), 500)
     load() // refresh print count
   }
 
@@ -295,7 +305,7 @@ export function ReceiptsView() {
                     <td className="px-3 py-2.5 text-center text-xs">{r.receipt?.printCount ?? 0}</td>
                     <td className="px-3 py-2.5">
                       <div className="flex justify-end gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setView(r)} aria-label="View"><Eye className="h-3.5 w-3.5" /></Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => router.push(`/receipts/${r.id}`)} aria-label="View"><Eye className="h-3.5 w-3.5" /></Button>
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => printReceipt(r)} aria-label="Print"><Printer className="h-3.5 w-3.5" /></Button>
                       </div>
                     </td>
@@ -307,7 +317,7 @@ export function ReceiptsView() {
         )}
       </SectionCard>
 
-      <Dialog open={!!view} onOpenChange={(o) => { if (!o) setView(null) }}>
+      <Dialog open={!!view} onOpenChange={(o) => { if (!o) { setView(null); router.push('/receipts') } }}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><ReceiptText className="h-5 w-5 text-primary" /> Receipt</DialogTitle>
@@ -328,11 +338,11 @@ export function ReceiptsView() {
                   collectedBy: view.collectedBy?.name,
                   previousOutstanding: Number(view.previousOutstanding),
                   currentOutstanding: Number(view.currentOutstanding),
-                  remarks: view.remarks,
+                  remarks: view.remarks ?? undefined,
                 }} />
               </div>
               <div className="flex justify-end gap-2 mt-3 no-print">
-                <Button variant="outline" onClick={() => setView(null)}>Close</Button>
+                <Button variant="outline" onClick={() => { setView(null); router.push('/receipts') }}>Close</Button>
                 <Button onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Print</Button>
               </div>
             </div>

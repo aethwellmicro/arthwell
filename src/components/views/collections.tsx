@@ -80,8 +80,14 @@ const emptyForm = {
   remarks: '',
 }
 
+import { useRouter, useSearchParams } from 'next/navigation'
+
 export function CollectionsView() {
-  const { user, collectionPrefill, clearPrefill } = useApp()
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const customerIdParam = searchParams.get('customer')
+  const accountIdParam = searchParams.get('account')
+  const { user } = useApp()
   const [items, setItems] = useState<Collection[]>([])
   const [loading, setLoading] = useState(true)
   const [from, setFrom] = useState('')
@@ -126,14 +132,13 @@ export function CollectionsView() {
     load()
   }, [from, to, employeeId, paymentMode, statusFilter])
 
-  // open new collection dialog if prefill is set
+  // open new collection dialog if URL params are set
   useEffect(() => {
-    if (collectionPrefill) {
-      setForm({ ...emptyForm, customerId: collectionPrefill.customerId || '', accountId: collectionPrefill.accountId || '' })
+    if (customerIdParam && accountIdParam) {
+      setForm({ ...emptyForm, customerId: customerIdParam, accountId: accountIdParam })
       setShowNew(true)
-      clearPrefill()
     }
-  }, [collectionPrefill, clearPrefill])
+  }, [customerIdParam, accountIdParam])
 
   async function save() {
     if (!form.customerId || !form.accountId || !form.amount) {
@@ -364,7 +369,12 @@ export function CollectionsView() {
       </SectionCard>
 
       {/* New collection dialog */}
-      <Dialog open={showNew} onOpenChange={setShowNew}>
+      <Dialog open={showNew} onOpenChange={(o) => { 
+        setShowNew(o)
+        if (!o && (customerIdParam || accountIdParam)) {
+          router.replace('/collections')
+        }
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><HandCoins className="h-5 w-5 text-primary" /> New Collection</DialogTitle>
@@ -454,7 +464,7 @@ export function CollectionsView() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setViewTarget(null)}>Close</Button>
-            <Button onClick={() => printReceipt(viewTarget)}><Printer className="h-4 w-4 mr-1" /> Print</Button>
+            <Button onClick={() => viewTarget && printReceipt(viewTarget)}><Printer className="h-4 w-4 mr-1" /> Print</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

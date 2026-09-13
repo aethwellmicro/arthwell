@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   Users,
@@ -12,7 +14,6 @@ import {
   ScrollText,
   Bell,
   Settings as SettingsIcon,
-  Wallet,
   LogOut,
   Search,
   Menu,
@@ -22,9 +23,8 @@ import {
   Database,
   Keyboard,
 } from 'lucide-react'
-import { useApp, canManageUsers, canManageSettings, type ViewKey } from '@/lib/store'
-import { apiFetch, formatMoneyCompact } from '@/lib/format'
-import { ROLE_LABELS, ROLE_COLORS } from '@/lib/format'
+import { useApp, canManageUsers, canManageSettings } from '@/lib/store'
+import { apiFetch, formatMoneyCompact, ROLE_LABELS, ROLE_COLORS } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -53,103 +53,45 @@ import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
-import { DashboardView } from '@/components/views/dashboard'
-import { CustomersView } from '@/components/views/customers'
-import { AccountsView } from '@/components/views/accounts'
-import { CollectionsView } from '@/components/views/collections'
-import { ReceiptsView } from '@/components/views/receipts'
-import { ReportsView } from '@/components/views/reports'
-import { EmployeesView } from '@/components/views/employees'
-import { AuditLogsView } from '@/components/views/audit-logs'
-import { NotificationsView } from '@/components/views/notifications'
-import { SettingsView } from '@/components/views/settings'
-
 interface NavItem {
-  key: ViewKey
+  href: string
   label: string
   icon: React.ComponentType<{ className?: string }>
   restricted?: boolean
 }
 
 const NAV: NavItem[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { key: 'customers', label: 'Customers', icon: Users },
-  { key: 'accounts', label: 'Accounts / Loans', icon: Landmark },
-  { key: 'collections', label: 'Collections', icon: HandCoins },
-  { key: 'receipts', label: 'Receipts', icon: ReceiptText },
-  { key: 'reports', label: 'Reports', icon: BarChart3 },
-  { key: 'employees', label: 'Employees', icon: UserCog, restricted: true },
-  { key: 'audit', label: 'Audit Logs', icon: ScrollText },
-  { key: 'notifications', label: 'Notifications', icon: Bell },
-  { key: 'settings', label: 'Settings', icon: SettingsIcon, restricted: true },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/customers', label: 'Customers', icon: Users },
+  { href: '/accounts', label: 'Accounts / Loans', icon: Landmark },
+  { href: '/collections', label: 'Collections', icon: HandCoins },
+  { href: '/receipts', label: 'Receipts', icon: ReceiptText },
+  { href: '/reports', label: 'Reports', icon: BarChart3 },
+  { href: '/employees', label: 'Employees', icon: UserCog, restricted: true },
+  { href: '/audit', label: 'Audit Logs', icon: ScrollText },
+  { href: '/notifications', label: 'Notifications', icon: Bell },
+  { href: '/settings', label: 'Settings', icon: SettingsIcon, restricted: true },
 ]
 
-const TITLES: Record<ViewKey, string> = {
-  dashboard: 'Dashboard',
-  customers: 'Customer Management',
-  accounts: 'Accounts / Loans',
-  collections: 'Daily Collection',
-  receipts: 'Receipt Management',
-  reports: 'Reports & Analytics',
-  employees: 'Employee Management',
-  audit: 'Audit Logs',
-  notifications: 'Notifications',
-  settings: 'System Settings',
+const TITLES: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/customers': 'Customer Management',
+  '/accounts': 'Accounts / Loans',
+  '/collections': 'Daily Collection',
+  '/receipts': 'Receipt Management',
+  '/reports': 'Reports & Analytics',
+  '/employees': 'Employee Management',
+  '/audit': 'Audit Logs',
+  '/notifications': 'Notifications',
+  '/settings': 'System Settings',
 }
 
-function renderSidebar({
-  user,
-  view,
-  navClick,
-  startCollection,
-}: {
-  user: any
-  view: ViewKey
-  navClick: (item: NavItem) => void
-  startCollection: (customerId?: string, accountId?: string) => void
-}) {
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2.5 px-5 h-16 border-b border-sidebar-border">
-        <img src="/arthwell-logo.svg" alt="ArthWell" className="h-10 w-10 shrink-0" />
-        <div>
-          <p className="font-semibold text-sm leading-tight">ArthWell</p>
-          <p className="text-[11px] text-muted-foreground leading-tight">Micro Finance</p>
-        </div>
-      </div>
-      <nav className="flex-1 overflow-y-auto scroll-area p-3 space-y-1">
-        {NAV.map((item) => {
-          const Icon = item.icon
-          const restricted = item.restricted && !canManageUsers(user?.role)
-          const active = view === item.key
-          return (
-            <button
-              key={item.key}
-              onClick={() => navClick(item)}
-              className={cn(
-                'w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors group',
-                active
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-                restricted && !active && 'opacity-60'
-              )}
-            >
-              <Icon className={cn('h-4 w-4 shrink-0 transition-transform', active ? '' : 'group-hover:scale-110')} />
-              <span className="flex-1 text-left">{item.label}</span>
-              {item.key === 'notifications' && <NotificationBadge active={active} />}
-              {restricted && <Lock className="h-3 w-3 opacity-60" />}
-            </button>
-          )
-        })}
-      </nav>
-      <div className="border-t border-sidebar-border p-3 space-y-2">
-        <Button onClick={() => startCollection()} className="w-full" size="sm">
-          <HandCoins className="h-4 w-4 mr-2" /> Quick Collection
-        </Button>
-        <SidebarQuickStats />
-      </div>
-    </div>
-  )
+function getTitle(pathname: string) {
+  // exact match
+  if (TITLES[pathname]) return TITLES[pathname]
+  // fuzzy match for dynamic routes like /customers/[id]
+  const base = '/' + pathname.split('/')[1]
+  return TITLES[base] || 'ArthWell'
 }
 
 function NotificationBadge({ active }: { active: boolean }) {
@@ -214,48 +156,72 @@ function SidebarQuickStats() {
   )
 }
 
-export function AppShell() {
-  const { user, view, setView, logout, setSearchQuery, startCollection } = useApp()
+export function AppShell({ children }: { children: React.ReactNode }) {
+  const { user, setUser, logout } = useApp()
+  const router = useRouter()
+  const pathname = usePathname()
+  
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const { theme, setTheme } = useTheme()
   const [searchVal, setSearchVal] = useState('')
+  const [booted, setBooted] = useState(false)
+
+  // Authenticate Session on mount
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const data = await apiFetch<{ user: any }>('/api/auth/me')
+        if (!cancelled) setUser(data.user)
+      } catch {
+        if (!cancelled) {
+          setUser(null)
+          router.push('/login')
+        }
+      } finally {
+        if (!cancelled) setBooted(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [setUser, router])
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      // Skip if user is typing in an input/textarea/select
       const target = e.target as HTMLElement
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable) return
-      // Ctrl/Cmd + K -> New Collection
+      
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
-        startCollection()
+        router.push('/collections')
         toast.info('Quick Collection', { description: 'Press Ctrl+K anytime to start a new collection' })
       }
-      // ? -> Help modal
+      
       if (e.key === '?' || (e.shiftKey && e.key === '/')) {
         e.preventDefault()
         setShowHelp((s) => !s)
         return
       }
-      // 'c' -> Customers, 'd' -> Dashboard, 'r' -> Reports, 'a' -> Accounts, 'o' -> Collections, 'e' -> Employees (single-key shortcuts)
+      
       if (e.key.toLowerCase() === 'c' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        setView('customers')
+        router.push('/customers')
       } else if (e.key.toLowerCase() === 'd' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        setView('dashboard')
+        router.push('/dashboard')
       } else if (e.key.toLowerCase() === 'r' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        setView('reports')
+        router.push('/reports')
       } else if (e.key.toLowerCase() === 'a' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        setView('accounts')
+        router.push('/accounts')
       } else if (e.key.toLowerCase() === 'o' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        setView('collections')
+        router.push('/collections')
       } else if (e.key.toLowerCase() === 'e' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        setView('employees')
+        router.push('/employees')
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [startCollection, setView])
+  }, [router])
 
   async function doLogout() {
     try {
@@ -263,38 +229,23 @@ export function AppShell() {
     } catch {}
     logout()
     toast.success('Signed out')
+    router.push('/login')
   }
 
   function onSearchSubmit(e: React.FormEvent) {
     e.preventDefault()
     const q = searchVal.trim()
     if (!q) return
-    // Smart routing: if query looks like an account number (LN-), go to accounts
-    // If it looks like a receipt number (RCP-), go to receipts
-    // Otherwise, search customers
     const upperQ = q.toUpperCase()
     if (/^LN[-\s]?\d/i.test(upperQ)) {
-      // Account number search — go to accounts view (the accounts view has its own search)
       toast.info('Searching accounts for "' + q + '"')
-      setView('accounts')
+      router.push('/accounts?q=' + encodeURIComponent(q))
     } else if (/^RCP[-\s]?\d/i.test(upperQ)) {
-      // Receipt number search — go to receipts view
       toast.info('Searching receipts for "' + q + '"')
-      setView('receipts')
+      router.push('/receipts?q=' + encodeURIComponent(q))
     } else {
-      // Default: customer search
-      setSearchQuery(q)
-      setView('customers')
+      router.push('/customers?q=' + encodeURIComponent(q))
     }
-  }
-
-  function navClick(item: NavItem) {
-    if (item.restricted && !canManageUsers(user?.role)) {
-      toast.error('You do not have access to this section.')
-      return
-    }
-    setView(item.key)
-    setMobileOpen(false)
   }
 
   async function reseed() {
@@ -310,21 +261,90 @@ export function AppShell() {
 
   const initials = (user?.name || '?').split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase()
 
-  const sidebar = renderSidebar({ user, view, navClick, startCollection })
+  const renderSidebarContent = () => (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-2.5 px-5 h-16 border-b border-sidebar-border">
+        <img src="/arthwell-logo.svg" alt="ArthWell" className="h-10 w-10 shrink-0" />
+        <div>
+          <p className="font-semibold text-sm leading-tight">ArthWell</p>
+          <p className="text-[11px] text-muted-foreground leading-tight">Micro Finance</p>
+        </div>
+      </div>
+      <nav className="flex-1 overflow-y-auto scroll-area p-3 space-y-1">
+        {NAV.map((item) => {
+          const Icon = item.icon
+          const restricted = item.restricted && !canManageUsers(user?.role)
+          const active = pathname.startsWith(item.href)
+          
+          if (restricted) {
+            return (
+              <button
+                key={item.href}
+                className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors text-sidebar-foreground opacity-60 cursor-not-allowed"
+                onClick={() => toast.error('You do not have access to this section.')}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="flex-1 text-left">{item.label}</span>
+                <Lock className="h-3 w-3 opacity-60" />
+              </button>
+            )
+          }
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                'w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors group',
+                active
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              )}
+            >
+              <Icon className={cn('h-4 w-4 shrink-0 transition-transform', active ? '' : 'group-hover:scale-110')} />
+              <span className="flex-1 text-left">{item.label}</span>
+              {item.href === '/notifications' && <NotificationBadge active={active} />}
+            </Link>
+          )
+        })}
+      </nav>
+      <div className="border-t border-sidebar-border p-3 space-y-2">
+        <Button onClick={() => router.push('/collections')} className="w-full" size="sm">
+          <HandCoins className="h-4 w-4 mr-2" /> Quick Collection
+        </Button>
+        <SidebarQuickStats />
+      </div>
+    </div>
+  )
+
+  if (!booted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        </div>
+      </div>
+    )
+  }
+
+  // If we booted but have no user, we are about to be redirected by useEffect, just return null
+  if (!user) return null
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <div className="flex flex-1">
         {/* Desktop sidebar */}
         <aside className="hidden lg:block w-64 shrink-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
-          {sidebar}
+          {renderSidebarContent()}
         </aside>
 
         {/* Mobile sidebar */}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetContent side="left" className="w-72 p-0 bg-sidebar">
             <SheetTitle className="sr-only">Navigation</SheetTitle>
-            {sidebar}
+            {renderSidebarContent()}
           </SheetContent>
         </Sheet>
 
@@ -343,7 +363,7 @@ export function AppShell() {
             </Button>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight truncate">{TITLES[view]}</h1>
+                <h1 className="text-xl font-bold tracking-tight truncate">{getTitle(pathname)}</h1>
               </div>
               <p className="text-xs text-muted-foreground hidden sm:block">
                 {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
@@ -407,17 +427,8 @@ export function AppShell() {
 
           {/* View content */}
           <main className="flex-1 p-4 lg:p-6">
-            <div key={view} className="view-fade-in">
-              {view === 'dashboard' && <DashboardView />}
-              {view === 'customers' && <CustomersView />}
-              {view === 'accounts' && <AccountsView />}
-              {view === 'collections' && <CollectionsView />}
-              {view === 'receipts' && <ReceiptsView />}
-              {view === 'reports' && <ReportsView />}
-              {view === 'employees' && <EmployeesView />}
-              {view === 'audit' && <AuditLogsView />}
-              {view === 'notifications' && <NotificationsView />}
-              {view === 'settings' && <SettingsView />}
+            <div className="view-fade-in">
+              {children}
             </div>
           </main>
         </div>
@@ -425,7 +436,7 @@ export function AppShell() {
 
       {/* Floating Action Button (mobile only) */}
       <Button
-        onClick={() => startCollection()}
+        onClick={() => router.push('/collections')}
         className="lg:hidden fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full shadow-lg p-0"
         size="icon"
         aria-label="Quick Collection"

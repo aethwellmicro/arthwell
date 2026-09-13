@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Wallet, LogIn, ShieldCheck, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,7 +19,8 @@ const DEMO = [
 ]
 
 export function LoginScreen() {
-  const { setUser, setView } = useApp()
+  const { setUser } = useApp()
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -33,7 +35,7 @@ export function LoginScreen() {
         body: JSON.stringify({ email, password }),
       })
       setUser(data.user)
-      setView('dashboard')
+      router.push('/dashboard')
       toast.success(`Welcome back, ${data.user.name}`)
     } catch (err: any) {
       toast.error(err.message || 'Login failed')

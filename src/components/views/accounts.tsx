@@ -101,8 +101,11 @@ const emptyForm = {
   remarks: '',
 }
 
-export function AccountsView() {
-  const { openCustomer, startCollection, searchQuery, setSearchQuery } = useApp()
+import { useRouter } from 'next/navigation'
+
+export function AccountsView({ accountId }: { accountId?: string }) {
+  const { searchQuery, setSearchQuery } = useApp()
+  const router = useRouter()
   const [items, setItems] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
@@ -112,6 +115,18 @@ export function AccountsView() {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [selected, setSelected] = useState<Account | null>(null)
+
+  useEffect(() => {
+    if (accountId) {
+      apiFetch<Account>(`/api/accounts/${accountId}`).then((a) => {
+        setSelected(a)
+        setSchedule([])
+        loadSchedule(a.id)
+      }).catch(() => {})
+    } else {
+      setSelected(null)
+    }
+  }, [accountId])
 
   // Sync global search query to local search
   useEffect(() => {
@@ -323,7 +338,7 @@ export function AccountsView() {
                 {sortedItems.map((a) => (
                   <tr
                     key={a.id}
-                    onClick={() => { setSelected(a); setSchedule([]); loadSchedule(a.id) }}
+                    onClick={() => router.push(`/accounts/${a.id}`)}
                     className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
                   >
                     <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">{a.accountNumber}</td>
@@ -361,9 +376,9 @@ export function AccountsView() {
                           <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Actions"><MoreVertical className="h-3.5 w-3.5" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => { setSelected(a); setSchedule([]); loadSchedule(a.id) }}><Eye className="h-3.5 w-3.5 mr-2" /> View Details</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => startCollection(a.customerId, a.id)}><HandCoins className="h-3.5 w-3.5 mr-2" /> New Collection</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openCustomer(a.customerId)}><Landmark className="h-3.5 w-3.5 mr-2" /> View Customer</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => router.push(`/accounts/${a.id}`)}><Eye className="h-3.5 w-3.5 mr-2" /> View Details</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => router.push(`/collections?customer=${a.customer.customerId}&account=${a.id}`)}><HandCoins className="h-3.5 w-3.5 mr-2" /> New Collection</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => router.push(`/customers/${a.customer.customerId}`)}><Landmark className="h-3.5 w-3.5 mr-2" /> View Customer</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>
@@ -390,7 +405,7 @@ export function AccountsView() {
       </Dialog>
 
       {/* Account detail drawer */}
-      <Drawer open={!!selected} onOpenChange={(o) => { if (!o) setSelected(null) }}>
+      <Drawer open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); router.push('/accounts') } }}>
         <DrawerContent className="max-h-[92vh]">
           <DrawerHeader className="border-b">
             <DrawerTitle className="flex items-center gap-2">
@@ -421,7 +436,7 @@ function AccountDetailBody({
   schedule: any[]
   onUpdated: (a: Account) => void
 }) {
-  const { startCollection } = useApp()
+  const router = useRouter()
   const [updating, setUpdating] = useState(false)
 
   async function changeStatus(newStatus: string) {
@@ -474,7 +489,7 @@ function AccountDetailBody({
           </Button>
         )}
         <div className="ml-auto">
-          <Button size="sm" onClick={() => startCollection(account.customerId, account.id)}>
+          <Button size="sm" onClick={() => router.push(`/collections?customer=${account.customer.customerId}&account=${account.id}`)}>
             <HandCoins className="h-3.5 w-3.5 mr-1" /> New Collection
           </Button>
         </div>
