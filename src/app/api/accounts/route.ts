@@ -2,6 +2,19 @@ import { db } from '@/lib/db'
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
 import { calculateLoan, type InterestType, type InterestPeriod, type InstallmentFreq } from '@/lib/calc'
+import { z } from 'zod'
+
+const accountSchema = z.object({
+  customerId: z.string().min(1, 'Customer is required'),
+  principal: z.coerce.number().positive('Principal must be greater than 0'),
+  interestRate: z.coerce.number().min(0, 'Valid interest rate is required'),
+  interestType: z.enum(['FLAT', 'REDUCING'], { message: 'Invalid interest type' }),
+  interestPeriod: z.enum(['MONTHLY', 'YEARLY', 'FLAT_PERIOD'], { message: 'Invalid interest period' }),
+  tenure: z.coerce.number().int().positive('Tenure must be greater than 0'),
+  installmentFreq: z.enum(['DAILY', 'WEEKLY', 'MONTHLY'], { message: 'Invalid installment frequency' }),
+  startDate: z.string().min(1, 'Start date is required').refine((val) => !isNaN(Date.parse(val)), 'Invalid date format'),
+  remarks: z.string().max(500).optional().nullable(),
+})
 
 export async function GET(req: Request) {
   return withAuth(async () => {
@@ -30,43 +43,52 @@ export async function GET(req: Request) {
       take: limit,
     })
 
-    const enriched = await Promise.all(
-      accounts.map(async (a) => {
-        const collected = await db.collection.aggregate({
-          where: { accountId: a.id, status: 'SUCCESSFUL' },
-          _sum: { amount: true },
-        })
-        const paid = Number(collected._sum.amount || 0)
-        const totalPayable = Number(a.totalPayable)
-        const outstanding = Math.max(totalPayable - paid, 0)
-        const progressPercent = totalPayable > 0 ? Math.min(Math.round((paid / totalPayable) * 100), 100) : 0
-        // overdue: due installments with dueDate < now and not fully paid
-        const overdueInstallments = await db.installment.findMany({
-          where: { accountId: a.id, dueDate: { lt: new Date() }, status: 'PENDING' },
-          select: { amount: true, paidAmount: true },
-        })
-        const overdueAmount = overdueInstallments.reduce((s, i) => s + (Number(i.amount) - Number(i.paidAmount)), 0)
-        // next due: earliest unpaid installment
-        const nextDue = await db.installment.findFirst({
-          where: { accountId: a.id, status: { in: ['PENDING', 'PARTIAL'] } },
-          orderBy: { dueDate: 'asc' },
-          select: { dueDate: true, amount: true, paidAmount: true },
-        })
-        return {
-          ...a,
-          principal: Number(a.principal),
-          interestRate: Number(a.interestRate),
-          installmentAmount: Number(a.installmentAmount),
-          totalPayable,
-          totalInterest: Number(a.totalInterest),
-          paidAmount: paid,
-          outstanding,
-          overdueAmount,
-          progressPercent,
-          nextDueDate: nextDue?.dueDate || null,
-        }
-      })
-    )
+    const accountIds = accounts.map((a) => a.id)
+
+    const collectionsStats = await db.collection.groupBy({
+      by: ['accountId'],
+      where: { accountId: { in: accountIds }, status: 'SUCCESSFUL' },
+      _sum: { amount: true },
+    })
+
+    const overdueInstallments = await db.installment.findMany({
+      where: { accountId: { in: accountIds }, dueDate: { lt: new Date() }, status: 'PENDING' },
+      select: { accountId: true, amount: true, paidAmount: true },
+    })
+
+    // To get the next due installment we can fetch all PENDING/PARTIAL, order by dueDate, and pick the first per account
+    const pendingInstallments = await db.installment.findMany({
+      where: { accountId: { in: accountIds }, status: { in: ['PENDING', 'PARTIAL'] } },
+      orderBy: { dueDate: 'asc' },
+      select: { accountId: true, dueDate: true, amount: true, paidAmount: true },
+    })
+
+    const enriched = accounts.map((a) => {
+      const cStats = collectionsStats.find((s) => s.accountId === a.id)
+      const paid = Number(cStats?._sum?.amount || 0)
+      const totalPayable = Number(a.totalPayable)
+      const outstanding = Math.max(totalPayable - paid, 0)
+      const progressPercent = totalPayable > 0 ? Math.min(Math.round((paid / totalPayable) * 100), 100) : 0
+
+      const accOverdue = overdueInstallments.filter((i) => i.accountId === a.id)
+      const overdueAmount = accOverdue.reduce((s, i) => s + (Number(i.amount) - Number(i.paidAmount)), 0)
+
+      const nextDue = pendingInstallments.find((i) => i.accountId === a.id)
+
+      return {
+        ...a,
+        principal: Number(a.principal),
+        interestRate: Number(a.interestRate),
+        installmentAmount: Number(a.installmentAmount),
+        totalPayable,
+        totalInterest: Number(a.totalInterest),
+        paidAmount: paid,
+        outstanding,
+        overdueAmount,
+        progressPercent,
+        nextDueDate: nextDue?.dueDate || null,
+      }
+    })
 
     return json({ items: enriched })
   })
@@ -75,36 +97,24 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   return withAuth(async (user) => {
     const body = await parseBody(req)
-    const customerId = (body.customerId || '').toString()
-    const principal = parseFloat(body.principal)
-    const interestRate = parseFloat(body.interestRate)
-    const interestType = (body.interestType || '').toString() as InterestType
-    const interestPeriod = (body.interestPeriod || '').toString() as InterestPeriod
-    const tenure = parseInt(body.tenure)
-    const installmentFreq = (body.installmentFreq || '').toString() as InstallmentFreq
-    const startDateStr = (body.startDate || '').toString()
+    const result = accountSchema.safeParse(body)
+    if (!result.success) {
+      return error(result.error.issues[0].message, 422)
+    }
+    const data = result.data
 
-    if (!customerId) return error('Customer is required.', 422)
-    if (!principal || principal <= 0) return error('Principal must be greater than 0.', 422)
-    if (isNaN(interestRate) || interestRate < 0) return error('Valid interest rate is required.', 422)
-    if (!['FLAT', 'REDUCING'].includes(interestType)) return error('Invalid interest type.', 422)
-    if (!['MONTHLY', 'YEARLY', 'FLAT_PERIOD'].includes(interestPeriod)) return error('Invalid interest period.', 422)
-    if (!tenure || tenure <= 0) return error('Tenure must be greater than 0.', 422)
-    if (!['DAILY', 'WEEKLY', 'MONTHLY'].includes(installmentFreq)) return error('Invalid installment frequency.', 422)
-    if (!startDateStr) return error('Start date is required.', 422)
-
-    const customer = await db.customer.findUnique({ where: { id: customerId } })
+    const customer = await db.customer.findUnique({ where: { id: data.customerId } })
     if (!customer) return error('Customer not found.', 404)
     if (customer.status !== 'ACTIVE') return error('Cannot create account for inactive/blocked customer.', 422)
 
-    const startDate = new Date(startDateStr)
+    const startDate = new Date(data.startDate)
     const computed = calculateLoan({
-      principal,
-      interestRate,
-      interestType,
-      interestPeriod,
-      tenure,
-      installmentFreq,
+      principal: data.principal,
+      interestRate: data.interestRate,
+      interestType: data.interestType,
+      interestPeriod: data.interestPeriod,
+      tenure: data.tenure,
+      installmentFreq: data.installmentFreq,
       startDate,
     })
 
@@ -120,13 +130,13 @@ export async function POST(req: Request) {
     const account = await db.account.create({
       data: {
         accountNumber,
-        customerId,
+        customerId: data.customerId,
         principal: computed.principal,
-        interestRate,
-        interestType,
-        interestPeriod,
-        tenure,
-        installmentFreq,
+        interestRate: data.interestRate,
+        interestType: data.interestType,
+        interestPeriod: data.interestPeriod,
+        tenure: data.tenure,
+        installmentFreq: data.installmentFreq,
         installmentAmount: computed.installmentAmount,
         totalPayable: computed.totalPayable,
         totalInterest: computed.totalInterest,
@@ -134,7 +144,7 @@ export async function POST(req: Request) {
         firstDueDate: computed.firstDueDate,
         maturityDate: computed.maturityDate,
         status: 'ACTIVE',
-        remarks: body.remarks || null,
+        remarks: data.remarks || null,
         createdById: user.id,
       },
     })
@@ -149,7 +159,7 @@ export async function POST(req: Request) {
       })),
     })
 
-    await logAudit({ user, action: 'CREATE', entity: 'ACCOUNT', entityId: account.id, newValue: { accountNumber, customerId, principal: computed.principal, totalPayable: computed.totalPayable } })
+    await logAudit({ user, action: 'CREATE', entity: 'ACCOUNT', entityId: account.id, newValue: { accountNumber, customerId: data.customerId, principal: computed.principal, totalPayable: computed.totalPayable } })
     return json({ ...account, principal: Number(account.principal), totalPayable: Number(account.totalPayable), totalInterest: Number(account.totalInterest), installmentAmount: Number(account.installmentAmount) }, 201)
   })
 }

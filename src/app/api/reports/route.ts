@@ -132,7 +132,20 @@ export async function GET(req: Request) {
         where: { status: type === 'overdue' ? { in: ['OVERDUE', 'ACTIVE'] } : undefined },
         include: { customer: { select: { fullName: true, customerId: true, primaryMobile: true, area: true } } },
       })
-      const rows = []
+      const rows: Array<{
+        accountNumber: string
+        customerId: string
+        customerName: string
+        mobile: string
+        area: string | null
+        totalPayable: number
+        paid: number
+        outstanding: number
+        overdueAmount: number
+        overdueDays: number
+        status: string
+        maturityDate: Date
+      }> = []
       for (const a of accounts) {
         const collected = await db.collection.aggregate({ where: { accountId: a.id, status: 'SUCCESSFUL' }, _sum: { amount: true } })
         const paid = num(collected._sum.amount)

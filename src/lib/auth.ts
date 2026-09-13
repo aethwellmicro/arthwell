@@ -41,7 +41,7 @@ export async function setSessionCookie(token: string) {
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: false,
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
     expires: new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000),

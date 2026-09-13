@@ -117,47 +117,50 @@ export function ReportsView() {
 
   // Determine columns for print layout
   const printColumns = useMemo(() => {
+    type ColDef = { key: string; label: string; align?: 'left' | 'right' | 'center' }
+    
     if (isBalance) {
-      const cols = [
+      const cols: ColDef[] = [
         { key: 'accountNumber', label: 'Account' },
         { key: 'customerName', label: 'Customer' },
         { key: 'mobile', label: 'Mobile' },
-        { key: 'totalPayable', label: 'Payable', align: 'right' as const },
-        { key: 'paid', label: 'Paid', align: 'right' as const },
-        { key: 'outstanding', label: 'Outstanding', align: 'right' as const },
+        { key: 'totalPayable', label: 'Payable', align: 'right' },
+        { key: 'paid', label: 'Paid', align: 'right' },
+        { key: 'outstanding', label: 'Outstanding', align: 'right' },
       ]
       if (type === 'overdue') {
-        cols.push({ key: 'overdueAmount', label: 'Overdue', align: 'right' as const })
-        cols.push({ key: 'overdueDays', label: 'Days', align: 'center' as const })
+        cols.push({ key: 'overdueAmount', label: 'Overdue', align: 'right' })
+        cols.push({ key: 'overdueDays', label: 'Days', align: 'center' })
       }
       cols.push({ key: 'status', label: 'Status' })
       return cols
     }
     if (isGrouped) {
-      const cols = [{ key: 'key', label: type === 'customer' ? 'Customer' : type === 'employee' ? 'Employee' : type === 'paymentmode' ? 'Mode' : type === 'accountstatus' ? 'Status' : 'Collector' }]
-      cols.push({ key: 'count', label: 'Count', align: 'right' as const })
-      cols.push({ key: 'total', label: 'Total', align: 'right' as const })
+      const cols: ColDef[] = [{ key: 'key', label: type === 'customer' ? 'Customer' : type === 'employee' ? 'Employee' : type === 'paymentmode' ? 'Mode' : type === 'accountstatus' ? 'Status' : 'Collector' }]
+      cols.push({ key: 'count', label: 'Count', align: 'right' })
+      cols.push({ key: 'total', label: 'Total', align: 'right' })
       if (type === 'accountstatus') {
-        cols.push({ key: 'disbursed', label: 'Disbursed', align: 'right' as const })
-        cols.push({ key: 'payable', label: 'Payable', align: 'right' as const })
+        cols.push({ key: 'disbursed', label: 'Disbursed', align: 'right' })
+        cols.push({ key: 'payable', label: 'Payable', align: 'right' })
       }
       if (type === 'reconciliation') {
-        cols.push({ key: 'cash', label: 'Cash', align: 'right' as const })
-        cols.push({ key: 'upi', label: 'UPI', align: 'right' as const })
-        cols.push({ key: 'bank', label: 'Bank', align: 'right' as const })
+        cols.push({ key: 'cash', label: 'Cash', align: 'right' })
+        cols.push({ key: 'upi', label: 'UPI', align: 'right' })
+        cols.push({ key: 'bank', label: 'Bank', align: 'right' })
       }
       return cols
     }
-    return [
+    const defaultCols: ColDef[] = [
       { key: 'receiptNumber', label: 'Receipt' },
       { key: 'collectionDate', label: 'Date' },
       { key: 'customerName', label: 'Customer' },
       { key: 'accountNumber', label: 'Account' },
-      { key: 'amount', label: 'Amount', align: 'right' as const },
+      { key: 'amount', label: 'Amount', align: 'right' },
       { key: 'paymentMode', label: 'Mode' },
       { key: 'collectedBy', label: 'Collector' },
       { key: 'status', label: 'Status' },
     ]
+    return defaultCols
   }, [type, isBalance, isGrouped])
 
   return (
