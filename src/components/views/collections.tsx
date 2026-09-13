@@ -89,6 +89,10 @@ export function CollectionsView() {
   const accountIdParam = searchParams.get('account')
   const { user } = useApp()
   const [items, setItems] = useState<Collection[]>([])
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
+  const [sortKey, setSortKey] = useState<string | null>(null)
+  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
   const [loading, setLoading] = useState(true)
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -213,10 +217,7 @@ export function CollectionsView() {
 
   const total = items.reduce((s, c) => s + (c.status === 'SUCCESSFUL' ? c.amount : 0), 0)
 
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(25)
-  const [sortKey, setSortKey] = useState<string | null>(null)
-  const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
+
 
   function handleSort(key: string) {
     if (sortKey === key) {

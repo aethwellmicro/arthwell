@@ -116,6 +116,15 @@ export function AccountsView({ accountId }: { accountId?: string }) {
   const [saving, setSaving] = useState(false)
   const [selected, setSelected] = useState<Account | null>(null)
 
+  const [schedule, setSchedule] = useState<any[]>([])
+
+  async function loadSchedule(id: string) {
+    try {
+      const data = await apiFetch<{ installments: any[] }>(`/api/accounts/${id}/schedule`)
+      setSchedule(data.installments)
+    } catch {}
+  }
+
   useEffect(() => {
     if (accountId) {
       apiFetch<Account>(`/api/accounts/${accountId}`).then((a) => {
@@ -135,7 +144,6 @@ export function AccountsView({ accountId }: { accountId?: string }) {
       setSearchQuery('')
     }
   }, [searchQuery, setSearchQuery])
-  const [schedule, setSchedule] = useState<any[]>([])
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
 
@@ -217,13 +225,6 @@ export function AccountsView({ accountId }: { accountId?: string }) {
       return null
     }
   }, [form])
-
-  async function loadSchedule(id: string) {
-    try {
-      const data = await apiFetch<{ installments: any[] }>(`/api/accounts/${id}/schedule`)
-      setSchedule(data.installments)
-    } catch {}
-  }
 
   async function save() {
     if (!form.customerId) return toast.error('Select a customer.')

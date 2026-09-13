@@ -5,8 +5,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("PG_DATABASE_URL")
+  directUrl = env("PG_DIRECT_URL")
 }
 
 model User {
@@ -92,6 +93,8 @@ model Account {
 
   installments     Installment[]
   collections      Collection[]
+
+  @@index([customerId])
 }
 
 model Installment {
@@ -105,6 +108,8 @@ model Installment {
   status     String   @default("PENDING") // PENDING, PAID, PARTIAL, OVERDUE
   paidDate   DateTime?
   createdAt  DateTime @default(now())
+
+  @@index([accountId])
 }
 
 model Collection {
@@ -131,6 +136,9 @@ model Collection {
 
   receipt             Receipt?
   notification        Notification?
+
+  @@index([customerId])
+  @@index([accountId])
 }
 
 model Receipt {
@@ -155,6 +163,9 @@ model Notification {
   createdAt    DateTime @default(now())
   userId       String?
   user         User?    @relation(fields: [userId], references: [id])
+
+  @@index([collectionId])
+  @@index([customerId])
 }
 
 model AuditLog {
@@ -169,6 +180,9 @@ model AuditLog {
   reason    String?
   ipAddress String?
   createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityId])
 }
 
 model SystemSetting {
