@@ -12,10 +12,7 @@ import { apiFetch } from '@/lib/format'
 import { toast } from 'sonner'
 
 const DEMO = [
-  { email: 'admin@cls.local', password: 'admin123', role: 'Admin' },
-  { email: 'manager@cls.local', password: 'manager123', role: 'Branch Manager' },
-  { email: 'collector@cls.local', password: 'collector123', role: 'Collection Employee' },
-  { email: 'accountant@cls.local', password: 'account123', role: 'Accountant' },
+  { email: 'admin@arthwell.local', password: 'Admin@2024!', role: 'Admin' },
 ]
 
 export function LoginScreen() {
