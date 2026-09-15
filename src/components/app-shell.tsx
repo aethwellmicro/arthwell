@@ -248,16 +248,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function reseed() {
-    if (!confirm('This will erase all current data and reload demo data. Continue?')) return
-    try {
-      await apiFetch('/api/seed', { method: 'POST' })
-      toast.success('Demo data reloaded')
-      setTimeout(() => location.reload(), 800)
-    } catch (err: any) {
-      toast.error(err.message)
-    }
-  }
+
 
   const initials = (user?.name || '?').split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase()
 
@@ -421,12 +412,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     </Badge>
                   </div>
                 </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {canManageSettings(user?.role) && (
-                  <DropdownMenuItem onClick={reseed}>
-                    <Database className="h-4 w-4 mr-2" /> Re-seed Demo Data
-                  </DropdownMenuItem>
-                )}
+
                 <DropdownMenuItem onClick={doLogout}>
                   <LogOut className="h-4 w-4 mr-2" /> Sign Out
                 </DropdownMenuItem>
@@ -475,14 +461,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex items-center gap-3">
             <span>Internal Use Only</span>
-            <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setShowHelp(true)} aria-label="Keyboard shortcuts">
-              <Keyboard className="h-3 w-3 mr-1" /> Shortcuts
-            </Button>
-            {canManageSettings(user?.role) && (
-              <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={reseed} aria-label="Re-seed">
-                <Database className="h-3 w-3 mr-1" /> Re-seed
-              </Button>
-            )}
+
           </div>
         </div>
       </footer>

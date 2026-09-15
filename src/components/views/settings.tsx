@@ -160,47 +160,14 @@ export function SettingsView() {
       <SectionCard title="System Information">
         <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
           <InfoRow label="System Version" value="ArthWell Micro Finance v1.0.0" />
-          <InfoRow label="Database" value="SQLite (local)" />
+          <InfoRow label="Database" value="Supabase (PostgreSQL)" />
           <InfoRow label="Encryption" value="Password hashing: scrypt" />
           <InfoRow label="Session Timeout" value="7 days" />
-          <InfoRow label="Backup Policy" value="Manual (Admin re-seed)" />
+          <InfoRow label="Backup Policy" value="Automatic (Supabase PITR)" />
           <InfoRow label="Currency" value={form.CURRENCY || 'INR'} />
         </div>
       </SectionCard>
 
-      {/* Danger Zone */}
-      <Card className="border-red-300 dark:border-red-900">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base text-red-700 dark:text-red-400">
-            <ShieldAlert className="h-4 w-4" /> Danger Zone
-          </CardTitle>
-          <CardDescription>Irreversible and destructive actions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-red-200 dark:border-red-900/50 p-3">
-            <div>
-              <p className="text-sm font-medium">Re-seed Demo Data</p>
-              <p className="text-xs text-muted-foreground">Erase ALL current data and reload demo data. This cannot be undone.</p>
-            </div>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={async () => {
-                if (!confirm('This will ERASE ALL current data and reload demo data. This CANNOT be undone. Continue?')) return
-                try {
-                  await apiFetch('/api/seed', { method: 'POST' })
-                  toast.success('Demo data reloaded')
-                  setTimeout(() => location.reload(), 800)
-                } catch (e: any) {
-                  toast.error(e.message)
-                }
-              }}
-            >
-              <Database className="h-3.5 w-3.5 mr-1" /> Re-seed Data
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }
