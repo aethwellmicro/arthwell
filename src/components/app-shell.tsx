@@ -329,8 +329,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // If we booted but have no user, we are about to be redirected by useEffect, just return null
-  if (!user) return null
+  // If we booted but have no user, we are about to be redirected by useEffect
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <p className="text-sm text-muted-foreground">Redirecting to login…</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
