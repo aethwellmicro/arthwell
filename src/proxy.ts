@@ -7,9 +7,6 @@ const PUBLIC_PATHS = ['/login']
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Pass through all Next.js internal requests (_next/data RSC prefetches, etc.)
-  if (pathname.startsWith('/_next/')) return NextResponse.next()
-
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))
   const hasSession = request.cookies.has('cls_session')
 
@@ -30,11 +27,15 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api        (API routes — auth is handled per-route)
-     * - _next      (ALL Next.js internals: static, image, data prefetches, etc.)
-     * - favicon.ico, sitemap.xml, robots.txt, arthwell-logo.svg
+     * - api        (API routes — auth handled per-route)
+     * - _next/static (static files)
+     * - _next/image (image optimisation files)
+     * - favicon.ico, sitemap.xml, robots.txt (metadata files)
+     * - arthwell-logo.svg
+     * Note: _next/data prefetches are ALWAYS passed to proxy by Next.js
+     * regardless of matcher. Next.js normalises /_next/data/[id]/login.json
+     * → /login before the proxy function runs, so pathname checks work correctly.
      */
-    '/((?!api|_next|favicon\\.ico|sitemap\\.xml|robots\\.txt|arthwell-logo\\.svg).*)',
+    '/((?!api|_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|arthwell-logo\\.svg).*)',
   ],
 }
-
