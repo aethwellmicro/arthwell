@@ -148,22 +148,24 @@ export function LoginScreen() {
               </Button>
             </form>
 
-            <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/40 p-3">
-              <p className="text-xs font-medium text-muted-foreground mb-2">Demo credentials — click to fill</p>
-              <div className="grid grid-cols-2 gap-2">
-                {DEMO.map((d) => (
-                  <button
-                    key={d.email}
-                    type="button"
-                    onClick={() => fill(d)}
-                    className="text-left rounded-md bg-background border border-border px-2.5 py-1.5 hover:border-primary hover:bg-accent transition-colors"
-                  >
-                    <p className="text-xs font-medium">{d.role}</p>
-                    <p className="text-[10px] text-muted-foreground truncate">{d.email}</p>
-                  </button>
-                ))}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-6 rounded-lg border border-dashed border-border bg-muted/40 p-3">
+                <p className="text-xs font-medium text-muted-foreground mb-2">Demo credentials — click to fill</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {DEMO.map((d) => (
+                    <button
+                      key={d.email}
+                      type="button"
+                      onClick={() => fill(d)}
+                      className="text-left rounded-md bg-background border border-border px-2.5 py-1.5 hover:border-primary hover:bg-accent transition-colors"
+                    >
+                      <p className="text-xs font-medium">{d.role}</p>
+                      <p className="text-[10px] text-muted-foreground truncate">{d.email}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>
