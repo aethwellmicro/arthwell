@@ -37,5 +37,8 @@ jobs:
       - name: TypeScript Check
         run: npx tsc --noEmit
 
+      - name: Run Tests
+        run: npx tsx tests/schedule_validation.test.ts
+
       - name: Production Build
         run: npm run build

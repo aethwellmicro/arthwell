@@ -255,7 +255,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const renderSidebarContent = () => (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2.5 px-5 h-16 border-b border-sidebar-border">
-        <img src="/arthwell-logo.svg" alt="ArthWell" className="h-10 w-10 shrink-0" />
+        <img src="/arthwell-logo.png" alt="ArthWell" className="h-10 w-10 shrink-0 object-contain" />
         <div>
           <p className="font-semibold text-sm leading-tight">ArthWell</p>
           <p className="text-[11px] text-muted-foreground leading-tight">Micro Finance</p>
@@ -444,7 +444,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 lg:px-6 py-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-              <img src="/arthwell-logo.svg" alt="ArthWell" className="h-4 w-4" />
+              <img src="/arthwell-logo.png" alt="ArthWell" className="h-4 w-4 object-contain" />
               <span>ArthWell Micro Finance · Collection & Loan Management</span>
             </div>
             <span className="hidden sm:inline text-muted-foreground/40">·</span>

@@ -25,6 +25,6 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|arthwell-logo.svg).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|arthwell-logo.png|arthwell-logo.svg|images).*)',
   ],
 }

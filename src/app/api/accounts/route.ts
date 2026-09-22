@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
-import { calculateLoan, type InterestType, type InterestPeriod, type InstallmentFreq } from '@/lib/calc'
+import { calculateLoan, parseCalendarDate, type InterestType, type InterestPeriod, type InstallmentFreq } from '@/lib/calc'
 import { z } from 'zod'
 
 const accountSchema = z.object({
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
     if (!customer) return error('Customer not found.', 404)
     if (customer.status !== 'ACTIVE') return error('Cannot create account for inactive/blocked customer.', 422)
 
-    const startDate = new Date(data.startDate)
+    const startDate = parseCalendarDate(data.startDate)
     const computed = calculateLoan({
       principal: data.principal,
       interestRate: data.interestRate,
@@ -119,47 +119,51 @@ export async function POST(req: Request) {
     })
 
     const prefix = 'LN'
-    const last = await db.account.findFirst({ orderBy: { createdAt: 'desc' } })
-    let nextN = 0
-    if (last && last.accountNumber) {
-      const m = last.accountNumber.match(/(\d+)$/)
-      if (m) nextN = parseInt(m[1])
-    }
-    const accountNumber = `${prefix}-${String(nextN + 1).padStart(4, '0')}`
+    const account = await db.$transaction(async (tx) => {
+      const last = await tx.account.findFirst({ orderBy: { createdAt: 'desc' } })
+      let nextN = 0
+      if (last && last.accountNumber) {
+        const m = last.accountNumber.match(/(\d+)$/)
+        if (m) nextN = parseInt(m[1])
+      }
+      const accountNumber = `${prefix}-${String(nextN + 1).padStart(4, '0')}`
 
-    const account = await db.account.create({
-      data: {
-        accountNumber,
-        customerId: data.customerId,
-        principal: computed.principal,
-        interestRate: data.interestRate,
-        interestType: data.interestType,
-        interestPeriod: data.interestPeriod,
-        tenure: data.tenure,
-        installmentFreq: data.installmentFreq,
-        installmentAmount: computed.installmentAmount,
-        totalPayable: computed.totalPayable,
-        totalInterest: computed.totalInterest,
-        startDate,
-        firstDueDate: computed.firstDueDate,
-        maturityDate: computed.maturityDate,
-        status: 'ACTIVE',
-        remarks: data.remarks || null,
-        createdById: user.id,
-      },
+      const newAccount = await tx.account.create({
+        data: {
+          accountNumber,
+          customerId: data.customerId,
+          principal: computed.principal,
+          interestRate: data.interestRate,
+          interestType: data.interestType,
+          interestPeriod: data.interestPeriod,
+          tenure: data.tenure,
+          installmentFreq: data.installmentFreq,
+          installmentAmount: computed.installmentAmount,
+          totalPayable: computed.totalPayable,
+          totalInterest: computed.totalInterest,
+          startDate,
+          firstDueDate: computed.firstDueDate,
+          maturityDate: computed.maturityDate,
+          status: 'ACTIVE',
+          remarks: data.remarks || null,
+          createdById: user.id,
+        },
+      })
+
+      await tx.installment.createMany({
+        data: computed.schedule.map((s) => ({
+          accountId: newAccount.id,
+          installNo: s.installNo,
+          dueDate: s.dueDate,
+          amount: s.amount,
+          status: 'PENDING',
+        })),
+      })
+
+      return newAccount
     })
 
-    await db.installment.createMany({
-      data: computed.schedule.map((s) => ({
-        accountId: account.id,
-        installNo: s.installNo,
-        dueDate: s.dueDate,
-        amount: s.amount,
-        status: 'PENDING',
-      })),
-    })
-
-    await logAudit({ user, action: 'CREATE', entity: 'ACCOUNT', entityId: account.id, newValue: { accountNumber, customerId: data.customerId, principal: computed.principal, totalPayable: computed.totalPayable } })
+    await logAudit({ user, action: 'CREATE', entity: 'ACCOUNT', entityId: account.id, newValue: { accountNumber: account.accountNumber, customerId: data.customerId, principal: computed.principal, totalPayable: computed.totalPayable } })
     return json({ ...account, principal: Number(account.principal), totalPayable: Number(account.totalPayable), totalInterest: Number(account.totalInterest), installmentAmount: Number(account.installmentAmount) }, 201)
   })
 }

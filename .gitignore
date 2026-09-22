@@ -50,5 +50,9 @@ test
 prompt
 
 server.log
+vercel-env.txt
+vercel_logs.txt
+seed_admin.js
+scripts/
 # Skills directory
 /skills/.env

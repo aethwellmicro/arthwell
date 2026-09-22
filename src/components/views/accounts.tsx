@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatMoneyCompact, formatDate, STATUS_COLORS, downloadCSV } from '@/lib/format'
 import { useApp } from '@/lib/store'
-import { calculateLoan, type InterestType, type InterestPeriod, type InstallmentFreq } from '@/lib/calc'
+import { calculateLoan, parseCalendarDate, type InterestType, type InterestPeriod, type InstallmentFreq } from '@/lib/calc'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -219,7 +219,7 @@ export function AccountsView({ accountId }: { accountId?: string }) {
         interestPeriod: form.interestPeriod,
         tenure,
         installmentFreq: form.installmentFreq,
-        startDate: new Date(form.startDate),
+        startDate: parseCalendarDate(form.startDate),
       })
     } catch {
       return null
@@ -597,25 +597,66 @@ function NewAccountForm({ form, setForm, preview }: { form: typeof emptyForm; se
       </div>
 
       {/* Preview */}
-      <div className="rounded-lg border bg-muted/30 p-4">
-        <p className="text-sm font-semibold flex items-center gap-2 mb-3"><Calculator className="h-4 w-4 text-primary" /> Live Calculation Preview</p>
+      <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
+        <p className="text-sm font-semibold flex items-center gap-2">
+          <Calculator className="h-4 w-4 text-primary" /> Live Calculation Preview
+        </p>
         {preview ? (
           <div className="space-y-3">
-            <PreviewRow label="Principal" value={formatMoney(preview.principal)} />
-            <PreviewRow label="Total Interest" value={formatMoney(preview.totalInterest)} tone="warning" />
-            <PreviewRow label="Total Payable" value={formatMoney(preview.totalPayable)} tone="success" big />
-            <PreviewRow label="Installment Amount" value={formatMoney(preview.installmentAmount)} tone="info" big />
-            <PreviewRow label="First Due Date" value={formatDate(preview.firstDueDate)} />
-            <PreviewRow label="Maturity Date" value={formatDate(preview.maturityDate)} />
-            <div className="pt-2 border-t">
-              <p className="text-xs text-muted-foreground mb-1">Schedule (first 5)</p>
-              <div className="space-y-1 max-h-32 overflow-y-auto scroll-area">
-                {preview.schedule.slice(0, 5).map((s: any) => (
-                  <div key={s.installNo} className="flex justify-between text-xs">
-                    <span>#{s.installNo} · {formatDate(s.dueDate)}</span>
-                    <span className="font-medium">{formatMoney(s.amount)}</span>
-                  </div>
-                ))}
+            <div className="grid grid-cols-2 gap-2 text-xs border-b pb-3">
+              <PreviewRow label="Principal" value={formatMoney(preview.principal)} />
+              <PreviewRow label="Interest Rate" value={`${form.interestRate}%`} />
+              <PreviewRow label="Interest Type" value={form.interestType === 'FLAT' ? 'Flat' : 'Reducing Balance'} />
+              <PreviewRow label="Interest Period" value={form.interestPeriod} />
+              <PreviewRow label="Frequency" value={form.installmentFreq} />
+              <PreviewRow label="Tenure" value={`${form.tenure} installments`} />
+              <PreviewRow label="Disbursement Date" value={formatDate(form.startDate)} />
+              <PreviewRow label="First Repayment Date" value={formatDate(preview.firstDueDate)} tone="info" />
+              <PreviewRow label="Maturity Date" value={formatDate(preview.maturityDate)} />
+            </div>
+
+            <div className="space-y-1.5 pt-1">
+              <PreviewRow label="Total Interest" value={formatMoney(preview.totalInterest)} tone="warning" />
+              <PreviewRow label="Total Payable" value={formatMoney(preview.totalPayable)} tone="success" big />
+              <PreviewRow label="Installment Amount" value={formatMoney(preview.installmentAmount)} tone="info" big />
+            </div>
+
+            <div className="pt-2 border-t space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-foreground">
+                  Full Repayment Schedule ({preview.schedule.length} installments)
+                </p>
+                <span className="text-[10px] text-muted-foreground">All installments visible</span>
+              </div>
+              <div className="max-h-56 overflow-y-auto border rounded-md bg-background scroll-area">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/60 sticky top-0 border-b">
+                    <tr className="text-left text-muted-foreground">
+                      <th className="px-2.5 py-1.5 font-medium">#</th>
+                      <th className="px-2.5 py-1.5 font-medium">Due Date</th>
+                      <th className="px-2.5 py-1.5 font-medium text-right">Principal</th>
+                      <th className="px-2.5 py-1.5 font-medium text-right">Interest</th>
+                      <th className="px-2.5 py-1.5 font-medium text-right">Installment</th>
+                      <th className="px-2.5 py-1.5 font-medium text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.schedule.map((s: any) => (
+                      <tr key={s.installNo} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="px-2.5 py-1.5 font-medium">{s.installNo}</td>
+                        <td className="px-2.5 py-1.5">{formatDate(s.dueDate)}</td>
+                        <td className="px-2.5 py-1.5 text-right">{formatMoney(s.principalPart)}</td>
+                        <td className="px-2.5 py-1.5 text-right text-amber-600 dark:text-amber-400">{formatMoney(s.interestPart)}</td>
+                        <td className="px-2.5 py-1.5 text-right font-semibold text-primary">{formatMoney(s.amount)}</td>
+                        <td className="px-2.5 py-1.5 text-center">
+                          <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                            {s.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

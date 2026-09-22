@@ -30,7 +30,7 @@ export function PrintReport({
       <div className="border-b-2 border-black pb-3 mb-4">
         <div className="flex justify-between items-start">
           <div className="flex items-center gap-3">
-            <img src="/arthwell-logo.svg" alt="ArthWell" className="h-10 w-10" />
+            <img src="/arthwell-logo.png" alt="ArthWell" className="h-10 w-10 object-contain" />
             <div>
               <h1 className="text-2xl font-bold">ArthWell Micro Finance</h1>
               <p className="text-sm text-gray-700">{branchName}</p>
