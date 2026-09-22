@@ -2,7 +2,14 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 // Public paths that never require a session
-const PUBLIC_PATHS = ['/login']
+const PUBLIC_PATHS = [
+  '/login',
+  '/arthwell-logo.png',
+  '/arthwell-logo.svg',
+  '/favicon.ico',
+  '/robots.txt',
+  '/sitemap.xml',
+]
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
