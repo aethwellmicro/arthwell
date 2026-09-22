@@ -185,14 +185,15 @@ export function CollectionsView() {
     }
   }
 
+  function openReceiptPrint(c: Collection | any) {
+    window.open(`/receipts/${c.id}/print`, '_blank')
+  }
+
   async function printReceipt(c: Collection) {
     try {
       await apiFetch(`/api/collections/${c.id}/receipt`, { method: 'POST' })
     } catch {}
-    const full = await apiFetch<any>(`/api/collections/${c.id}`)
-    setViewTarget(null)
-    setReceipt(full)
-    setTimeout(() => window.print(), 300)
+    openReceiptPrint(c)
   }
 
   function exportCSV() {
@@ -390,13 +391,13 @@ export function CollectionsView() {
 
       {/* Receipt dialog */}
       <Dialog open={!!receipt} onOpenChange={(o) => { if (!o) setReceipt(null) }}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[96vw] max-w-md max-h-[92vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><ReceiptIcon className="h-5 w-5 text-primary" /> Collection Receipt</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg"><ReceiptIcon className="h-5 w-5 text-primary" /> Collection Receipt</DialogTitle>
           </DialogHeader>
           {receipt && (
-            <div>
-              <div className="bg-muted/30 rounded-lg p-2">
+            <div className="space-y-3">
+              <div className="bg-muted/30 rounded-lg p-2 overflow-x-hidden">
                 <ReceiptPrint ref={receiptRef} data={{
                   receiptNumber: receipt.receiptNumber,
                   branchName: receipt.receipt?.branchName,
@@ -413,9 +414,9 @@ export function CollectionsView() {
                   remarks: receipt.remarks,
                 }} />
               </div>
-              <div className="flex justify-end gap-2 mt-3 no-print">
-                <Button variant="outline" onClick={() => setReceipt(null)}>Close</Button>
-                <Button onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Print</Button>
+              <div className="flex flex-wrap sm:flex-nowrap justify-end gap-2 pt-2 border-t no-print">
+                <Button variant="outline" size="sm" onClick={() => setReceipt(null)} className="flex-1 sm:flex-initial">Close</Button>
+                <Button size="sm" onClick={() => openReceiptPrint(receipt)} className="flex-1 sm:flex-initial gap-1.5 bg-primary text-primary-foreground"><Printer className="h-4 w-4" /> Print / Save PDF</Button>
               </div>
             </div>
           )}

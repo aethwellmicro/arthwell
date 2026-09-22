@@ -33,6 +33,7 @@ export async function GET(req: Request) {
         customer: { select: { customerId: true, fullName: true, primaryMobile: true, area: true } },
         account: { select: { accountNumber: true } },
         collectedBy: { select: { name: true, employeeCode: true } },
+        receipt: true,
       },
       orderBy: { collectionDate: 'desc' },
       take: limit,
