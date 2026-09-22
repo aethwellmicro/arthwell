@@ -247,11 +247,11 @@ export function ReceiptsView({ receiptId }: { receiptId?: string }) {
         ) : items.length === 0 ? (
           <EmptyState message="No receipts found for the selected filters." icon={ReceiptText} />
         ) : (
-          <div className="max-h-[60vh] overflow-y-auto scroll-area">
-            <table className="w-full text-sm zebra-table">
+          <div className="max-h-[60vh] overflow-y-auto scroll-area overflow-x-auto">
+            <table className="w-full text-sm zebra-table min-w-[850px]">
               <thead className="bg-muted/50 sticky top-0 z-10">
                 <tr className="text-left text-xs text-muted-foreground">
-                  <th className="px-3 py-2.5 w-10">
+                  <th className="px-3 py-2.5 w-10 whitespace-nowrap">
                     <Checkbox
                       checked={items.length > 0 && items.every((r) => selectedIds.has(r.id))}
                       onCheckedChange={(checked) => {
@@ -268,18 +268,18 @@ export function ReceiptsView({ receiptId }: { receiptId?: string }) {
                   <th className="px-3 py-2.5 font-medium whitespace-nowrap">Date</th>
                   <th className="px-3 py-2.5 font-medium">Customer</th>
                   <th className="px-3 py-2.5 font-medium whitespace-nowrap">Account</th>
-                  <th className="px-3 py-2.5 font-medium text-right">Amount</th>
-                  <th className="px-3 py-2.5 font-medium">Mode</th>
-                  <th className="px-3 py-2.5 font-medium">Collector</th>
-                  <th className="px-3 py-2.5 font-medium">Status</th>
-                  <th className="px-3 py-2.5 font-medium text-center">Prints</th>
-                  <th className="px-3 py-2.5 font-medium text-right">Actions</th>
+                  <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">Amount</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Mode</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Collector</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">Status</th>
+                  <th className="px-3 py-2.5 font-medium text-center whitespace-nowrap">Prints</th>
+                  <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((r) => (
-                  <tr key={r.id} className={cn('border-b last:border-0', selectedIds.has(r.id) && 'bg-primary/5')}>
-                    <td className="px-3 py-2.5">
+                  <tr key={r.id} className={cn('border-b last:border-0 hover:bg-muted/40', selectedIds.has(r.id) && 'bg-primary/5')}>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <Checkbox
                         checked={selectedIds.has(r.id)}
                         onCheckedChange={(checked) => {
@@ -293,20 +293,20 @@ export function ReceiptsView({ receiptId }: { receiptId?: string }) {
                     </td>
                     <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">{r.receiptNumber}</td>
                     <td className="px-3 py-2.5 text-xs whitespace-nowrap">{formatDateTime(r.collectionDate)}</td>
-                    <td className="px-3 py-2.5">
-                      <p className="font-medium">{r.customer.fullName}</p>
-                      <p className="text-xs text-muted-foreground">{r.customer.customerId}</p>
+                    <td className="px-3 py-2.5 max-w-[180px]">
+                      <p className="font-medium truncate" title={r.customer.fullName}>{r.customer.fullName}</p>
+                      <p className="text-xs text-muted-foreground truncate">{r.customer.customerId}</p>
                     </td>
                     <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">{r.account.accountNumber}</td>
-                    <td className="px-3 py-2.5 text-right font-semibold">{formatMoney(r.amount)}</td>
-                    <td className="px-3 py-2.5"><Badge variant="outline">{r.paymentMode}</Badge></td>
-                    <td className="px-3 py-2.5 text-xs">{r.collectedBy.name}</td>
-                    <td className="px-3 py-2.5"><Badge className={cn(STATUS_COLORS[r.status])}>{r.status}</Badge></td>
-                    <td className="px-3 py-2.5 text-center text-xs">{r.receipt?.printCount ?? 0}</td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">{formatMoney(r.amount)}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap"><Badge variant="outline">{r.paymentMode}</Badge></td>
+                    <td className="px-3 py-2.5 text-xs whitespace-nowrap">{r.collectedBy.name}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap"><Badge className={cn(STATUS_COLORS[r.status])}>{r.status}</Badge></td>
+                    <td className="px-3 py-2.5 text-center text-xs whitespace-nowrap">{r.receipt?.printCount ?? 0}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <div className="flex justify-end gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => router.push(`/receipts/${r.id}`)} aria-label="View"><Eye className="h-3.5 w-3.5" /></Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => printReceipt(r)} aria-label="Print"><Printer className="h-3.5 w-3.5" /></Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => router.push(`/receipts/${r.id}`)} aria-label="View receipt details"><Eye className="h-3.5 w-3.5" /></Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => printReceipt(r)} aria-label="Print receipt"><Printer className="h-3.5 w-3.5" /></Button>
                       </div>
                     </td>
                   </tr>

@@ -87,6 +87,8 @@ interface CustomerOption {
   customerId: string
   fullName: string
   primaryMobile: string
+  status: string
+  group?: { groupId: string; name: string } | null
 }
 
 const emptyForm = {
@@ -317,8 +319,8 @@ export function AccountsView({ accountId }: { accountId?: string }) {
         ) : sortedItems.length === 0 ? (
           <EmptyState message="No accounts found for the selected filters." icon={Landmark} />
         ) : (
-          <div className="max-h-[60vh] overflow-y-auto scroll-area">
-            <table className="w-full text-sm zebra-table">
+          <div className="max-h-[60vh] overflow-y-auto scroll-area overflow-x-auto">
+            <table className="w-full text-sm zebra-table min-w-[950px]">
               <thead className="bg-muted/50 sticky top-0 z-10">
                 <tr>
                   <SortableHeader label="Account" sortKey="accountNumber" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
@@ -343,16 +345,16 @@ export function AccountsView({ accountId }: { accountId?: string }) {
                     className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
                   >
                     <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">{a.accountNumber}</td>
-                    <td className="px-3 py-2.5">
-                      <p className="font-medium">{a.customer.fullName}</p>
-                      <p className="text-xs text-muted-foreground">{a.customer.customerId}</p>
+                    <td className="px-3 py-2.5 max-w-[200px]">
+                      <p className="font-medium truncate" title={a.customer.fullName}>{a.customer.fullName}</p>
+                      <p className="text-xs text-muted-foreground truncate">{a.customer.customerId}</p>
                     </td>
-                    <td className="px-3 py-2.5 text-right">{formatMoney(a.principal)}</td>
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap">{formatMoney(a.principal)}</td>
                     <td className="px-3 py-2.5 text-xs whitespace-nowrap">{a.interestRate}% · {a.interestType}</td>
-                    <td className="px-3 py-2.5 text-center">{a.tenure} {a.installmentFreq.slice(0, 1)}</td>
-                    <td className="px-3 py-2.5 text-right">{formatMoney(a.installmentAmount)}</td>
-                    <td className="px-3 py-2.5 text-right text-emerald-600 dark:text-emerald-400">{a.paidAmount > 0 ? formatMoney(a.paidAmount) : <span className="text-muted-foreground">—</span>}</td>
-                    <td className="px-3 py-2.5 text-right font-semibold">{a.outstanding > 0 ? formatMoney(a.outstanding) : <span className="text-muted-foreground">—</span>}</td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">{a.tenure} {a.installmentFreq.slice(0, 1)}</td>
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap">{formatMoney(a.installmentAmount)}</td>
+                    <td className="px-3 py-2.5 text-right text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{a.paidAmount > 0 ? formatMoney(a.paidAmount) : <span className="text-muted-foreground">—</span>}</td>
+                    <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">{a.outstanding > 0 ? formatMoney(a.outstanding) : <span className="text-muted-foreground">—</span>}</td>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-1.5">
                         <div className="flex-1 min-w-[40px] h-1.5 rounded-full bg-muted overflow-hidden">
@@ -370,8 +372,8 @@ export function AccountsView({ accountId }: { accountId?: string }) {
                     <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
                       {a.nextDueDate ? formatDate(a.nextDueDate) : <span className="text-muted-foreground">—</span>}
                     </td>
-                    <td className="px-3 py-2.5"><Badge className={cn(STATUS_COLORS[a.status])}>{a.status}</Badge></td>
-                    <td className="px-3 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-3 py-2.5 whitespace-nowrap"><Badge className={cn(STATUS_COLORS[a.status])}>{a.status}</Badge></td>
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Actions"><MoreVertical className="h-3.5 w-3.5" /></Button>
@@ -393,7 +395,7 @@ export function AccountsView({ accountId }: { accountId?: string }) {
 
       {/* New account dialog */}
       <Dialog open={showNew} onOpenChange={setShowNew}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-4xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Landmark className="h-5 w-5 text-primary" /> Create Account / Loan</DialogTitle>
           </DialogHeader>
@@ -497,25 +499,25 @@ function AccountDetailBody({
       </div>
       <div className="px-4 py-3">
         <p className="text-sm font-semibold mb-2">Installment Schedule</p>
-        <div className="max-h-[40vh] overflow-y-auto scroll-area border rounded-md">
-          <table className="w-full text-sm zebra-table">
+        <div className="max-h-[40vh] overflow-y-auto overflow-x-auto scroll-area border rounded-md">
+          <table className="w-full text-sm zebra-table min-w-[480px]">
             <thead className="bg-muted/50 sticky top-0">
               <tr className="text-left text-xs text-muted-foreground">
-                <th className="px-3 py-2 font-medium">#</th>
-                <th className="px-3 py-2 font-medium">Due Date</th>
-                <th className="px-3 py-2 font-medium text-right">Amount</th>
-                <th className="px-3 py-2 font-medium text-right">Paid</th>
-                <th className="px-3 py-2 font-medium">Status</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">#</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">Due Date</th>
+                <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Amount</th>
+                <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Paid</th>
+                <th className="px-3 py-2 font-medium whitespace-nowrap">Status</th>
               </tr>
             </thead>
             <tbody>
               {schedule.map((s) => (
                 <tr key={s.id} className="border-b last:border-0">
-                  <td className="px-3 py-2">{s.installNo}</td>
-                  <td className="px-3 py-2">{formatDate(s.dueDate)}</td>
-                  <td className="px-3 py-2 text-right">{formatMoney(Number(s.amount))}</td>
-                  <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400">{formatMoney(Number(s.paidAmount))}</td>
-                  <td className="px-3 py-2"><Badge className={cn(STATUS_COLORS[s.status])}>{s.status}</Badge></td>
+                  <td className="px-3 py-2 whitespace-nowrap">{s.installNo}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{formatDate(s.dueDate)}</td>
+                  <td className="px-3 py-2 text-right whitespace-nowrap">{formatMoney(Number(s.amount))}</td>
+                  <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatMoney(Number(s.paidAmount))}</td>
+                  <td className="px-3 py-2 whitespace-nowrap"><Badge className={cn(STATUS_COLORS[s.status])}>{s.status}</Badge></td>
                 </tr>
               ))}
             </tbody>
@@ -534,9 +536,13 @@ function NewAccountForm({ form, setForm, preview }: { form: typeof emptyForm; se
     const t = setTimeout(async () => {
       const params = new URLSearchParams()
       if (cq) params.set('q', cq)
-      params.set('limit', '20')
+      params.set('limit', '50')
       const data = await apiFetch<{ items: CustomerOption[] }>(`/api/customers?${params}`)
-      setCustomers(data.items)
+      // Disbursement Gate UI: only APPROVED, READY_FOR_DISBURSEMENT, or legacy ACTIVE (without existing active loan)
+      const eligible = data.items.filter(
+        (c) => c.status === 'APPROVED' || c.status === 'READY_FOR_DISBURSEMENT' || c.status === 'ACTIVE'
+      )
+      setCustomers(eligible)
     }, 250)
     return () => clearTimeout(t)
   }, [cq])
@@ -544,17 +550,25 @@ function NewAccountForm({ form, setForm, preview }: { form: typeof emptyForm; se
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-2">
       <div className="space-y-4">
-        <Field label="Customer *" full>
+        <Field label="Customer (Must be Approved by Branch Manager) *" full>
           <div className="space-y-2">
-            <Input value={cq} onChange={(e) => setCq(e.target.value)} placeholder="Search customer by name / mobile / ID…" />
-            <Select value={form.customerId} onValueChange={(v) => setForm({ ...form, customerId: v })}>
-              <SelectTrigger><SelectValue placeholder="Select customer" /></SelectTrigger>
-              <SelectContent>
-                {customers.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.fullName} · {c.primaryMobile} ({c.customerId})</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input value={cq} onChange={(e) => setCq(e.target.value)} placeholder="Search approved customer by name / mobile / ID…" />
+            {customers.length === 0 ? (
+              <div className="p-3 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 rounded-md border border-amber-200 dark:border-amber-900">
+                No approved customers are currently available for disbursement. New customers must be verified and approved by the Branch Manager first.
+              </div>
+            ) : (
+              <Select value={form.customerId} onValueChange={(v) => setForm({ ...form, customerId: v })}>
+                <SelectTrigger><SelectValue placeholder="Select approved customer" /></SelectTrigger>
+                <SelectContent>
+                  {customers.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.fullName} · {c.primaryMobile} ({c.customerId}) {c.group ? `[${c.group.groupId}]` : ''} - {c.status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </Field>
         <div className="grid grid-cols-2 gap-3">
@@ -603,19 +617,19 @@ function NewAccountForm({ form, setForm, preview }: { form: typeof emptyForm; se
         </p>
         {preview ? (
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2 text-xs border-b pb-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-xs border-b pb-3">
               <PreviewRow label="Principal" value={formatMoney(preview.principal)} />
               <PreviewRow label="Interest Rate" value={`${form.interestRate}%`} />
               <PreviewRow label="Interest Type" value={form.interestType === 'FLAT' ? 'Flat' : 'Reducing Balance'} />
-              <PreviewRow label="Interest Period" value={form.interestPeriod} />
+              <PreviewRow label="Interest Period" value={form.interestPeriod === 'FLAT_PERIOD' ? 'Flat Period' : form.interestPeriod} />
               <PreviewRow label="Frequency" value={form.installmentFreq} />
               <PreviewRow label="Tenure" value={`${form.tenure} installments`} />
               <PreviewRow label="Disbursement Date" value={formatDate(form.startDate)} />
-              <PreviewRow label="First Repayment Date" value={formatDate(preview.firstDueDate)} tone="info" />
+              <PreviewRow label="First Due Date" value={formatDate(preview.firstDueDate)} tone="info" />
               <PreviewRow label="Maturity Date" value={formatDate(preview.maturityDate)} />
             </div>
 
-            <div className="space-y-1.5 pt-1">
+            <div className="space-y-1.5 pt-1 bg-background/50 p-2.5 rounded-md border">
               <PreviewRow label="Total Interest" value={formatMoney(preview.totalInterest)} tone="warning" />
               <PreviewRow label="Total Payable" value={formatMoney(preview.totalPayable)} tone="success" big />
               <PreviewRow label="Installment Amount" value={formatMoney(preview.installmentAmount)} tone="info" big />
@@ -628,27 +642,27 @@ function NewAccountForm({ form, setForm, preview }: { form: typeof emptyForm; se
                 </p>
                 <span className="text-[10px] text-muted-foreground">All installments visible</span>
               </div>
-              <div className="max-h-56 overflow-y-auto border rounded-md bg-background scroll-area">
-                <table className="w-full text-xs">
+              <div className="max-h-56 overflow-y-auto overflow-x-auto border rounded-md bg-background scroll-area">
+                <table className="w-full text-xs min-w-[500px]">
                   <thead className="bg-muted/60 sticky top-0 border-b">
                     <tr className="text-left text-muted-foreground">
-                      <th className="px-2.5 py-1.5 font-medium">#</th>
-                      <th className="px-2.5 py-1.5 font-medium">Due Date</th>
-                      <th className="px-2.5 py-1.5 font-medium text-right">Principal</th>
-                      <th className="px-2.5 py-1.5 font-medium text-right">Interest</th>
-                      <th className="px-2.5 py-1.5 font-medium text-right">Installment</th>
-                      <th className="px-2.5 py-1.5 font-medium text-center">Status</th>
+                      <th className="px-2.5 py-1.5 font-medium whitespace-nowrap">#</th>
+                      <th className="px-2.5 py-1.5 font-medium whitespace-nowrap">Due Date</th>
+                      <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">Principal</th>
+                      <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">Interest</th>
+                      <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">Installment</th>
+                      <th className="px-2.5 py-1.5 font-medium text-center whitespace-nowrap">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {preview.schedule.map((s: any) => (
                       <tr key={s.installNo} className="border-b last:border-0 hover:bg-muted/30">
-                        <td className="px-2.5 py-1.5 font-medium">{s.installNo}</td>
-                        <td className="px-2.5 py-1.5">{formatDate(s.dueDate)}</td>
-                        <td className="px-2.5 py-1.5 text-right">{formatMoney(s.principalPart)}</td>
-                        <td className="px-2.5 py-1.5 text-right text-amber-600 dark:text-amber-400">{formatMoney(s.interestPart)}</td>
-                        <td className="px-2.5 py-1.5 text-right font-semibold text-primary">{formatMoney(s.amount)}</td>
-                        <td className="px-2.5 py-1.5 text-center">
+                        <td className="px-2.5 py-1.5 font-medium whitespace-nowrap">{s.installNo}</td>
+                        <td className="px-2.5 py-1.5 whitespace-nowrap">{formatDate(s.dueDate)}</td>
+                        <td className="px-2.5 py-1.5 text-right whitespace-nowrap">{formatMoney(s.principalPart)}</td>
+                        <td className="px-2.5 py-1.5 text-right text-amber-600 dark:text-amber-400 whitespace-nowrap">{formatMoney(s.interestPart)}</td>
+                        <td className="px-2.5 py-1.5 text-right font-semibold text-primary whitespace-nowrap">{formatMoney(s.amount)}</td>
+                        <td className="px-2.5 py-1.5 text-center whitespace-nowrap">
                           <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
                             {s.status}
                           </span>
@@ -679,9 +693,9 @@ function Field({ label, children, full }: { label: string; children: React.React
 function PreviewRow({ label, value, tone = 'default', big }: { label: string; value: string; tone?: 'default' | 'success' | 'warning' | 'info'; big?: boolean }) {
   const tones = { default: '', success: 'text-emerald-600 dark:text-emerald-400', warning: 'text-amber-600 dark:text-amber-400', info: 'text-teal-600 dark:text-teal-400' }
   return (
-    <div className="flex justify-between items-center">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className={cn('font-semibold', big ? 'text-lg' : 'text-sm', tones[tone])}>{value}</span>
+    <div className="flex items-baseline justify-between gap-3 min-w-0">
+      <span className="text-xs text-muted-foreground shrink-0">{label}</span>
+      <span className={cn('font-semibold text-right truncate', big ? 'text-lg' : 'text-xs sm:text-sm', tones[tone])} title={value}>{value}</span>
     </div>
   )
 }

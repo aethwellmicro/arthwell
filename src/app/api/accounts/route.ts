@@ -103,9 +103,30 @@ export async function POST(req: Request) {
     }
     const data = result.data
 
-    const customer = await db.customer.findUnique({ where: { id: data.customerId } })
+    const customer = await db.customer.findUnique({
+      where: { id: data.customerId },
+      include: { group: true },
+    })
     if (!customer) return error('Customer not found.', 404)
-    if (customer.status !== 'ACTIVE') return error('Cannot create account for inactive/blocked customer.', 422)
+
+    // Critical Disbursement Gate:
+    // 1. Customer must not be cancelled
+    if (customer.status === 'CANCELLED') {
+      return error('Cannot disburse loan to a cancelled customer.', 422)
+    }
+
+    // 2. Customer must be approved by Branch Manager / Admin (or legacy ACTIVE)
+    if (customer.status === 'PENDING_VERIFICATION') {
+      return error('Customer must be approved by the Branch Manager before disbursement.', 422)
+    }
+
+    if (customer.status === 'REJECTED') {
+      return error('Customer application was rejected and cannot be disbursed. Re-verify or resubmit the customer first.', 422)
+    }
+
+    if (customer.status !== 'APPROVED' && customer.status !== 'READY_FOR_DISBURSEMENT' && customer.status !== 'ACTIVE') {
+      return error(`Customer is in "${customer.status}" status and is not eligible for disbursement.`, 422)
+    }
 
     const startDate = parseCalendarDate(data.startDate)
     const computed = calculateLoan({
@@ -160,10 +181,31 @@ export async function POST(req: Request) {
         })),
       })
 
+      // Update customer status to DISBURSED atomically
+      await tx.customer.update({
+        where: { id: customer.id },
+        data: { status: 'DISBURSED' },
+      })
+
       return newAccount
     })
 
-    await logAudit({ user, action: 'CREATE', entity: 'ACCOUNT', entityId: account.id, newValue: { accountNumber: account.accountNumber, customerId: data.customerId, principal: computed.principal, totalPayable: computed.totalPayable } })
+    await logAudit({
+      user,
+      action: 'CUSTOMER_DISBURSED',
+      entity: 'CUSTOMER',
+      entityId: customer.id,
+      oldValue: { status: customer.status },
+      newValue: { status: 'DISBURSED', accountNumber: account.accountNumber, principal: computed.principal },
+    })
+
+    await logAudit({
+      user,
+      action: 'CREATE',
+      entity: 'ACCOUNT',
+      entityId: account.id,
+      newValue: { accountNumber: account.accountNumber, customerId: data.customerId, principal: computed.principal, totalPayable: computed.totalPayable },
+    })
     return json({ ...account, principal: Number(account.principal), totalPayable: Number(account.totalPayable), totalInterest: Number(account.totalInterest), installmentAmount: Number(account.installmentAmount) }, 201)
   })
 }

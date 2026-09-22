@@ -61,7 +61,24 @@ interface Dashboard {
     monthCollected: number
     sixMonthCollected: number
     overdueAccountCount: number
+    totalGroups?: number
+    pendingCustomers?: number
+    approvedCustomers?: number
+    rejectedCustomers?: number
+    disbursedCustomers?: number
   }
+  pendingApprovals?: {
+    id: string
+    customerId: string
+    fullName: string
+    primaryMobile: string
+    amount: number
+    branch: string
+    status: string
+    createdAt: string
+    group?: { id: string; groupId: string; name: string } | null
+    createdBy?: { id: string; name: string } | null
+  }[]
   byMode: Record<string, number>
   byEmployee: { name: string; role: string; amount: number }[]
   overdueAccounts: { accountNumber: string; customer: string; customerId: string; mobile: string; overdueAmount: number; maxOverdueDays: number }[]
@@ -209,16 +226,97 @@ export function DashboardView() {
         )
       })()}
 
+      {/* Branch Manager / Admin: Pending Customer Approvals Queue */}
+      {data.pendingApprovals && data.pendingApprovals.length > 0 && (
+        <SectionCard
+          title="Pending Customer Approvals"
+          description={`${data.pendingApprovals.length} customers waiting for Branch Manager verification before disbursement`}
+          action={
+            <Button variant="ghost" size="sm" onClick={() => router.push('/customers?status=PENDING_VERIFICATION')}>
+              View all <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            </Button>
+          }
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm zebra-table min-w-[750px]">
+              <thead className="bg-muted/50">
+                <tr className="text-left text-xs text-muted-foreground">
+                  <th className="px-4 py-2 font-medium">Customer</th>
+                  <th className="px-4 py-2 font-medium">Group</th>
+                  <th className="px-4 py-2 font-medium">Branch</th>
+                  <th className="px-4 py-2 font-medium">Field Officer</th>
+                  <th className="px-4 py-2 font-medium">Created Date</th>
+                  <th className="px-4 py-2 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.pendingApprovals.map((pa) => (
+                  <tr key={pa.id} className="border-b last:border-0 hover:bg-muted/40">
+                    <td className="px-4 py-2.5">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-foreground">{pa.fullName}</span>
+                        <span className="font-mono text-xs text-muted-foreground">{pa.customerId} · {pa.primaryMobile}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {pa.group ? (
+                        <span className="inline-flex items-center text-xs font-mono font-medium px-2 py-0.5 rounded bg-primary/10 text-primary">
+                          {pa.group.groupId} - {pa.group.name}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">No Group</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{pa.branch || 'Main Branch'}</td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{pa.createdBy?.name || '—'}</td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{formatDateTime(pa.createdAt)}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2.5 text-xs"
+                          onClick={() => router.push(`/customers/${pa.id}`)}
+                        >
+                          Review
+                        </Button>
+                        {(user?.role === 'ADMIN' || user?.role === 'BRANCH_MANAGER') && (
+                          <Button
+                            size="sm"
+                            className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                            onClick={async () => {
+                              try {
+                                await apiFetch(`/api/customers/${pa.id}/approve`, { method: 'POST' })
+                                toast.success(`${pa.fullName} approved!`)
+                                loadDashboard(true)
+                              } catch (e: any) {
+                                toast.error(e.message)
+                              }
+                            }}
+                          >
+                            Approve
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+      )}
+
       {/* KPI grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-        <StatCard label="Total Customers" value={String(stats.totalCustomers)} animateValue={stats.totalCustomers} animateFormat={(n) => String(n)} sub={`${stats.activeCustomers} active`} icon={Users} tone="default" onClick={() => setView('customers')} />
+        <StatCard label="Total Customers" value={String(stats.totalCustomers)} animateValue={stats.totalCustomers} animateFormat={(n) => String(n)} sub={`${stats.activeCustomers} active / ready`} icon={Users} tone="default" onClick={() => setView('customers')} />
+        <StatCard label="Pending Approval" value={String(stats.pendingCustomers ?? 0)} animateValue={stats.pendingCustomers ?? 0} animateFormat={(n) => String(n)} sub="Awaiting Manager" icon={AlertTriangle} tone="warning" onClick={() => router.push('/customers?status=PENDING_VERIFICATION')} />
         <StatCard label="Active Accounts" value={String(stats.totalAccounts)} animateValue={stats.totalAccounts} animateFormat={(n) => String(n)} sub="Loans disbursed" icon={Landmark} tone="info" onClick={() => setView('accounts')} />
         <StatCard label="Total Disbursed" value={formatMoneyCompact(stats.totalDisbursed)} animateValue={stats.totalDisbursed} animateFormat={formatMoneyCompact} fullValue={formatMoney(stats.totalDisbursed)} sub="Principal amount" icon={Banknote} tone="default" onClick={() => setView('accounts')} />
         <StatCard label="Total Collected" value={formatMoneyCompact(stats.totalCollected)} animateValue={stats.totalCollected} animateFormat={formatMoneyCompact} fullValue={formatMoney(stats.totalCollected)} sub={`6-mo: ${formatMoneyCompact(stats.sixMonthCollected)}`} icon={Wallet} tone="success" onClick={() => setView('collections')} />
         <StatCard label="Total Outstanding" value={formatMoneyCompact(stats.totalOutstanding)} animateValue={stats.totalOutstanding} animateFormat={formatMoneyCompact} fullValue={formatMoney(stats.totalOutstanding)} sub="Across all accounts" icon={TrendingUp} tone="warning" onClick={() => setView('reports')} />
         <StatCard label="Total Overdue" value={formatMoneyCompact(stats.totalOverdue)} animateValue={stats.totalOverdue} animateFormat={formatMoneyCompact} fullValue={formatMoney(stats.totalOverdue)} sub={`${stats.overdueAccountCount} accounts`} icon={AlertTriangle} tone="danger" onClick={() => setView('reports')} />
         <StatCard label="Today's Collection" value={formatMoneyCompact(stats.todayCollected)} animateValue={stats.todayCollected} animateFormat={formatMoneyCompact} fullValue={formatMoney(stats.todayCollected)} sub={`Due: ${formatMoneyCompact(stats.todayDue)}`} icon={HandCoins} tone="success" onClick={() => setView('collections')} />
-        <StatCard label="Today's Pending" value={formatMoneyCompact(stats.todayPending)} animateValue={stats.todayPending} animateFormat={formatMoneyCompact} fullValue={formatMoney(stats.todayPending)} sub="Remaining due today" icon={CalendarClock} tone="warning" onClick={() => setView('reports')} />
       </div>
 
       {/* Charts row */}
@@ -423,31 +521,31 @@ export function DashboardView() {
       {/* Today collections + overdue */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <SectionCard title="Today's Collections" description="Latest 10 transactions">
-          <div className="max-h-96 overflow-y-auto scroll-area">
+          <div className="max-h-96 overflow-y-auto overflow-x-auto scroll-area">
             {data.todayCollections.length ? (
-              <table className="w-full text-sm zebra-table">
+              <table className="w-full text-sm zebra-table min-w-[500px]">
                 <thead className="bg-muted/50 sticky top-0">
                   <tr className="text-left text-xs text-muted-foreground">
-                    <th className="px-4 py-2 font-medium">Customer</th>
-                    <th className="px-4 py-2 font-medium">Receipt</th>
-                    <th className="px-4 py-2 font-medium text-right">Amount</th>
-                    <th className="px-4 py-2 font-medium">Mode</th>
-                    <th className="px-4 py-2 font-medium">By</th>
+                    <th className="px-4 py-2 font-medium whitespace-nowrap">Customer</th>
+                    <th className="px-4 py-2 font-medium whitespace-nowrap">Receipt</th>
+                    <th className="px-4 py-2 font-medium text-right whitespace-nowrap">Amount</th>
+                    <th className="px-4 py-2 font-medium whitespace-nowrap">Mode</th>
+                    <th className="px-4 py-2 font-medium whitespace-nowrap">By</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.todayCollections.map((c) => (
                     <tr key={c.id} className="border-b last:border-0 hover:bg-muted/40">
-                      <td className="px-4 py-2">
-                        <p className="font-medium">{c.customerName}</p>
-                        <p className="text-xs text-muted-foreground">{c.customerId}</p>
+                      <td className="px-4 py-2 max-w-[160px]">
+                        <p className="font-medium truncate" title={c.customerName}>{c.customerName}</p>
+                        <p className="text-xs text-muted-foreground truncate">{c.customerId}</p>
                       </td>
-                      <td className="px-4 py-2 font-mono text-xs">{c.receiptNumber}</td>
-                      <td className="px-4 py-2 text-right font-semibold text-emerald-600 dark:text-emerald-400">{formatMoney(c.amount)}</td>
-                      <td className="px-4 py-2">
+                      <td className="px-4 py-2 font-mono text-xs whitespace-nowrap">{c.receiptNumber}</td>
+                      <td className="px-4 py-2 text-right font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatMoney(c.amount)}</td>
+                      <td className="px-4 py-2 whitespace-nowrap">
                         <Badge variant="outline">{c.paymentMode}</Badge>
                       </td>
-                      <td className="px-4 py-2 text-xs">{c.collectedBy}</td>
+                      <td className="px-4 py-2 text-xs whitespace-nowrap">{c.collectedBy}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -459,7 +557,7 @@ export function DashboardView() {
         </SectionCard>
 
         <SectionCard title="Overdue Accounts" description={agingFilter ? `Filtered: ${agingFilter === '0-30' ? '0-30 days' : agingFilter === '31-60' ? '31-60 days' : agingFilter === '61-90' ? '61-90 days' : '90+ days'}` : 'Top follow-up targets'} action={<Button variant="ghost" size="sm" onClick={() => setView('reports')}>View all<ArrowRight className="h-3 w-3 ml-1" /></Button>}>
-          <div className="max-h-96 overflow-y-auto scroll-area">
+          <div className="max-h-96 overflow-y-auto overflow-x-auto scroll-area">
             {(() => {
               const filtered = agingFilter
                 ? data.overdueAccounts.filter((a) => {
@@ -472,14 +570,14 @@ export function DashboardView() {
                   })
                 : data.overdueAccounts
               return filtered.length ? (
-              <table className="w-full text-sm zebra-table">
+              <table className="w-full text-sm zebra-table min-w-[550px]">
                 <thead className="bg-muted/50 sticky top-0">
                   <tr className="text-left text-xs text-muted-foreground">
-                    <th className="px-4 py-2 font-medium">Account</th>
-                    <th className="px-4 py-2 font-medium">Customer</th>
-                    <th className="px-4 py-2 font-medium text-right">Overdue</th>
-                    <th className="px-4 py-2 font-medium text-center">Days</th>
-                    <th className="px-4 py-2 font-medium">Action</th>
+                    <th className="px-4 py-2 font-medium whitespace-nowrap">Account</th>
+                    <th className="px-4 py-2 font-medium whitespace-nowrap">Customer</th>
+                    <th className="px-4 py-2 font-medium text-right whitespace-nowrap">Overdue</th>
+                    <th className="px-4 py-2 font-medium text-center whitespace-nowrap">Days</th>
+                    <th className="px-4 py-2 font-medium whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -489,9 +587,9 @@ export function DashboardView() {
                     const rowBg = severity === 'critical' ? 'bg-red-50/50 dark:bg-red-950/20' : severity === 'warning' ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''
                     return (
                       <tr key={i} className={cn('border-b last:border-0 hover:bg-muted/40', rowBg)}>
-                        <td className="px-4 py-2 font-mono text-xs">{a.accountNumber}</td>
-                        <td className="px-4 py-2">
-                          <button className="font-medium hover:text-primary text-left" onClick={() => router.push(`/customers/${a.customerId}`)}>
+                        <td className="px-4 py-2 font-mono text-xs whitespace-nowrap">{a.accountNumber}</td>
+                        <td className="px-4 py-2 max-w-[160px]">
+                          <button className="font-medium hover:text-primary text-left truncate block w-full" onClick={() => router.push(`/customers/${a.customerId}`)} title={a.customer}>
                             {a.customer}
                           </button>
                           <div className="flex items-center gap-1">
@@ -508,8 +606,8 @@ export function DashboardView() {
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-2 text-right font-semibold text-red-600 dark:text-red-400">{formatMoney(a.overdueAmount)}</td>
-                        <td className="px-4 py-2 text-center">
+                        <td className="px-4 py-2 text-right font-semibold text-red-600 dark:text-red-400 whitespace-nowrap">{formatMoney(a.overdueAmount)}</td>
+                        <td className="px-4 py-2 text-center whitespace-nowrap">
                           <span className={cn(
                             'inline-flex items-center justify-center min-w-[36px] px-1.5 py-0.5 rounded-full text-[10px] font-bold',
                             severity === 'critical' && 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
@@ -519,7 +617,7 @@ export function DashboardView() {
                             {days}d
                           </span>
                         </td>
-                        <td className="px-4 py-2">
+                        <td className="px-4 py-2 whitespace-nowrap">
                           <div className="flex items-center gap-1">
                             <Button size="sm" variant="outline" onClick={() => router.push(`/collections?customer=${a.customerId}`)}>
                               <HandCoins className="h-3 w-3 mr-1" /> Collect

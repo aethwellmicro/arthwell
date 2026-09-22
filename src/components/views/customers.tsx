@@ -18,7 +18,15 @@ import {
   Eye,
   FileSpreadsheet,
   Banknote,
+  UsersRound,
+  CheckCircle2,
+  XCircle,
+  RotateCcw,
+  Ban,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
 import { apiFetch, formatMoney, formatMoneyCompact, formatDate, STATUS_COLORS, ROLE_LABELS, downloadCSV } from '@/lib/format'
 import { useApp } from '@/lib/store'
 import { Button } from '@/components/ui/button'
@@ -76,9 +84,23 @@ interface Customer {
   idType?: string | null
   idNumber?: string | null
   amount?: number | null
+  branch: string
   status: string
+  groupId?: string | null
+  group?: { id: string; groupId: string; name: string; branch?: string } | null
+  approvedById?: string | null
+  approvedBy?: { id: string; name: string } | null
+  approvedAt?: string | null
+  rejectedById?: string | null
+  rejectedBy?: { id: string; name: string } | null
+  rejectedAt?: string | null
+  rejectionReason?: string | null
+  cancelledById?: string | null
+  cancelledBy?: { id: string; name: string } | null
+  cancelledAt?: string | null
+  cancellationReason?: string | null
   createdAt: string
-  createdBy?: { name: string }
+  createdBy?: { id?: string; name: string; role?: string }
   totalPayable: number
   totalCollected: number
   outstanding: number
@@ -130,21 +152,43 @@ const emptyForm = {
   idType: 'Aadhaar',
   idNumber: '',
   amount: '',
+  groupId: '',
+  branch: 'Main Branch',
+}
+
+interface GroupOption {
+  id: string
+  groupId: string
+  name: string
+  branch: string
+  status: string
+}
+
+const emptyGroupForm = {
+  name: '',
+  branch: 'Main Branch',
+  description: '',
+  status: 'ACTIVE',
 }
 
 import { useRouter } from 'next/navigation'
 
 export function CustomersView({ customerId }: { customerId?: string }) {
-  const { searchQuery, setSearchQuery } = useApp()
+  const { user, searchQuery, setSearchQuery } = useApp()
   const router = useRouter()
   const [items, setItems] = useState<Customer[]>([])
+  const [groups, setGroups] = useState<GroupOption[]>([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('ALL')
+  const [groupId, setGroupId] = useState('ALL')
   const [area, setArea] = useState('')
   const [showNew, setShowNew] = useState(false)
+  const [showNewGroup, setShowNewGroup] = useState(false)
   const [form, setForm] = useState(emptyForm)
+  const [groupForm, setGroupForm] = useState(emptyGroupForm)
   const [saving, setSaving] = useState(false)
+  const [savingGroup, setSavingGroup] = useState(false)
   const [selected, setSelected] = useState<Customer | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(25)
@@ -152,12 +196,25 @@ export function CustomersView({ customerId }: { customerId?: string }) {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
 
+  // Modals for actions
+  const [rejectTarget, setRejectTarget] = useState<Customer | null>(null)
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [rejecting, setRejecting] = useState(false)
+
+  const [cancelTarget, setCancelTarget] = useState<Customer | null>(null)
+  const [cancellationReason, setCancellationReason] = useState('')
+  const [cancelling, setCancelling] = useState(false)
+
+  const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'BRANCH_MANAGER'
+
   function handleSort(key: string) {
     if (sortKey === key) {
       if (sortDir === 'asc') {
         setSortDir('desc')
       } else {
-        // cycle: null -> asc -> desc -> null
         setSortKey(null)
         setSortDir(null)
       }
@@ -167,12 +224,22 @@ export function CustomersView({ customerId }: { customerId?: string }) {
     }
   }
 
+  const loadGroups = useCallback(async () => {
+    try {
+      const data = await apiFetch<{ items: GroupOption[] }>('/api/groups?status=ACTIVE&limit=200')
+      setGroups(data.items)
+    } catch {
+      // ignore
+    }
+  }, [])
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
       if (q) params.set('q', q)
       if (status !== 'ALL') params.set('status', status)
+      if (groupId !== 'ALL') params.set('groupId', groupId)
       if (area) params.set('area', area)
       params.set('limit', '500')
       const data = await apiFetch<{ items: Customer[] }>(`/api/customers?${params}`)
@@ -183,7 +250,7 @@ export function CustomersView({ customerId }: { customerId?: string }) {
     } finally {
       setLoading(false)
     }
-  }, [q, status, area])
+  }, [q, status, groupId, area])
 
   const sortedItems = useMemo(() => {
     if (sortKey && sortDir) {
@@ -196,6 +263,10 @@ export function CustomersView({ customerId }: { customerId?: string }) {
     const start = (page - 1) * pageSize
     return sortedItems.slice(start, start + pageSize)
   }, [sortedItems, page, pageSize])
+
+  useEffect(() => {
+    loadGroups()
+  }, [loadGroups])
 
   useEffect(() => {
     if (searchQuery) {
@@ -217,14 +288,18 @@ export function CustomersView({ customerId }: { customerId?: string }) {
   }, [customerId])
 
   async function save() {
-    if (!form.fullName || !form.primaryMobile) {
+    if (!form.fullName.trim() || !form.primaryMobile.trim()) {
       toast.error('Name and primary mobile are required.')
+      return
+    }
+    if (!form.groupId) {
+      toast.error('Please select a group.')
       return
     }
     setSaving(true)
     try {
       await apiFetch('/api/customers', { method: 'POST', body: JSON.stringify(form) })
-      toast.success('Customer registered')
+      toast.success('Customer registered and submitted for verification!')
       setForm(emptyForm)
       setShowNew(false)
       load()
@@ -235,55 +310,234 @@ export function CustomersView({ customerId }: { customerId?: string }) {
     }
   }
 
+  async function saveGroup() {
+    if (!groupForm.name.trim()) {
+      toast.error('Group name is required.')
+      return
+    }
+    setSavingGroup(true)
+    try {
+      const created = await apiFetch<GroupOption>('/api/groups', {
+        method: 'POST',
+        body: JSON.stringify(groupForm),
+      })
+      toast.success('Group created successfully!')
+      setGroupForm(emptyGroupForm)
+      setShowNewGroup(false)
+      await loadGroups()
+      setForm((prev) => ({ ...prev, groupId: created.id }))
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setSavingGroup(false)
+    }
+  }
+
+  async function handleApprove(targetCustomer: Customer) {
+    try {
+      await apiFetch(`/api/customers/${targetCustomer.id}/approve`, { method: 'POST' })
+      toast.success(`Customer ${targetCustomer.fullName} has been APPROVED for disbursement!`)
+      load()
+      if (selected?.id === targetCustomer.id) {
+        const full = await apiFetch<Customer>(`/api/customers/${targetCustomer.id}`)
+        setSelected(full)
+      }
+    } catch (e: any) {
+      toast.error(e.message)
+    }
+  }
+
+  async function handleReject() {
+    if (!rejectTarget) return
+    if (!rejectionReason.trim()) {
+      toast.error('Rejection reason is required.')
+      return
+    }
+    setRejecting(true)
+    try {
+      await apiFetch(`/api/customers/${rejectTarget.id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: rejectionReason }),
+      })
+      toast.success(`Customer ${rejectTarget.fullName} rejected.`)
+      setRejectTarget(null)
+      setRejectionReason('')
+      load()
+      if (selected?.id === rejectTarget.id) {
+        const full = await apiFetch<Customer>(`/api/customers/${rejectTarget.id}`)
+        setSelected(full)
+      }
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setRejecting(false)
+    }
+  }
+
+  async function handleResubmit(targetCustomer: Customer) {
+    try {
+      await apiFetch(`/api/customers/${targetCustomer.id}/resubmit`, { method: 'POST' })
+      toast.success(`Customer ${targetCustomer.fullName} resubmitted for verification!`)
+      load()
+      if (selected?.id === targetCustomer.id) {
+        const full = await apiFetch<Customer>(`/api/customers/${targetCustomer.id}`)
+        setSelected(full)
+      }
+    } catch (e: any) {
+      toast.error(e.message)
+    }
+  }
+
+  async function handleCancel() {
+    if (!cancelTarget) return
+    if (!cancellationReason.trim()) {
+      toast.error('Cancellation reason is required.')
+      return
+    }
+    setCancelling(true)
+    try {
+      await apiFetch(`/api/customers/${cancelTarget.id}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: cancellationReason }),
+      })
+      toast.success(`Customer ${cancelTarget.fullName} has been cancelled.`)
+      setCancelTarget(null)
+      setCancellationReason('')
+      load()
+      if (selected?.id === cancelTarget.id) {
+        const full = await apiFetch<Customer>(`/api/customers/${cancelTarget.id}`)
+        setSelected(full)
+      }
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setCancelling(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await apiFetch(`/api/customers/${deleteTarget.id}`, { method: 'DELETE' })
+      toast.success(`Customer ${deleteTarget.fullName} deleted safely.`)
+      setDeleteTarget(null)
+      if (selected?.id === deleteTarget.id) setSelected(null)
+      load()
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex-1 min-w-[200px] relative">
-          <Label className="text-xs text-muted-foreground">Search</Label>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, mobile, customer ID…" className="pl-8" />
+      {/* Top Filter & Action Bar */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end gap-3 flex-1">
+          <div className="flex-1 min-w-[200px] relative">
+            <Label className="text-xs text-muted-foreground">Search</Label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Name, mobile, customer ID…"
+                className="pl-8"
+              />
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Status</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="w-[155px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Statuses</SelectItem>
+                <SelectItem value="PENDING_VERIFICATION">Pending Verification</SelectItem>
+                <SelectItem value="APPROVED">Approved</SelectItem>
+                <SelectItem value="DISBURSED">Disbursed</SelectItem>
+                <SelectItem value="REJECTED">Rejected</SelectItem>
+                <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                <SelectItem value="ACTIVE">Active (Legacy)</SelectItem>
+                <SelectItem value="CLOSED">Closed</SelectItem>
+                <SelectItem value="BLOCKED">Blocked</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Group</Label>
+            <Select value={groupId} onValueChange={setGroupId}>
+              <SelectTrigger className="w-[170px]"><SelectValue placeholder="All Groups" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Groups</SelectItem>
+                {groups.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>
+                    {g.groupId} - {g.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Area</Label>
+            <Input
+              value={area}
+              onChange={(e) => setArea(e.target.value)}
+              placeholder="Area"
+              className="w-[140px]"
+            />
           </div>
         </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">Status</Label>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All</SelectItem>
-              <SelectItem value="ACTIVE">Active</SelectItem>
-              <SelectItem value="CLOSED">Closed</SelectItem>
-              <SelectItem value="BLOCKED">Blocked</SelectItem>
-            </SelectContent>
-          </Select>
+
+        {/* Dual Actions: [ + New Group ] [ + New Customer ] side-by-side / wrap safely */}
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end pt-2 sm:pt-0">
+          <Button
+            variant="outline"
+            onClick={() => setShowNewGroup(true)}
+            className="flex-1 sm:flex-initial"
+          >
+            <UsersRound className="h-4 w-4 mr-1.5 text-primary" /> + New Group
+          </Button>
+          <Button
+            onClick={() => setShowNew(true)}
+            className="flex-1 sm:flex-initial"
+          >
+            <UserPlus className="h-4 w-4 mr-1.5" /> + New Customer
+          </Button>
         </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">Area</Label>
-          <Input value={area} onChange={(e) => setArea(e.target.value)} placeholder="Area" className="w-[160px]" />
-        </div>
-        <Button onClick={() => setShowNew(true)} className="ml-auto">
-          <Plus className="h-4 w-4 mr-1" /> New Customer
-        </Button>
       </div>
 
       {/* Summary stats */}
       {!loading && items.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div className="rounded-lg border bg-card p-3">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Customers</p>
             <p className="text-lg font-bold">{items.length}</p>
           </div>
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Active</p>
-            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{items.filter((c) => c.status === 'ACTIVE').length}</p>
+            <p className="text-[10px] uppercase tracking-wide text-amber-600 dark:text-amber-400">Pending Approval</p>
+            <p className="text-lg font-bold text-amber-600 dark:text-amber-400">
+              {items.filter((c) => c.status === 'PENDING_VERIFICATION').length}
+            </p>
           </div>
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Blocked/Closed</p>
-            <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{items.filter((c) => c.status !== 'ACTIVE').length}</p>
+            <p className="text-[10px] uppercase tracking-wide text-teal-600 dark:text-teal-400">Approved</p>
+            <p className="text-lg font-bold text-teal-600 dark:text-teal-400">
+              {items.filter((c) => c.status === 'APPROVED' || c.status === 'READY_FOR_DISBURSEMENT').length}
+            </p>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <p className="text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Disbursed / Active</p>
+            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+              {items.filter((c) => c.status === 'DISBURSED' || c.status === 'ACTIVE').length}
+            </p>
           </div>
           <div className="rounded-lg border bg-card p-3">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Outstanding</p>
-            <p className="text-lg font-bold text-primary">{formatMoneyCompact(items.reduce((s, c) => s + c.outstanding, 0))}</p>
+            <p className="text-lg font-bold text-primary">
+              {formatMoneyCompact(items.reduce((s, c) => s + (c.outstanding || 0), 0))}
+            </p>
           </div>
         </div>
       )}
@@ -296,51 +550,76 @@ export function CustomersView({ customerId }: { customerId?: string }) {
             <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>Clear</Button>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => {
-              const selectedItems = items.filter((c) => selectedIds.has(c.id))
-              downloadCSV(`customers-${new Date().toISOString().slice(0, 10)}.csv`, selectedItems.map((c) => ({
-                customerId: c.customerId,
-                name: c.fullName,
-                mobile: c.primaryMobile,
-                area: c.area || '',
-                outstanding: c.outstanding,
-                status: c.status,
-              })))
-              toast.success(`Exported ${selectedIds.size} customers`)
-            }}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const selectedItems = items.filter((c) => selectedIds.has(c.id))
+                downloadCSV(
+                  `customers-${new Date().toISOString().slice(0, 10)}.csv`,
+                  selectedItems.map((c) => ({
+                    customerId: c.customerId,
+                    name: c.fullName,
+                    mobile: c.primaryMobile,
+                    group: c.group ? `${c.group.groupId} - ${c.group.name}` : '',
+                    branch: c.branch,
+                    area: c.area || '',
+                    outstanding: c.outstanding,
+                    status: c.status,
+                  }))
+                )
+                toast.success(`Exported ${selectedIds.size} customers`)
+              }}
+            >
               <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> Export Selected
             </Button>
-            <Button variant="outline" size="sm" onClick={() => {
-              const selectedItems = items.filter((c) => selectedIds.has(c.id))
-              selectedItems.forEach((c) => {
-                navigator.clipboard?.writeText(c.primaryMobile)
-              })
-              toast.success(`Copied ${selectedIds.size} mobile numbers`)
-            }}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const selectedItems = items.filter((c) => selectedIds.has(c.id))
+                selectedItems.forEach((c) => {
+                  navigator.clipboard?.writeText(c.primaryMobile)
+                })
+                toast.success(`Copied ${selectedIds.size} mobile numbers`)
+              }}
+            >
               <Phone className="h-3.5 w-3.5 mr-1" /> Copy Mobiles
             </Button>
           </div>
         </div>
       )}
 
-      <SectionCard title={`Customers (${items.length})`} action={
-        (q || status !== 'ALL' || area) && !loading ? (
-          <Button variant="ghost" size="sm" onClick={() => { setQ(''); setStatus('ALL'); setArea('') }}>
-            <X className="h-3.5 w-3.5 mr-1" /> Clear Filters
-          </Button>
-        ) : undefined
-      }>
+      <SectionCard
+        title={`Customers (${items.length})`}
+        action={
+          (q || status !== 'ALL' || groupId !== 'ALL' || area) && !loading ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setQ('')
+                setStatus('ALL')
+                setGroupId('ALL')
+                setArea('')
+              }}
+            >
+              <X className="h-3.5 w-3.5 mr-1" /> Clear Filters
+            </Button>
+          ) : undefined
+        }
+      >
         {loading ? (
           <LoadingRows rows={6} />
         ) : items.length === 0 ? (
-          <EmptyState message="No customers found. Add your first customer." icon={Users} />
+          <EmptyState message="No customers found. Register your first customer." icon={Users} />
         ) : (
           <>
-            <div className="max-h-[55vh] overflow-y-auto scroll-area">
-              <table className="w-full text-sm zebra-table">
+            <div className="max-h-[58vh] overflow-y-auto scroll-area overflow-x-auto">
+              <table className="w-full text-sm zebra-table min-w-[1080px]">
                 <thead className="bg-muted/50 sticky top-0 z-10">
                   <tr>
-                    <th className="px-4 py-2.5 w-10">
+                    <th className="px-3 py-2.5 w-10 whitespace-nowrap">
                       <Checkbox
                         checked={paginatedItems.length > 0 && paginatedItems.every((c) => selectedIds.has(c.id))}
                         onCheckedChange={(checked) => {
@@ -356,14 +635,14 @@ export function CustomersView({ customerId }: { customerId?: string }) {
                       />
                     </th>
                     <SortableHeader label="Customer ID" sortKey="customerId" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
-                    <SortableHeader label="Name" sortKey="fullName" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="Customer Name" sortKey="fullName" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
                     <SortableHeader label="Mobile" sortKey="primaryMobile" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
-                    <SortableHeader label="Area" sortKey="area" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
-                    <SortableHeader label="Accounts" sortKey="_count.accounts" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="center" />
-                    <SortableHeader label="Outstanding" sortKey="outstanding" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
-                    <SortableHeader label="Last Payment" sortKey="lastPaymentDate" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="Group" sortKey="group.name" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="Branch" sortKey="branch" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
                     <SortableHeader label="Status" sortKey="status" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
-                    <th className="px-4 py-2.5 font-medium text-right">Actions</th>
+                    <SortableHeader label="Created By" sortKey="createdBy.name" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="Outstanding" sortKey="outstanding" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                    <th className="px-4 py-2.5 font-medium text-right text-xs text-muted-foreground whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -373,7 +652,7 @@ export function CustomersView({ customerId }: { customerId?: string }) {
                       onClick={() => router.push(`/customers/${c.id}`)}
                       className={cn('border-b last:border-0 hover:bg-muted/40 cursor-pointer', selectedIds.has(c.id) && 'bg-primary/5')}
                     >
-                      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-3 py-2.5 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           checked={selectedIds.has(c.id)}
                           onCheckedChange={(checked) => {
@@ -385,27 +664,131 @@ export function CustomersView({ customerId }: { customerId?: string }) {
                           aria-label={`Select ${c.fullName}`}
                         />
                       </td>
-                      <td className="px-4 py-2.5 font-mono text-xs">{c.customerId}</td>
-                      <td className="px-4 py-2.5 font-medium">{c.fullName}</td>
-                      <td className="px-4 py-2.5">{c.primaryMobile}</td>
-                      <td className="px-4 py-2.5 text-muted-foreground">{c.area || '—'}</td>
-                      <td className="px-4 py-2.5 text-center">{c._count?.accounts ?? 0}</td>
-                      <td className="px-4 py-2.5 text-right font-semibold">{c.outstanding > 0 ? formatMoney(c.outstanding) : <span className="text-muted-foreground">—</span>}</td>
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{c.lastPaymentDate ? formatDate(c.lastPaymentDate) : <span className="text-muted-foreground">—</span>}</td>
-                      <td className="px-4 py-2.5">
-                        <Badge className={cn(STATUS_COLORS[c.status])}>{c.status}</Badge>
+                      <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap font-medium text-primary">
+                        {c.customerId}
                       </td>
-                      <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Actions"><MoreVertical className="h-3.5 w-3.5" /></Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => router.push(`/customers/${c.id}`)}><Eye className="h-3.5 w-3.5 mr-2" /> View Details</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => router.push(`/collections?customer=${c.id}`)}><HandCoins className="h-3.5 w-3.5 mr-2" /> New Collection</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => { navigator.clipboard?.writeText(c.primaryMobile); toast.success('Mobile copied') }}><Phone className="h-3.5 w-3.5 mr-2" /> Copy Mobile</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                      <td className="px-3 py-2.5 min-w-[180px] max-w-[240px]">
+                        <p className="font-medium truncate text-foreground" title={c.fullName}>
+                          {c.fullName}
+                        </p>
+                        {c.area && <span className="text-[11px] text-muted-foreground block truncate">{c.area}</span>}
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap font-mono text-xs">{c.primaryMobile}</td>
+                      <td className="px-3 py-2.5 min-w-[150px] max-w-[200px]">
+                        {c.group ? (
+                          <div className="truncate" title={`${c.group.groupId} — ${c.group.name}`}>
+                            <span className="font-mono text-xs font-semibold text-primary mr-1">
+                              {c.group.groupId}
+                            </span>
+                            <span className="text-xs text-muted-foreground truncate">{c.group.name}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">No Group</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-xs text-muted-foreground">{c.branch || 'Main Branch'}</td>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <Badge className={cn(STATUS_COLORS[c.status] || 'bg-slate-100 text-slate-800 border-slate-200')}>
+                          {c.status.replace(/_/g, ' ')}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-xs text-muted-foreground">
+                        {c.createdBy?.name || '—'}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">
+                        {c.outstanding > 0 ? formatMoney(c.outstanding) : <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          {/* Quick inline approval for Branch Manager / Admin */}
+                          {isManagerOrAdmin && c.status === 'PENDING_VERIFICATION' && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 border-emerald-300"
+                                onClick={() => handleApprove(c)}
+                                title="Approve Customer"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-300"
+                                onClick={() => setRejectTarget(c)}
+                                title="Reject Customer"
+                              >
+                                <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+                              </Button>
+                            </>
+                          )}
+
+                          {/* Quick resubmit for Field Officer if rejected */}
+                          {c.status === 'REJECTED' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs text-amber-600 hover:bg-amber-50 border-amber-300"
+                              onClick={() => handleResubmit(c)}
+                              title="Resubmit for Verification"
+                            >
+                              <RotateCcw className="h-3.5 w-3.5 mr-1" /> Resubmit
+                            </Button>
+                          )}
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Actions">
+                                <MoreVertical className="h-3.5 w-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem onClick={() => router.push(`/customers/${c.id}`)}>
+                                <Eye className="h-3.5 w-3.5 mr-2" /> View Details
+                              </DropdownMenuItem>
+
+                              {c.status === 'APPROVED' && (
+                                <DropdownMenuItem onClick={() => router.push(`/accounts?customer=${c.id}`)}>
+                                  <Landmark className="h-3.5 w-3.5 mr-2 text-primary" /> Disburse Loan
+                                </DropdownMenuItem>
+                              )}
+
+                              {(c.status === 'DISBURSED' || c.status === 'ACTIVE') && (
+                                <DropdownMenuItem onClick={() => router.push(`/collections?customer=${c.id}`)}>
+                                  <HandCoins className="h-3.5 w-3.5 mr-2" /> New Collection
+                                </DropdownMenuItem>
+                              )}
+
+                              {isManagerOrAdmin && c.status === 'PENDING_VERIFICATION' && (
+                                <>
+                                  <DropdownMenuItem onClick={() => handleApprove(c)}>
+                                    <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-600" /> Approve
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => setRejectTarget(c)}>
+                                    <XCircle className="h-3.5 w-3.5 mr-2 text-rose-600" /> Reject
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+
+                              {c.status !== 'CANCELLED' && c.status !== 'DISBURSED' && (
+                                <DropdownMenuItem onClick={() => setCancelTarget(c)} className="text-amber-600">
+                                  <Ban className="h-3.5 w-3.5 mr-2" /> Cancel Request
+                                </DropdownMenuItem>
+                              )}
+
+                              {(!c._count?.accounts || c._count.accounts === 0) && (
+                                <DropdownMenuItem onClick={() => setDeleteTarget(c)} className="text-rose-600">
+                                  <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete Customer
+                                </DropdownMenuItem>
+                              )}
+
+                              <DropdownMenuItem onClick={() => { navigator.clipboard?.writeText(c.primaryMobile); toast.success('Mobile copied') }}>
+                                <Phone className="h-3.5 w-3.5 mr-2" /> Copy Mobile
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -425,28 +808,161 @@ export function CustomersView({ customerId }: { customerId?: string }) {
         )}
       </SectionCard>
 
+      {/* Quick Create Group Dialog */}
+      <Dialog open={showNewGroup} onOpenChange={setShowNewGroup}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UsersRound className="h-5 w-5 text-primary" /> Create New Group
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs">Group Name *</Label>
+              <Input
+                value={groupForm.name}
+                onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
+                placeholder="e.g. Shivaji Nagar Weekly Group"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Branch *</Label>
+              <Input
+                value={groupForm.branch}
+                onChange={(e) => setGroupForm({ ...groupForm, branch: e.target.value })}
+                placeholder="Main Branch"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Description (Optional)</Label>
+              <Textarea
+                value={groupForm.description}
+                onChange={(e) => setGroupForm({ ...groupForm, description: e.target.value })}
+                placeholder="Meeting day, area description..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewGroup(false)}>Cancel</Button>
+            <Button onClick={saveGroup} disabled={savingGroup}>
+              {savingGroup ? 'Creating…' : 'Create Group'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* New customer dialog */}
       <Dialog open={showNew} onOpenChange={setShowNew}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5 text-primary" /> Register New Customer</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" /> Register New Customer
+            </DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
-            <Field label="Full Name *"><Input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></Field>
-            <Field label="Primary Mobile *"><Input value={form.primaryMobile} onChange={(e) => setForm({ ...form, primaryMobile: e.target.value })} /></Field>
+            {/* Group Selection */}
+            <div className="sm:col-span-2 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-foreground">Assigned Group *</Label>
+                <button
+                  type="button"
+                  onClick={() => setShowNewGroup(true)}
+                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                >
+                  <Plus className="h-3 w-3" /> Create Group
+                </button>
+              </div>
+              <Select
+                value={form.groupId}
+                onValueChange={(v) => setForm({ ...form, groupId: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select active group (Required)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {groups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      {g.groupId} — {g.name} ({g.branch})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                All customers must be assigned to an active group before loan verification.
+              </p>
+            </div>
+
+            <Field label="Full Name *">
+              <Input
+                value={form.fullName}
+                onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                placeholder="Full Legal Name"
+              />
+            </Field>
+            <Field label="Primary Mobile *">
+              <Input
+                value={form.primaryMobile}
+                onChange={(e) => setForm({ ...form, primaryMobile: e.target.value })}
+                placeholder="10-digit mobile number"
+              />
+            </Field>
             <Field label="Amount (₹) *">
               <div className="relative">
                 <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">₹</span>
-                <Input type="number" min="0" step="0.01" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.00" className="pl-7" />
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                  placeholder="0.00"
+                  className="pl-7"
+                />
               </div>
             </Field>
-            <Field label="Alternate Mobile"><Input value={form.alternateMobile} onChange={(e) => setForm({ ...form, alternateMobile: e.target.value })} /></Field>
-            <Field label="Occupation"><Input value={form.occupation} onChange={(e) => setForm({ ...form, occupation: e.target.value })} /></Field>
-            <Field label="Address" full><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></Field>
-            <Field label="City"><Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></Field>
-            <Field label="Area"><Input value={form.area} onChange={(e) => setForm({ ...form, area: e.target.value })} /></Field>
-            <Field label="Reference Name"><Input value={form.referenceName} onChange={(e) => setForm({ ...form, referenceName: e.target.value })} /></Field>
-            <Field label="Reference Mobile"><Input value={form.referenceMobile} onChange={(e) => setForm({ ...form, referenceMobile: e.target.value })} /></Field>
+            <Field label="Alternate Mobile">
+              <Input
+                value={form.alternateMobile}
+                onChange={(e) => setForm({ ...form, alternateMobile: e.target.value })}
+              />
+            </Field>
+            <Field label="Occupation">
+              <Input
+                value={form.occupation}
+                onChange={(e) => setForm({ ...form, occupation: e.target.value })}
+              />
+            </Field>
+            <Field label="Address" full>
+              <Input
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+              />
+            </Field>
+            <Field label="City">
+              <Input
+                value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+              />
+            </Field>
+            <Field label="Area">
+              <Input
+                value={form.area}
+                onChange={(e) => setForm({ ...form, area: e.target.value })}
+              />
+            </Field>
+            <Field label="Reference Name">
+              <Input
+                value={form.referenceName}
+                onChange={(e) => setForm({ ...form, referenceName: e.target.value })}
+              />
+            </Field>
+            <Field label="Reference Mobile">
+              <Input
+                value={form.referenceMobile}
+                onChange={(e) => setForm({ ...form, referenceMobile: e.target.value })}
+              />
+            </Field>
             <Field label="KYC Type">
               <Select value={form.idType} onValueChange={(v) => setForm({ ...form, idType: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -459,11 +975,108 @@ export function CustomersView({ customerId }: { customerId?: string }) {
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="KYC Number" full><Input value={form.idNumber} onChange={(e) => setForm({ ...form, idNumber: e.target.value })} /></Field>
+            <Field label="KYC Number" full>
+              <Input
+                value={form.idNumber}
+                onChange={(e) => setForm({ ...form, idNumber: e.target.value })}
+              />
+            </Field>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNew(false)}>Cancel</Button>
-            <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Register Customer'}</Button>
+            <Button onClick={save} disabled={saving}>
+              {saving ? 'Saving…' : 'Submit for Verification'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rejection Modal */}
+      <Dialog open={!!rejectTarget} onOpenChange={(open) => !open && setRejectTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <XCircle className="h-5 w-5" /> Reject Customer Verification
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-xs text-muted-foreground">
+              Provide a clear reason why <strong>{rejectTarget?.fullName}</strong> ({rejectTarget?.customerId}) is being rejected. The Field Officer can correct and resubmit.
+            </p>
+            <div>
+              <Label className="text-xs font-semibold">Rejection Reason *</Label>
+              <Textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="e.g. Address proof missing or unreadable..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRejectTarget(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleReject} disabled={rejecting}>
+              {rejecting ? 'Rejecting…' : 'Confirm Rejection'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancellation Modal */}
+      <Dialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <Ban className="h-5 w-5" /> Cancel Customer Application
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-xs text-muted-foreground">
+              Cancelling marks customer <strong>{cancelTarget?.fullName}</strong> as withdrawn while safely keeping audit history intact.
+            </p>
+            <div>
+              <Label className="text-xs font-semibold">Cancellation Reason *</Label>
+              <Textarea
+                value={cancellationReason}
+                onChange={(e) => setCancellationReason(e.target.value)}
+                placeholder="e.g. Customer withdrew loan request..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelTarget(null)}>Keep Active</Button>
+            <Button className="bg-amber-600 hover:bg-amber-700 text-white" onClick={handleCancel} disabled={cancelling}>
+              {cancelling ? 'Cancelling…' : 'Confirm Cancel'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Safe Delete Modal */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <Trash2 className="h-5 w-5" /> Delete Customer Record
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900">
+              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-900 dark:text-amber-200">
+                Hard delete is ONLY permitted if this customer has 0 loans, 0 collections, and no financial records.
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Are you sure you want to permanently delete <strong>{deleteTarget?.fullName}</strong> ({deleteTarget?.customerId})?
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete Permanently'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -475,14 +1088,24 @@ export function CustomersView({ customerId }: { customerId?: string }) {
             <DrawerTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
               {selected?.fullName}
-              {selected && <Badge className={cn(STATUS_COLORS[selected.status])}>{selected.status}</Badge>}
+              {selected && (
+                <Badge className={cn(STATUS_COLORS[selected.status] || 'bg-slate-100 text-slate-800')}>
+                  {selected.status.replace(/_/g, ' ')}
+                </Badge>
+              )}
             </DrawerTitle>
           </DrawerHeader>
           {selected && (
             <CustomerDetail
               customer={selected}
+              groups={groups}
+              isManagerOrAdmin={isManagerOrAdmin}
               onCollect={() => { router.push(`/collections?customer=${selected.id}`); setSelected(null) }}
               onUpdated={(c) => setSelected(c)}
+              onApprove={() => handleApprove(selected)}
+              onReject={() => setRejectTarget(selected)}
+              onResubmit={() => handleResubmit(selected)}
+              onCancel={() => setCancelTarget(selected)}
             />
           )}
         </DrawerContent>
@@ -500,7 +1123,27 @@ function Field({ label, children, full }: { label: string; children: React.React
   )
 }
 
-function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer; onCollect: () => void; onUpdated: (c: Customer) => void }) {
+function CustomerDetail({
+  customer,
+  groups,
+  isManagerOrAdmin,
+  onCollect,
+  onUpdated,
+  onApprove,
+  onReject,
+  onResubmit,
+  onCancel,
+}: {
+  customer: Customer
+  groups: GroupOption[]
+  isManagerOrAdmin: boolean
+  onCollect: () => void
+  onUpdated: (c: Customer) => void
+  onApprove: () => void
+  onReject: () => void
+  onResubmit: () => void
+  onCancel: () => void
+}) {
   const [tab, setTab] = useState('overview')
   const [accounts, setAccounts] = useState<Account[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
@@ -538,6 +1181,8 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
       idType: customer.idType || 'Aadhaar',
       idNumber: customer.idNumber || '',
       amount: customer.amount != null ? String(customer.amount) : '',
+      groupId: customer.groupId || '',
+      branch: customer.branch || 'Main Branch',
       status: customer.status,
     })
     setShowEdit(true)
@@ -552,7 +1197,6 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
       })
       toast.success('Customer updated')
       setShowEdit(false)
-      // re-fetch enriched detail
       const full = await apiFetch<Customer>(`/api/customers/${customer.id}`)
       onUpdated(full)
     } catch (e: any) {
@@ -564,10 +1208,63 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
 
   return (
     <div className="flex flex-col">
+      {/* Workflow Banner */}
+      {customer.status === 'PENDING_VERIFICATION' && (
+        <div className="bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-900 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200 text-xs">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+            <span>This customer is <strong>Pending Branch Manager Verification</strong>. Loan disbursement cannot proceed until approved.</span>
+          </div>
+          {isManagerOrAdmin && (
+            <div className="flex items-center gap-2">
+              <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={onApprove}>
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approve Customer
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 text-xs text-rose-600 hover:bg-rose-50 border-rose-300" onClick={onReject}>
+                <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {customer.status === 'REJECTED' && (
+        <div className="bg-rose-50 dark:bg-rose-950/40 border-b border-rose-200 dark:border-rose-900 px-4 py-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="space-y-0.5 text-xs text-rose-900 dark:text-rose-200">
+            <p className="font-semibold flex items-center gap-1.5 text-rose-700 dark:text-rose-300">
+              <XCircle className="h-4 w-4" /> Application Rejected by {customer.rejectedBy?.name || 'Branch Manager'}
+            </p>
+            <p>Reason: {customer.rejectionReason || 'No reason provided.'}</p>
+          </div>
+          <Button size="sm" variant="outline" className="h-7 text-xs text-amber-600 border-amber-300 hover:bg-amber-50" onClick={onResubmit}>
+            <RotateCcw className="h-3.5 w-3.5 mr-1" /> Resubmit for Approval
+          </Button>
+        </div>
+      )}
+
+      {customer.status === 'APPROVED' && (
+        <div className="bg-teal-50 dark:bg-teal-950/40 border-b border-teal-200 dark:border-teal-900 px-4 py-2.5 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-teal-800 dark:text-teal-200 text-xs">
+            <CheckCircle2 className="h-4 w-4 text-teal-600" />
+            <span>Approved by <strong>{customer.approvedBy?.name || 'Branch Manager'}</strong>. Ready for Account / Loan Disbursement.</span>
+          </div>
+          <Button size="sm" variant="outline" className="h-7 text-xs text-amber-600 border-amber-300" onClick={onCancel}>
+            <Ban className="h-3.5 w-3.5 mr-1" /> Cancel Application
+          </Button>
+        </div>
+      )}
+
+      {customer.status === 'CANCELLED' && (
+        <div className="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 py-2.5 text-xs text-muted-foreground">
+          <p className="font-medium text-slate-800 dark:text-slate-200">Application Cancelled</p>
+          <p>Reason: {customer.cancellationReason || 'Withdrawn by customer'}</p>
+        </div>
+      )}
+
       <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 border-b bg-muted/30">
         <DetailItem icon={Phone} label="Mobile" value={customer.primaryMobile} />
-        <DetailItem icon={MapPin} label="Area" value={customer.area || '—'} />
-        <DetailItem icon={Briefcase} label="Occupation" value={customer.occupation || '—'} />
+        <DetailItem icon={UsersRound} label="Group" value={customer.group ? `${customer.group.groupId} (${customer.group.name})` : '—'} />
+        <DetailItem icon={MapPin} label="Branch & Area" value={`${customer.branch || 'Main Branch'} - ${customer.area || '—'}`} />
         <DetailItem icon={Banknote} label="Amount" value={customer.amount ? formatMoney(Number(customer.amount)) : '—'} />
       </div>
       <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 border-b bg-muted/20">
@@ -577,7 +1274,9 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
         <div className="flex items-end gap-2 flex-wrap">
           <Button size="sm" variant="outline" onClick={openEdit}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
           <Button size="sm" variant="outline" onClick={printStatement}><FileText className="h-3.5 w-3.5 mr-1" /> Statement</Button>
-          <Button size="sm" onClick={onCollect}><HandCoins className="h-3.5 w-3.5 mr-1" /> Collect</Button>
+          {(customer.status === 'DISBURSED' || customer.status === 'ACTIVE') && (
+            <Button size="sm" onClick={onCollect}><HandCoins className="h-3.5 w-3.5 mr-1" /> Collect</Button>
+          )}
         </div>
       </div>
       <Tabs value={tab} onValueChange={setTab} className="px-4 pt-3">
@@ -588,6 +1287,8 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
         </TabsList>
         <TabsContent value="overview" className="mt-3 pb-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <InfoRow label="Group" value={customer.group ? `${customer.group.groupId} — ${customer.group.name}` : '—'} />
+            <InfoRow label="Branch" value={customer.branch || 'Main Branch'} />
             <InfoRow label="Amount" value={customer.amount ? formatMoney(Number(customer.amount)) : '—'} />
             <InfoRow label="Alternate Mobile" value={customer.alternateMobile || '—'} />
             <InfoRow label="City" value={customer.city || '—'} />
@@ -604,28 +1305,28 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
             <EmptyState message="No accounts for this customer." icon={Landmark} />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm zebra-table">
+              <table className="w-full text-sm zebra-table min-w-[650px]">
                 <thead className="bg-muted/50">
                   <tr className="text-left text-xs text-muted-foreground">
-                    <th className="px-3 py-2 font-medium">Account</th>
-                    <th className="px-3 py-2 font-medium">Type</th>
-                    <th className="px-3 py-2 font-medium text-right">Principal</th>
-                    <th className="px-3 py-2 font-medium text-right">Payable</th>
-                    <th className="px-3 py-2 font-medium text-right">Paid</th>
-                    <th className="px-3 py-2 font-medium text-right">Outstanding</th>
-                    <th className="px-3 py-2 font-medium">Status</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">Account</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">Type</th>
+                    <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Principal</th>
+                    <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Payable</th>
+                    <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Paid</th>
+                    <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Outstanding</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {accounts.map((a) => (
                     <tr key={a.id} className="border-b last:border-0">
-                      <td className="px-3 py-2 font-mono text-xs">{a.accountNumber}</td>
-                      <td className="px-3 py-2">{a.interestType}</td>
-                      <td className="px-3 py-2 text-right">{formatMoney(a.principal)}</td>
-                      <td className="px-3 py-2 text-right">{formatMoney(a.totalPayable)}</td>
-                      <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400">{formatMoney(a.paidAmount)}</td>
-                      <td className="px-3 py-2 text-right font-semibold">{formatMoney(a.outstanding)}</td>
-                      <td className="px-3 py-2"><Badge className={cn(STATUS_COLORS[a.status])}>{a.status}</Badge></td>
+                      <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{a.accountNumber}</td>
+                      <td className="px-3 py-2 whitespace-nowrap">{a.interestType}</td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">{formatMoney(a.principal)}</td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">{formatMoney(a.totalPayable)}</td>
+                      <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatMoney(a.paidAmount)}</td>
+                      <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">{formatMoney(a.outstanding)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap"><Badge className={cn(STATUS_COLORS[a.status])}>{a.status}</Badge></td>
                     </tr>
                   ))}
                 </tbody>
@@ -638,30 +1339,30 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
             <EmptyState message="No payment history yet." icon={HandCoins} />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm zebra-table">
+              <table className="w-full text-sm zebra-table min-w-[700px]">
                 <thead className="bg-muted/50">
                   <tr className="text-left text-xs text-muted-foreground">
-                    <th className="px-3 py-2 font-medium">Date</th>
-                    <th className="px-3 py-2 font-medium">Receipt</th>
-                    <th className="px-3 py-2 font-medium">Account</th>
-                    <th className="px-3 py-2 font-medium text-right">Amount</th>
-                    <th className="px-3 py-2 font-medium">Mode</th>
-                    <th className="px-3 py-2 font-medium">Collector</th>
-                    <th className="px-3 py-2 font-medium text-right">Balance After</th>
-                    <th className="px-3 py-2 font-medium">Status</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">Date</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">Receipt</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">Account</th>
+                    <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Amount</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">Mode</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">Collector</th>
+                    <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Balance After</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {payments.map((p) => (
                     <tr key={p.id} className="border-b last:border-0">
-                      <td className="px-3 py-2">{formatDate(p.collectionDate)}</td>
-                      <td className="px-3 py-2 font-mono text-xs">{p.receiptNumber}</td>
-                      <td className="px-3 py-2 font-mono text-xs">{p.accountNumber}</td>
-                      <td className="px-3 py-2 text-right font-semibold">{formatMoney(p.amount)}</td>
-                      <td className="px-3 py-2"><Badge variant="outline">{p.paymentMode}</Badge></td>
-                      <td className="px-3 py-2 text-xs">{p.collectedBy}</td>
-                      <td className="px-3 py-2 text-right">{formatMoney(p.balanceAfter)}</td>
-                      <td className="px-3 py-2"><Badge className={cn(STATUS_COLORS[p.status])}>{p.status}</Badge></td>
+                      <td className="px-3 py-2 whitespace-nowrap">{formatDate(p.collectionDate)}</td>
+                      <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{p.receiptNumber}</td>
+                      <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{p.accountNumber}</td>
+                      <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">{formatMoney(p.amount)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap"><Badge variant="outline">{p.paymentMode}</Badge></td>
+                      <td className="px-3 py-2 text-xs whitespace-nowrap">{p.collectedBy}</td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">{formatMoney(p.balanceAfter)}</td>
+                      <td className="px-3 py-2 whitespace-nowrap"><Badge className={cn(STATUS_COLORS[p.status])}>{p.status}</Badge></td>
                     </tr>
                   ))}
                 </tbody>
@@ -705,11 +1406,31 @@ function CustomerDetail({ customer, onCollect, onUpdated }: { customer: Customer
                 </SelectContent>
               </Select>
             </Field>
+            <Field label="Assigned Group">
+              <Select value={editForm.groupId || ''} onValueChange={(v) => setEditForm({ ...editForm, groupId: v })}>
+                <SelectTrigger><SelectValue placeholder="Select Group" /></SelectTrigger>
+                <SelectContent>
+                  {groups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      {g.groupId} — {g.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Branch">
+              <Input value={editForm.branch || 'Main Branch'} onChange={(e) => setEditForm({ ...editForm, branch: e.target.value })} />
+            </Field>
             <Field label="KYC Number" full><Input value={editForm.idNumber || ''} onChange={(e) => setEditForm({ ...editForm, idNumber: e.target.value })} /></Field>
             <Field label="Status">
               <Select value={editForm.status || 'ACTIVE'} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="PENDING_VERIFICATION">Pending Verification</SelectItem>
+                  <SelectItem value="APPROVED">Approved</SelectItem>
+                  <SelectItem value="DISBURSED">Disbursed</SelectItem>
+                  <SelectItem value="REJECTED">Rejected</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
                   <SelectItem value="ACTIVE">Active</SelectItem>
                   <SelectItem value="CLOSED">Closed</SelectItem>
                   <SelectItem value="BLOCKED">Blocked</SelectItem>

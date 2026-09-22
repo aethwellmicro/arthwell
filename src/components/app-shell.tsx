@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   Users,
+  UsersRound,
   Landmark,
   HandCoins,
   ReceiptText,
@@ -62,6 +63,7 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/groups', label: 'Groups', icon: UsersRound },
   { href: '/customers', label: 'Customers', icon: Users },
   { href: '/accounts', label: 'Accounts / Loans', icon: Landmark },
   { href: '/collections', label: 'Collections', icon: HandCoins },
@@ -75,6 +77,7 @@ const NAV: NavItem[] = [
 
 const TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
+  '/groups': 'Group Management',
   '/customers': 'Customer Management',
   '/accounts': 'Accounts / Loans',
   '/collections': 'Daily Collection',

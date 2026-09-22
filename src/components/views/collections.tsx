@@ -304,8 +304,8 @@ export function CollectionsView() {
           <EmptyState message="No collections found for the selected filters." icon={HandCoins} />
         ) : (
           <>
-          <div className="max-h-[55vh] overflow-y-auto scroll-area">
-            <table className="w-full text-sm zebra-table">
+          <div className="max-h-[55vh] overflow-y-auto scroll-area overflow-x-auto">
+            <table className="w-full text-sm zebra-table min-w-[850px]">
               <thead className="bg-muted/50 sticky top-0 z-10">
                 <tr>
                   <SortableHeader label="Receipt" sortKey="receiptNumber" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
@@ -317,30 +317,30 @@ export function CollectionsView() {
                   <SortableHeader label="Collected By" sortKey="collectedBy.name" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
                   <SortableHeader label="Outstanding" sortKey="currentOutstanding" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
                   <SortableHeader label="Status" sortKey="status" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
-                  <th className="px-3 py-2.5 font-medium text-right text-xs text-muted-foreground">Actions</th>
+                  <th className="px-3 py-2.5 font-medium text-right text-xs text-muted-foreground whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedItems.map((c) => (
-                  <tr key={c.id} className="border-b last:border-0">
+                  <tr key={c.id} className="border-b last:border-0 hover:bg-muted/40 cursor-pointer" onClick={() => setViewTarget(c)}>
                     <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">{c.receiptNumber}</td>
                     <td className="px-3 py-2.5 text-xs whitespace-nowrap">{formatDateTime(c.collectionDate)}</td>
-                    <td className="px-3 py-2.5">
-                      <p className="font-medium">{c.customer.fullName}</p>
-                      <p className="text-xs text-muted-foreground">{c.customer.customerId}</p>
+                    <td className="px-3 py-2.5 max-w-[180px]">
+                      <p className="font-medium truncate" title={c.customer.fullName}>{c.customer.fullName}</p>
+                      <p className="text-xs text-muted-foreground truncate">{c.customer.customerId}</p>
                     </td>
                     <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">{c.account.accountNumber}</td>
-                    <td className="px-3 py-2.5 text-right font-semibold">{formatMoney(c.amount)}</td>
-                    <td className="px-3 py-2.5"><Badge variant="outline">{c.paymentMode}</Badge></td>
-                    <td className="px-3 py-2.5 text-xs">{c.collectedBy.name}</td>
-                    <td className="px-3 py-2.5 text-right">{formatMoney(c.currentOutstanding)}</td>
-                    <td className="px-3 py-2.5"><Badge className={cn(STATUS_COLORS[c.status])}>{c.status}</Badge></td>
-                    <td className="px-3 py-2.5">
-                      <div className="flex items-center gap-1 justify-end">
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewTarget(c)} aria-label="View"><Eye className="h-3.5 w-3.5" /></Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => printReceipt(c)} aria-label="Print"><Printer className="h-3.5 w-3.5" /></Button>
+                    <td className="px-3 py-2.5 text-right font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatMoney(c.amount)}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap"><Badge variant="outline">{c.paymentMode}</Badge></td>
+                    <td className="px-3 py-2.5 text-xs whitespace-nowrap">{c.collectedBy.name}</td>
+                    <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">{formatMoney(c.currentOutstanding)}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap"><Badge className={cn(STATUS_COLORS[c.status])}>{c.status}</Badge></td>
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex justify-end gap-1">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => printReceipt(c)} aria-label="Print receipt"><Printer className="h-3.5 w-3.5" /></Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewTarget(c)} aria-label="View details"><Eye className="h-3.5 w-3.5" /></Button>
                         {canReverse(user?.role) && c.status === 'SUCCESSFUL' && (
-                          <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600" onClick={() => setReverseTarget(c)} aria-label="Reverse"><Undo2 className="h-3.5 w-3.5" /></Button>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600" onClick={() => setReverseTarget(c)} aria-label="Reverse transaction"><Undo2 className="h-3.5 w-3.5" /></Button>
                         )}
                       </div>
                     </td>

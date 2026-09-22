@@ -259,91 +259,91 @@ export function ReportsView() {
         ) : !data || !data.items || data.items.length === 0 ? (
           <EmptyState message="No records found for the selected report / filters." icon={BarChart3} />
         ) : isGrouped && data.grouped ? (
-          <div className="max-h-[55vh] overflow-y-auto scroll-area">
-            <table className="w-full text-sm zebra-table">
+          <div className="max-h-[55vh] overflow-y-auto scroll-area overflow-x-auto">
+            <table className="w-full text-sm zebra-table min-w-[650px]">
               <thead className="bg-muted/50 sticky top-0">
                 <tr className="text-left text-xs text-muted-foreground">
-                  <th className="px-3 py-2 font-medium">{type === 'customer' ? 'Customer' : type === 'employee' ? 'Employee' : type === 'paymentmode' ? 'Mode' : type === 'accountstatus' ? 'Status' : 'Collector'}</th>
-                  <th className="px-3 py-2 font-medium text-right">Count</th>
-                  <th className="px-3 py-2 font-medium text-right">Total Amount</th>
-                  {type === 'accountstatus' && <th className="px-3 py-2 font-medium text-right">Disbursed</th>}
-                  {type === 'accountstatus' && <th className="px-3 py-2 font-medium text-right">Payable</th>}
-                  {type === 'reconciliation' && <><th className="px-3 py-2 font-medium text-right">Cash</th><th className="px-3 py-2 font-medium text-right">UPI</th><th className="px-3 py-2 font-medium text-right">Bank</th></>}
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">{type === 'customer' ? 'Customer' : type === 'employee' ? 'Employee' : type === 'paymentmode' ? 'Mode' : type === 'accountstatus' ? 'Status' : 'Collector'}</th>
+                  <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Count</th>
+                  <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Total Amount</th>
+                  {type === 'accountstatus' && <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Disbursed</th>}
+                  {type === 'accountstatus' && <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Payable</th>}
+                  {type === 'reconciliation' && <><th className="px-3 py-2 font-medium text-right whitespace-nowrap">Cash</th><th className="px-3 py-2 font-medium text-right whitespace-nowrap">UPI</th><th className="px-3 py-2 font-medium text-right whitespace-nowrap">Bank</th></>}
                 </tr>
               </thead>
               <tbody>
                 {data.grouped.map((g: any, i: number) => (
                   <tr key={i} className="border-b last:border-0 hover:bg-muted/40">
-                    <td className="px-3 py-2 font-medium">{g.key}</td>
-                    <td className="px-3 py-2 text-right">{g.count}</td>
-                    <td className="px-3 py-2 text-right font-semibold">{formatMoney(g.total || g.payable || 0)}</td>
-                    {type === 'accountstatus' && <td className="px-3 py-2 text-right">{formatMoney(g.disbursed || 0)}</td>}
-                    {type === 'accountstatus' && <td className="px-3 py-2 text-right">{formatMoney(g.payable || 0)}</td>}
-                    {type === 'reconciliation' && <><td className="px-3 py-2 text-right">{formatMoney(g.cash || 0)}</td><td className="px-3 py-2 text-right">{formatMoney(g.upi || 0)}</td><td className="px-3 py-2 text-right">{formatMoney(g.bank || 0)}</td></>}
+                    <td className="px-3 py-2 font-medium whitespace-nowrap">{g.key}</td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">{g.count}</td>
+                    <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">{formatMoney(g.total || g.payable || 0)}</td>
+                    {type === 'accountstatus' && <td className="px-3 py-2 text-right whitespace-nowrap">{formatMoney(g.disbursed || 0)}</td>}
+                    {type === 'accountstatus' && <td className="px-3 py-2 text-right whitespace-nowrap">{formatMoney(g.payable || 0)}</td>}
+                    {type === 'reconciliation' && <><td className="px-3 py-2 text-right whitespace-nowrap">{formatMoney(g.cash || 0)}</td><td className="px-3 py-2 text-right whitespace-nowrap">{formatMoney(g.upi || 0)}</td><td className="px-3 py-2 text-right whitespace-nowrap">{formatMoney(g.bank || 0)}</td></>}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : isBalance ? (
-          <div className="max-h-[55vh] overflow-y-auto scroll-area">
-            <table className="w-full text-sm zebra-table">
+          <div className="max-h-[55vh] overflow-y-auto scroll-area overflow-x-auto">
+            <table className="w-full text-sm zebra-table min-w-[750px]">
               <thead className="bg-muted/50 sticky top-0">
                 <tr className="text-left text-xs text-muted-foreground">
-                  <th className="px-3 py-2 font-medium">Account</th>
-                  <th className="px-3 py-2 font-medium">Customer</th>
-                  <th className="px-3 py-2 font-medium">Mobile</th>
-                  <th className="px-3 py-2 font-medium text-right">Payable</th>
-                  <th className="px-3 py-2 font-medium text-right">Paid</th>
-                  <th className="px-3 py-2 font-medium text-right">Outstanding</th>
-                  {type === 'overdue' && <th className="px-3 py-2 font-medium text-right">Overdue</th>}
-                  {type === 'overdue' && <th className="px-3 py-2 font-medium">Days</th>}
-                  <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">Account</th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">Customer</th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">Mobile</th>
+                  <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Payable</th>
+                  <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Paid</th>
+                  <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Outstanding</th>
+                  {type === 'overdue' && <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Overdue</th>}
+                  {type === 'overdue' && <th className="px-3 py-2 font-medium whitespace-nowrap">Days</th>}
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {data.items.map((it: any, i: number) => (
                   <tr key={i} className="border-b last:border-0 hover:bg-muted/40">
-                    <td className="px-3 py-2 font-mono text-xs">{it.accountNumber}</td>
-                    <td className="px-3 py-2 font-medium">{it.customerName}</td>
-                    <td className="px-3 py-2 text-xs">{it.mobile}</td>
-                    <td className="px-3 py-2 text-right">{formatMoney(it.totalPayable)}</td>
-                    <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400">{formatMoney(it.paid)}</td>
-                    <td className="px-3 py-2 text-right font-semibold">{formatMoney(it.outstanding)}</td>
-                    {type === 'overdue' && <td className="px-3 py-2 text-right text-amber-600 dark:text-amber-400">{formatMoney(it.overdueAmount)}</td>}
-                    {type === 'overdue' && <td className="px-3 py-2 text-center">{it.overdueDays}</td>}
-                    <td className="px-3 py-2"><Badge className={cn(STATUS_COLORS[it.status])}>{it.status}</Badge></td>
+                    <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{it.accountNumber}</td>
+                    <td className="px-3 py-2 font-medium max-w-[180px] truncate" title={it.customerName}>{it.customerName}</td>
+                    <td className="px-3 py-2 text-xs whitespace-nowrap">{it.mobile}</td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">{formatMoney(it.totalPayable)}</td>
+                    <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatMoney(it.paid)}</td>
+                    <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">{formatMoney(it.outstanding)}</td>
+                    {type === 'overdue' && <td className="px-3 py-2 text-right text-amber-600 dark:text-amber-400 whitespace-nowrap">{formatMoney(it.overdueAmount)}</td>}
+                    {type === 'overdue' && <td className="px-3 py-2 text-center whitespace-nowrap">{it.overdueDays}</td>}
+                    <td className="px-3 py-2 whitespace-nowrap"><Badge className={cn(STATUS_COLORS[it.status])}>{it.status}</Badge></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <div className="max-h-[55vh] overflow-y-auto scroll-area">
-            <table className="w-full text-sm zebra-table">
+          <div className="max-h-[55vh] overflow-y-auto scroll-area overflow-x-auto">
+            <table className="w-full text-sm zebra-table min-w-[750px]">
               <thead className="bg-muted/50 sticky top-0">
                 <tr className="text-left text-xs text-muted-foreground">
-                  <th className="px-3 py-2 font-medium">Receipt</th>
-                  <th className="px-3 py-2 font-medium">Date</th>
-                  <th className="px-3 py-2 font-medium">Customer</th>
-                  <th className="px-3 py-2 font-medium">Account</th>
-                  <th className="px-3 py-2 font-medium text-right">Amount</th>
-                  <th className="px-3 py-2 font-medium">Mode</th>
-                  <th className="px-3 py-2 font-medium">Collector</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">Receipt</th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">Date</th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">Customer</th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">Account</th>
+                  <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Amount</th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">Mode</th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">Collector</th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {data.items.map((it: any, i: number) => (
                   <tr key={i} className="border-b last:border-0 hover:bg-muted/40">
-                    <td className="px-3 py-2 font-mono text-xs">{it.receiptNumber}</td>
-                    <td className="px-3 py-2 text-xs">{formatDate(it.collectionDate)}</td>
-                    <td className="px-3 py-2 font-medium">{it.customerName}</td>
-                    <td className="px-3 py-2 font-mono text-xs">{it.accountNumber}</td>
-                    <td className="px-3 py-2 text-right font-semibold">{formatMoney(it.amount)}</td>
-                    <td className="px-3 py-2"><Badge variant="outline">{it.paymentMode}</Badge></td>
-                    <td className="px-3 py-2 text-xs">{it.collectedBy}</td>
-                    <td className="px-3 py-2"><Badge className={cn(STATUS_COLORS[it.status])}>{it.status}</Badge></td>
+                    <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{it.receiptNumber}</td>
+                    <td className="px-3 py-2 text-xs whitespace-nowrap">{formatDate(it.collectionDate)}</td>
+                    <td className="px-3 py-2 font-medium max-w-[180px] truncate" title={it.customerName}>{it.customerName}</td>
+                    <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{it.accountNumber}</td>
+                    <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">{formatMoney(it.amount)}</td>
+                    <td className="px-3 py-2 whitespace-nowrap"><Badge variant="outline">{it.paymentMode}</Badge></td>
+                    <td className="px-3 py-2 text-xs whitespace-nowrap">{it.collectedBy}</td>
+                    <td className="px-3 py-2 whitespace-nowrap"><Badge className={cn(STATUS_COLORS[it.status])}>{it.status}</Badge></td>
                   </tr>
                 ))}
               </tbody>

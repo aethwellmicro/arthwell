@@ -25,6 +25,10 @@ model User {
   collections   Collection[]
   customers     Customer[]   @relation("CreatedBy")
   accounts      Account[]    @relation("CreatedBy")
+  groups        Group[]      @relation("CreatedBy")
+  approvedCustomers Customer[] @relation("ApprovedBy")
+  rejectedCustomers Customer[] @relation("RejectedBy")
+  cancelledCustomers Customer[] @relation("CancelledBy")
   auditLogs     AuditLog[]
   notifications Notification[]
   sessions      Session[]
@@ -37,6 +41,24 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model Group {
+  id          String   @id @default(cuid())
+  groupId     String   @unique // GRP-0001
+  name        String
+  branch      String   @default("Main Branch")
+  description String?
+  status      String   @default("ACTIVE") // ACTIVE, INACTIVE, CLOSED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdById String
+  createdBy   User     @relation("CreatedBy", fields: [createdById], references: [id])
+
+  customers   Customer[]
+
+  @@index([status])
+  @@index([branch])
 }
 
 model Customer {
@@ -55,7 +77,26 @@ model Customer {
   idType          String? // Aadhaar, PAN, Voter ID, etc.
   idNumber        String?
   amount          Float    @default(0) // Loan/credit amount requested at registration
-  status          String   @default("ACTIVE") // ACTIVE, CLOSED, BLOCKED
+  branch          String   @default("Main Branch")
+  status          String   @default("PENDING_VERIFICATION") // PENDING_VERIFICATION, APPROVED, REJECTED, CANCELLED, READY_FOR_DISBURSEMENT, DISBURSED, ACTIVE, CLOSED, BLOCKED
+
+  groupId         String?
+  group           Group?   @relation(fields: [groupId], references: [id])
+
+  approvedById    String?
+  approvedBy      User?    @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedAt      DateTime?
+
+  rejectedById    String?
+  rejectedBy      User?    @relation("RejectedBy", fields: [rejectedById], references: [id])
+  rejectedAt      DateTime?
+  rejectionReason String?
+
+  cancelledById   String?
+  cancelledBy     User?    @relation("CancelledBy", fields: [cancelledById], references: [id])
+  cancelledAt     DateTime?
+  cancellationReason String?
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   createdById     String
@@ -63,6 +104,10 @@ model Customer {
 
   accounts        Account[]
   collections     Collection[]
+
+  @@index([groupId])
+  @@index([status])
+  @@index([branch])
 }
 
 model Account {

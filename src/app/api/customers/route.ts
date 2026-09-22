@@ -18,6 +18,8 @@ const customerSchema = z.object({
   idType: z.string().max(50).optional().nullable(),
   idNumber: z.string().max(50).optional().nullable(),
   amount: z.coerce.number().min(0).default(0),
+  groupId: z.string().min(1, 'Please select a valid group.').optional().nullable(),
+  branch: z.string().max(100).default('Main Branch'),
 })
 
 export async function GET(req: Request) {
@@ -26,27 +28,35 @@ export async function GET(req: Request) {
     const q = (searchParams.get('q') || '').trim()
     const status = searchParams.get('status') || undefined
     const area = searchParams.get('area') || undefined
+    const groupId = searchParams.get('groupId') || undefined
+    const branch = searchParams.get('branch') || undefined
     const limit = parseInt(searchParams.get('limit') || '100')
     const offset = parseInt(searchParams.get('offset') || '0')
 
     const where: any = {}
     if (q) {
       where.OR = [
-        { fullName: { contains: q } },
-        { primaryMobile: { contains: q } },
-        { customerId: { contains: q } },
-        { alternateMobile: { contains: q } },
+        { fullName: { contains: q, mode: 'insensitive' } },
+        { primaryMobile: { contains: q, mode: 'insensitive' } },
+        { customerId: { contains: q, mode: 'insensitive' } },
+        { alternateMobile: { contains: q, mode: 'insensitive' } },
+        { group: { name: { contains: q, mode: 'insensitive' } } },
+        { group: { groupId: { contains: q, mode: 'insensitive' } } },
       ]
     }
-    if (status) where.status = status
-    if (area) where.area = { contains: area }
+    if (status && status !== 'ALL') where.status = status
+    if (area) where.area = { contains: area, mode: 'insensitive' }
+    if (groupId && groupId !== 'ALL') where.groupId = groupId
+    if (branch && branch !== 'ALL') where.branch = branch
 
     const [items, total] = await Promise.all([
       db.customer.findMany({
         where,
         include: {
+          group: { select: { id: true, groupId: true, name: true, branch: true } },
           _count: { select: { accounts: true, collections: true } },
-          createdBy: { select: { name: true } },
+          createdBy: { select: { id: true, name: true, role: true } },
+          approvedBy: { select: { id: true, name: true } },
         },
         orderBy: { createdAt: 'desc' },
         take: limit,
@@ -99,37 +109,89 @@ export async function POST(req: Request) {
     }
     const data = result.data
 
-    const prefix = 'CUST'
-    const last = await db.customer.findFirst({ orderBy: { createdAt: 'desc' } })
-    let nextN = 0
-    if (last && last.customerId) {
-      const m = last.customerId.match(/(\d+)$/)
-      if (m) nextN = parseInt(m[1])
+    // Group validation: Group is required for new customer creation
+    if (!data.groupId) {
+      return error('Please select a group for this customer.', 422)
     }
-    const customerId = `${prefix}-${String(nextN + 1).padStart(4, '0')}`
 
-    const customer = await db.customer.create({
-      data: {
-        customerId,
-        fullName: data.fullName.trim(),
-        primaryMobile: data.primaryMobile.trim(),
-        alternateMobile: data.alternateMobile || null,
-        address: data.address || null,
-        city: data.city || null,
-        area: data.area || null,
-        occupation: data.occupation || null,
-        referenceName: data.referenceName || null,
-        referenceMobile: data.referenceMobile || null,
-        photoUrl: data.photoUrl || null,
-        idType: data.idType || null,
-        idNumber: data.idNumber || null,
-        amount: data.amount,
-        status: 'ACTIVE',
-        createdById: user.id,
+    const group = await db.group.findUnique({ where: { id: data.groupId } })
+    if (!group) {
+      return error('Selected group does not exist.', 404)
+    }
+    if (group.status !== 'ACTIVE') {
+      return error(`Cannot assign customer to ${group.status.toLowerCase()} group "${group.name}".`, 422)
+    }
+
+    // Duplicate check on primaryMobile
+    const existingMobile = await db.customer.findFirst({
+      where: { primaryMobile: data.primaryMobile.trim() },
+    })
+    if (existingMobile) {
+      return error(`A customer with mobile number ${data.primaryMobile.trim()} is already registered (${existingMobile.fullName} - ${existingMobile.customerId}).`, 409)
+    }
+
+    const branch = group.branch || data.branch || 'Main Branch'
+
+    // Initial status: PENDING_VERIFICATION for Field Officers
+    // Admins/Branch Managers can optionally create pre-approved customers
+    const isManagerOrAdmin = user.role === 'ADMIN' || user.role === 'BRANCH_MANAGER'
+    const initialStatus = isManagerOrAdmin && body.preApprove === true ? 'APPROVED' : 'PENDING_VERIFICATION'
+
+    const prefix = 'CUST'
+    const customer = await db.$transaction(async (tx) => {
+      const last = await tx.customer.findFirst({ orderBy: { createdAt: 'desc' } })
+      let nextN = 0
+      if (last && last.customerId) {
+        const m = last.customerId.match(/(\d+)$/)
+        if (m) nextN = parseInt(m[1])
+      }
+      const customerId = `${prefix}-${String(nextN + 1).padStart(4, '0')}`
+
+      return tx.customer.create({
+        data: {
+          customerId,
+          fullName: data.fullName.trim(),
+          primaryMobile: data.primaryMobile.trim(),
+          alternateMobile: data.alternateMobile || null,
+          address: data.address || null,
+          city: data.city || null,
+          area: data.area || null,
+          occupation: data.occupation || null,
+          referenceName: data.referenceName || null,
+          referenceMobile: data.referenceMobile || null,
+          photoUrl: data.photoUrl || null,
+          idType: data.idType || null,
+          idNumber: data.idNumber || null,
+          amount: data.amount,
+          branch,
+          groupId: group.id,
+          status: initialStatus,
+          approvedById: initialStatus === 'APPROVED' ? user.id : null,
+          approvedAt: initialStatus === 'APPROVED' ? new Date() : null,
+          createdById: user.id,
+        },
+        include: {
+          group: { select: { id: true, groupId: true, name: true } },
+          createdBy: { select: { id: true, name: true, role: true } },
+        },
+      })
+    })
+
+    await logAudit({
+      user,
+      action: 'CUSTOMER_CREATED',
+      entity: 'CUSTOMER',
+      entityId: customer.id,
+      newValue: {
+        customerId: customer.customerId,
+        fullName: customer.fullName,
+        primaryMobile: customer.primaryMobile,
+        groupId: customer.groupId,
+        groupName: group.name,
+        status: customer.status,
       },
     })
 
-    await logAudit({ user, action: 'CREATE', entity: 'CUSTOMER', entityId: customer.id, newValue: { customerId, fullName: data.fullName, primaryMobile: data.primaryMobile } })
     return json(customer, 201)
   })
 }

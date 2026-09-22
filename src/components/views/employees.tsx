@@ -192,49 +192,49 @@ export function EmployeesView() {
         ) : items.length === 0 ? (
           <EmptyState message="No employees yet." icon={UserCog} />
         ) : (
-          <div className="max-h-[60vh] overflow-y-auto scroll-area">
-            <table className="w-full text-sm zebra-table">
+          <div className="max-h-[60vh] overflow-y-auto scroll-area overflow-x-auto">
+            <table className="w-full text-sm zebra-table min-w-[850px]">
               <thead className="bg-muted/50 sticky top-0 z-10">
                 <tr>
                   <SortableHeader label="Employee" sortKey="name" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
                   <SortableHeader label="Role" sortKey="role" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
-                  <th className="px-3 py-2.5 font-medium text-left text-xs text-muted-foreground">Contact</th>
+                  <th className="px-3 py-2.5 font-medium text-left text-xs text-muted-foreground whitespace-nowrap">Contact</th>
                   <SortableHeader label="Today" sortKey="todayCollected" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
                   <SortableHeader label="Week" sortKey="weekCollected" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
                   <SortableHeader label="Total" sortKey="totalCollected" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
                   <SortableHeader label="Txns" sortKey="transactionCount" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="center" />
                   <SortableHeader label="Status" sortKey="active" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
-                  <th className="px-3 py-2.5 font-medium text-right text-xs text-muted-foreground">Action</th>
+                  <th className="px-3 py-2.5 font-medium text-right text-xs text-muted-foreground whitespace-nowrap">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedFilteredItems.map((e) => (
                   <tr key={e.id} className="border-b last:border-0 hover:bg-muted/40">
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 max-w-[180px]">
                       <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
                           {e.name.split(' ').map((s) => s[0]).slice(0, 2).join('')}
                         </div>
-                        <div>
-                          <p className="font-medium">{e.name}</p>
-                          <p className="text-xs text-muted-foreground">{e.employeeCode || '—'}</p>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate" title={e.name}>{e.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{e.employeeCode || '—'}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 py-2.5"><Badge className={cn(ROLE_COLORS[e.role])}>{ROLE_LABELS[e.role]}</Badge></td>
-                    <td className="px-3 py-2.5">
-                      <p className="text-xs flex items-center gap-1"><Mail className="h-3 w-3" /> {e.email}</p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1"><Phone className="h-3 w-3" /> {e.phone || '—'}</p>
+                    <td className="px-3 py-2.5 whitespace-nowrap"><Badge className={cn(ROLE_COLORS[e.role])}>{ROLE_LABELS[e.role]}</Badge></td>
+                    <td className="px-3 py-2.5 max-w-[200px]">
+                      <p className="text-xs flex items-center gap-1 truncate" title={e.email}><Mail className="h-3 w-3 shrink-0" /> <span className="truncate">{e.email}</span></p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 whitespace-nowrap"><Phone className="h-3 w-3 shrink-0" /> {e.phone || '—'}</p>
                     </td>
-                    <td className="px-3 py-2.5 text-right">{e.todayCollected > 0 ? formatMoney(e.todayCollected) : <span className="text-muted-foreground">—</span>}</td>
-                    <td className="px-3 py-2.5 text-right">{e.weekCollected > 0 ? formatMoney(e.weekCollected) : <span className="text-muted-foreground">—</span>}</td>
-                    <td className="px-3 py-2.5 text-right font-semibold">{e.totalCollected > 0 ? formatMoney(e.totalCollected) : <span className="text-muted-foreground">—</span>}</td>
-                    <td className="px-3 py-2.5 text-center">{e.transactionCount}</td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap">{e.todayCollected > 0 ? formatMoney(e.todayCollected) : <span className="text-muted-foreground">—</span>}</td>
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap">{e.weekCollected > 0 ? formatMoney(e.weekCollected) : <span className="text-muted-foreground">—</span>}</td>
+                    <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">{e.totalCollected > 0 ? formatMoney(e.totalCollected) : <span className="text-muted-foreground">—</span>}</td>
+                    <td className="px-3 py-2.5 text-center whitespace-nowrap">{e.transactionCount}</td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       {e.active ? <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Active</Badge> : <Badge variant="secondary">Inactive</Badge>}
                     </td>
-                    <td className="px-3 py-2.5 text-right">
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditTarget(e); setEditForm({ name: e.name, phone: e.phone || '', employeeCode: e.employeeCode || '', role: e.role, active: e.active, password: '' }) }}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditTarget(e); setEditForm({ name: e.name, phone: e.phone || '', employeeCode: e.employeeCode || '', role: e.role, active: e.active, password: '' }) }} aria-label="Edit employee"><Pencil className="h-3.5 w-3.5" /></Button>
                     </td>
                   </tr>
                 ))}
