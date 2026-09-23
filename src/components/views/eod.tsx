@@ -311,7 +311,7 @@ export function EODView() {
         <>
           {/* Visual Cash Flow Waterfall (Section 27 Acceptance Criteria) */}
           <SectionCard title="Authoritative Cash Reconciliation Waterfall">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
               {/* 1. Opening Cash */}
               <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1">
@@ -357,7 +357,7 @@ export function EODView() {
               </div>
 
               {/* 5. Expected Closing Cash (=) */}
-              <div className="rounded-lg border border-primary/40 bg-primary/5 p-3.5 shadow-2xs">
+              <div className="rounded-lg border border-primary/40 bg-primary/5 p-3.5 shadow-2xs sm:col-span-2 lg:col-span-1">
                 <p className="text-[11px] uppercase tracking-wide text-primary font-bold flex items-center gap-1">
                   <CheckCircle2 className="h-3.5 w-3.5" /> = Expected Cash
                 </p>
@@ -374,59 +374,108 @@ export function EODView() {
             {history.length === 0 ? (
               <p className="text-xs text-muted-foreground py-2">No historical EOD records yet.</p>
             ) : (
-              <div className="max-h-[40vh] overflow-y-auto scroll-area overflow-x-auto">
-                <table className="w-full text-xs zebra-table min-w-[700px]">
-                  <thead className="bg-muted/50 sticky top-0">
-                    <tr className="text-left text-muted-foreground">
-                      <th className="px-3 py-2 font-medium">Business Date</th>
-                      <th className="px-3 py-2 font-medium text-right">Opening Cash</th>
-                      <th className="px-3 py-2 font-medium text-right">Expected Closing</th>
-                      <th className="px-3 py-2 font-medium text-right">Actual Counted</th>
-                      <th className="px-3 py-2 font-medium text-right">Difference</th>
-                      <th className="px-3 py-2 font-medium">Reconciliation</th>
-                      <th className="px-3 py-2 font-medium">Closed By</th>
-                      <th className="px-3 py-2 font-medium">Closed At</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {history.map((h) => (
-                      <tr key={h.id} className="border-b last:border-0 hover:bg-muted/30">
-                        <td className="px-3 py-2 font-mono font-semibold">{h.businessDate}</td>
-                        <td className="px-3 py-2 text-right">{formatMoney(h.openingCash)}</td>
-                        <td className="px-3 py-2 text-right font-medium">{formatMoney(h.closingCash)}</td>
-                        <td className="px-3 py-2 text-right font-semibold text-emerald-700 dark:text-emerald-300">
-                          {formatMoney(h.actualCashInHand)}
-                        </td>
-                        <td
+              <>
+                {/* Mobile Cards (<md) */}
+                <div className="md:hidden space-y-3 p-1">
+                  {history.map((h) => (
+                    <div key={h.id} className="rounded-lg border bg-card p-3 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-bold text-sm text-foreground">{h.businessDate}</span>
+                        <Badge
+                          variant="outline"
                           className={cn(
-                            'px-3 py-2 text-right font-bold',
-                            h.cashDifference !== 0
-                              ? 'text-amber-600 dark:text-amber-400'
-                              : 'text-muted-foreground'
+                            'text-[10px]',
+                            h.reconciliationStatus === 'BALANCED'
+                              ? 'text-emerald-700 border-emerald-300'
+                              : 'text-amber-700 border-amber-300'
                           )}
                         >
-                          {h.cashDifference !== 0 ? formatMoney(h.cashDifference) : '₹0.00'}
-                        </td>
-                        <td className="px-3 py-2">
-                          <Badge
-                            variant="outline"
+                          {h.reconciliationStatus}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[11px] bg-muted/30 p-2 rounded">
+                        <div>
+                          <span className="text-muted-foreground block text-[10px]">Opening Cash</span>
+                          <span className="font-semibold text-foreground">{formatMoney(h.openingCash)}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px]">Expected Closing</span>
+                          <span className="font-semibold text-foreground">{formatMoney(h.closingCash)}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px]">Actual Counted</span>
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatMoney(h.actualCashInHand)}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block text-[10px]">Difference</span>
+                          <span className={cn('font-bold', h.cashDifference !== 0 ? 'text-amber-600' : 'text-muted-foreground')}>
+                            {h.cashDifference !== 0 ? formatMoney(h.cashDifference) : '₹0.00'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t">
+                        <span>Closed by {h.closedBy?.name || '—'}</span>
+                        <span>{formatDateTime(h.closedAt)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Desktop Table (>=md) */}
+                <div className="hidden md:block max-h-[40vh] overflow-y-auto scroll-area overflow-x-auto">
+                  <table className="w-full text-xs zebra-table min-w-[700px]">
+                    <thead className="bg-muted/50 sticky top-0">
+                      <tr className="text-left text-muted-foreground">
+                        <th className="px-3 py-2 font-medium">Business Date</th>
+                        <th className="px-3 py-2 font-medium text-right">Opening Cash</th>
+                        <th className="px-3 py-2 font-medium text-right">Expected Closing</th>
+                        <th className="px-3 py-2 font-medium text-right">Actual Counted</th>
+                        <th className="px-3 py-2 font-medium text-right">Difference</th>
+                        <th className="px-3 py-2 font-medium">Reconciliation</th>
+                        <th className="px-3 py-2 font-medium">Closed By</th>
+                        <th className="px-3 py-2 font-medium">Closed At</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {history.map((h) => (
+                        <tr key={h.id} className="border-b last:border-0 hover:bg-muted/30">
+                          <td className="px-3 py-2 font-mono font-semibold">{h.businessDate}</td>
+                          <td className="px-3 py-2 text-right">{formatMoney(h.openingCash)}</td>
+                          <td className="px-3 py-2 text-right font-medium">{formatMoney(h.closingCash)}</td>
+                          <td className="px-3 py-2 text-right font-semibold text-emerald-700 dark:text-emerald-300">
+                            {formatMoney(h.actualCashInHand)}
+                          </td>
+                          <td
                             className={cn(
-                              'text-[10px]',
-                              h.reconciliationStatus === 'BALANCED'
-                                ? 'text-emerald-700 border-emerald-300'
-                                : 'text-amber-700 border-amber-300'
+                              'px-3 py-2 text-right font-bold',
+                              h.cashDifference !== 0
+                                ? 'text-amber-600 dark:text-amber-400'
+                                : 'text-muted-foreground'
                             )}
                           >
-                            {h.reconciliationStatus}
-                          </Badge>
-                        </td>
-                        <td className="px-3 py-2">{h.closedBy?.name || '—'}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{formatDateTime(h.closedAt)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                            {h.cashDifference !== 0 ? formatMoney(h.cashDifference) : '₹0.00'}
+                          </td>
+                          <td className="px-3 py-2">
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'text-[10px]',
+                                h.reconciliationStatus === 'BALANCED'
+                                  ? 'text-emerald-700 border-emerald-300'
+                                  : 'text-amber-700 border-amber-300'
+                              )}
+                            >
+                              {h.reconciliationStatus}
+                            </Badge>
+                          </td>
+                          <td className="px-3 py-2">{h.closedBy?.name || '—'}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{formatDateTime(h.closedAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </SectionCard>
         </>

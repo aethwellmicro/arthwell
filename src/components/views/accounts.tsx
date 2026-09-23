@@ -345,77 +345,149 @@ export function AccountsView({ accountId }: { accountId?: string }) {
         ) : sortedItems.length === 0 ? (
           <EmptyState message="No accounts found for the selected filters." icon={Landmark} />
         ) : (
-          <div className="max-h-[60vh] overflow-y-auto scroll-area overflow-x-auto">
-            <table className="w-full text-sm zebra-table min-w-[950px]">
-              <thead className="bg-muted/50 sticky top-0 z-10">
-                <tr>
-                  <SortableHeader label="Account" sortKey="accountNumber" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
-                  <SortableHeader label="Customer" sortKey="customer.fullName" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
-                  <SortableHeader label="Principal" sortKey="principal" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
-                  <th className="px-3 py-2.5 font-medium text-left text-xs text-muted-foreground whitespace-nowrap">Rate / Type</th>
-                  <SortableHeader label="Tenure" sortKey="tenure" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="center" />
-                  <SortableHeader label="Installment" sortKey="installmentAmount" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
-                  <SortableHeader label="Paid" sortKey="paidAmount" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
-                  <SortableHeader label="Outstanding" sortKey="outstanding" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
-                  <SortableHeader label="Progress" sortKey="progressPercent" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="center" />
-                  <SortableHeader label="Next Due" sortKey="nextDueDate" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
-                  <SortableHeader label="Status" sortKey="status" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
-                  <th className="px-3 py-2.5 font-medium text-right text-xs text-muted-foreground">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedItems.map((a) => (
-                  <tr
-                    key={a.id}
-                    onClick={() => router.push(`/accounts/${a.id}`)}
-                    className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
-                  >
-                    <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">{a.accountNumber}</td>
-                    <td className="px-3 py-2.5 max-w-[200px]">
-                      <p className="font-medium truncate" title={a.customer.fullName}>{a.customer.fullName}</p>
-                      <p className="text-xs text-muted-foreground truncate">{a.customer.customerId}</p>
-                    </td>
-                    <td className="px-3 py-2.5 text-right whitespace-nowrap">{formatMoney(a.principal)}</td>
-                    <td className="px-3 py-2.5 text-xs whitespace-nowrap">{a.interestRate}% · {a.interestType}</td>
-                    <td className="px-3 py-2.5 text-center whitespace-nowrap">{a.tenure} {a.installmentFreq.slice(0, 1)}</td>
-                    <td className="px-3 py-2.5 text-right whitespace-nowrap">{formatMoney(a.installmentAmount)}</td>
-                    <td className="px-3 py-2.5 text-right text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{a.paidAmount > 0 ? formatMoney(a.paidAmount) : <span className="text-muted-foreground">—</span>}</td>
-                    <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">{a.outstanding > 0 ? formatMoney(a.outstanding) : <span className="text-muted-foreground">—</span>}</td>
-                    <td className="px-3 py-2.5">
-                      <div className="flex items-center gap-1.5">
-                        <div className="flex-1 min-w-[40px] h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div
-                            className={cn(
-                              'h-full rounded-full transition-all',
-                              a.progressPercent >= 100 ? 'bg-emerald-500' : a.progressPercent >= 50 ? 'bg-teal-500' : 'bg-amber-500'
-                            )}
-                            style={{ width: `${a.progressPercent}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] font-medium text-muted-foreground w-8 text-right">{a.progressPercent}%</span>
+          <>
+            {/* Mobile Card List (< md) */}
+            <div className="md:hidden space-y-3 p-1">
+              {sortedItems.map((a) => (
+                <div
+                  key={a.id}
+                  onClick={() => router.push(`/accounts/${a.id}`)}
+                  className="rounded-lg border bg-card p-3.5 space-y-2.5 shadow-sm active:scale-[0.99] transition-transform cursor-pointer"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono text-xs font-bold text-primary">{a.accountNumber}</span>
+                        <Badge className={cn('text-[10px] px-1.5 py-0', STATUS_COLORS[a.status])}>{a.status}</Badge>
                       </div>
-                    </td>
-                    <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                      {a.nextDueDate ? formatDate(a.nextDueDate) : <span className="text-muted-foreground">—</span>}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap"><Badge className={cn(STATUS_COLORS[a.status])}>{a.status}</Badge></td>
-                    <td className="px-3 py-2.5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Actions"><MoreVertical className="h-3.5 w-3.5" /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => router.push(`/accounts/${a.id}`)}><Eye className="h-3.5 w-3.5 mr-2" /> View Details</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => router.push(`/collections?customer=${a.customer.customerId}&account=${a.id}`)}><HandCoins className="h-3.5 w-3.5 mr-2" /> New Collection</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => router.push(`/customers/${a.customer.customerId}`)}><Landmark className="h-3.5 w-3.5 mr-2" /> View Customer</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
+                      <p className="font-semibold text-sm truncate mt-1 text-foreground" title={a.customer.fullName}>
+                        {a.customer.fullName}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{a.customer.customerId}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Outstanding</p>
+                      <p className="text-sm font-bold text-amber-600 dark:text-amber-400">
+                        {a.outstanding > 0 ? formatMoney(a.outstanding) : '₹0.00'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 border-t border-dashed pt-2 text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase text-muted-foreground block">Principal</span>
+                      <span className="font-medium">{formatMoney(a.principal)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase text-muted-foreground block">EMI</span>
+                      <span className="font-semibold text-primary">{formatMoney(a.installmentAmount)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase text-muted-foreground block">Rate/Type</span>
+                      <span className="truncate block">{a.interestRate}% {a.interestType.slice(0, 3)}</span>
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="space-y-1 pt-1">
+                    <div className="flex justify-between items-center text-[10px] text-muted-foreground">
+                      <span>Repaid: {formatMoney(a.paidAmount)}</span>
+                      <span>{a.progressPercent}%</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={cn(
+                          'h-full rounded-full transition-all',
+                          a.progressPercent >= 100 ? 'bg-emerald-500' : a.progressPercent >= 50 ? 'bg-teal-500' : 'bg-amber-500'
+                        )}
+                        style={{ width: `${a.progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-2 gap-2" onClick={(e) => e.stopPropagation()}>
+                    <span>Next Due: <strong className="text-foreground">{a.nextDueDate ? formatDate(a.nextDueDate) : '—'}</strong></span>
+                    <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => router.push(`/collections?customer=${a.customer.customerId}&account=${a.id}`)}>
+                      <HandCoins className="h-3 w-3 mr-1" /> Collect
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block max-h-[60vh] overflow-y-auto scroll-area overflow-x-auto">
+              <table className="w-full text-sm zebra-table min-w-[950px]">
+                <thead className="bg-muted/50 sticky top-0 z-10">
+                  <tr>
+                    <SortableHeader label="Account" sortKey="accountNumber" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="Customer" sortKey="customer.fullName" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="Principal" sortKey="principal" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                    <th className="px-3 py-2.5 font-medium text-left text-xs text-muted-foreground whitespace-nowrap">Rate / Type</th>
+                    <SortableHeader label="Tenure" sortKey="tenure" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="center" />
+                    <SortableHeader label="Installment" sortKey="installmentAmount" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                    <SortableHeader label="Paid" sortKey="paidAmount" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                    <SortableHeader label="Outstanding" sortKey="outstanding" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="right" />
+                    <SortableHeader label="Progress" sortKey="progressPercent" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} align="center" />
+                    <SortableHeader label="Next Due" sortKey="nextDueDate" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label="Status" sortKey="status" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                    <th className="px-3 py-2.5 font-medium text-right text-xs text-muted-foreground">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {sortedItems.map((a) => (
+                    <tr
+                      key={a.id}
+                      onClick={() => router.push(`/accounts/${a.id}`)}
+                      className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
+                    >
+                      <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">{a.accountNumber}</td>
+                      <td className="px-3 py-2.5 max-w-[200px]">
+                        <p className="font-medium truncate" title={a.customer.fullName}>{a.customer.fullName}</p>
+                        <p className="text-xs text-muted-foreground truncate">{a.customer.customerId}</p>
+                      </td>
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">{formatMoney(a.principal)}</td>
+                      <td className="px-3 py-2.5 text-xs whitespace-nowrap">{a.interestRate}% · {a.interestType}</td>
+                      <td className="px-3 py-2.5 text-center whitespace-nowrap">{a.tenure} {a.installmentFreq.slice(0, 1)}</td>
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">{formatMoney(a.installmentAmount)}</td>
+                      <td className="px-3 py-2.5 text-right text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{a.paidAmount > 0 ? formatMoney(a.paidAmount) : <span className="text-muted-foreground">—</span>}</td>
+                      <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">{a.outstanding > 0 ? formatMoney(a.outstanding) : <span className="text-muted-foreground">—</span>}</td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex-1 min-w-[40px] h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div
+                              className={cn(
+                                'h-full rounded-full transition-all',
+                                a.progressPercent >= 100 ? 'bg-emerald-500' : a.progressPercent >= 50 ? 'bg-teal-500' : 'bg-amber-500'
+                              )}
+                              style={{ width: `${a.progressPercent}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-medium text-muted-foreground w-8 text-right">{a.progressPercent}%</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                        {a.nextDueDate ? formatDate(a.nextDueDate) : <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap"><Badge className={cn(STATUS_COLORS[a.status])}>{a.status}</Badge></td>
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Actions"><MoreVertical className="h-3.5 w-3.5" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => router.push(`/accounts/${a.id}`)}><Eye className="h-3.5 w-3.5 mr-2" /> View Details</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => router.push(`/collections?customer=${a.customer.customerId}&account=${a.id}`)}><HandCoins className="h-3.5 w-3.5 mr-2" /> New Collection</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => router.push(`/customers/${a.customer.customerId}`)}><Landmark className="h-3.5 w-3.5 mr-2" /> View Customer</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </SectionCard>
 

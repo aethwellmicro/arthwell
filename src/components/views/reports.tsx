@@ -184,24 +184,24 @@ export function ReportsView() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3 no-print">
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-end gap-2.5 sm:gap-3 no-print">
         {showDateFilters && (
           <>
-            <div>
+            <div className="col-span-1">
               <Label className="text-xs text-muted-foreground">From</Label>
-              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-[150px]" />
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full sm:w-[140px]" />
             </div>
-            <div>
+            <div className="col-span-1">
               <Label className="text-xs text-muted-foreground">To</Label>
-              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-[150px]" />
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full sm:w-[140px]" />
             </div>
           </>
         )}
         {type !== 'employee' && type !== 'accountstatus' && (
-          <div>
+          <div className="col-span-2 sm:col-span-1">
             <Label className="text-xs text-muted-foreground">Employee</Label>
             <Select value={employeeId || 'ALL'} onValueChange={(v) => setEmployeeId(v === 'ALL' ? '' : v)}>
-              <SelectTrigger className="w-[160px]"><SelectValue placeholder="All" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="All" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All</SelectItem>
                 {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
@@ -210,10 +210,10 @@ export function ReportsView() {
           </div>
         )}
         {(type === 'daily' || type === 'weekly' || type === 'monthly' || type === 'sixmonthly' || type === 'yearly' || type === 'customer' || type === 'employee' || type === 'paymentmode' || type === 'reconciliation') && (
-          <div>
+          <div className="col-span-1">
             <Label className="text-xs text-muted-foreground">Payment Mode</Label>
             <Select value={paymentMode} onValueChange={setPaymentMode}>
-              <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[120px]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All</SelectItem>
                 <SelectItem value="CASH">Cash</SelectItem>
@@ -225,20 +225,20 @@ export function ReportsView() {
           </div>
         )}
         {type === 'outstanding' || type === 'overdue' ? (
-          <div>
+          <div className="col-span-1">
             <Label className="text-xs text-muted-foreground">Area</Label>
-            <Input value={area} onChange={(e) => setArea(e.target.value)} placeholder="Area filter" className="w-[140px]" />
+            <Input value={area} onChange={(e) => setArea(e.target.value)} placeholder="Area filter" className="w-full sm:w-[140px]" />
           </div>
         ) : null}
-        <div className="ml-auto flex gap-2">
-          <Button variant="outline" onClick={exportCSV} disabled={!data}><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
-          <Button variant="outline" onClick={printReport} disabled={!data}><Printer className="h-4 w-4 mr-1" /> PDF</Button>
+        <div className="col-span-2 sm:ml-auto flex items-center gap-2 justify-end pt-1 sm:pt-0">
+          <Button variant="outline" size="sm" onClick={exportCSV} disabled={!data} className="flex-1 sm:flex-initial"><FileSpreadsheet className="h-4 w-4 mr-1" /> Excel</Button>
+          <Button variant="outline" size="sm" onClick={printReport} disabled={!data} className="flex-1 sm:flex-initial"><Printer className="h-4 w-4 mr-1" /> PDF</Button>
         </div>
       </div>
 
       {/* Summary */}
       {data?.summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatCard label="Total Amount" value={formatMoney(data.summary.total || 0)} sub={`${data.summary.count || 0} records`} icon={BarChart3} />
           <StatCard label="Cash" value={formatMoney(data.summary.cashTotal || 0)} icon={CreditCard} tone="success" />
           <StatCard label="UPI" value={formatMoney(data.summary.upiTotal || 0)} icon={CreditCard} tone="info" />

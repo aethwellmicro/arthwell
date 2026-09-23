@@ -276,38 +276,38 @@ export function CollectionsView() {
   return (
     <div className="space-y-4">
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'history' | 'due')}>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
-          <TabsList className="grid grid-cols-2 w-[340px]">
-            <TabsTrigger value="history" className="flex items-center gap-1.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3">
+          <TabsList className="grid grid-cols-2 w-full sm:w-[340px]">
+            <TabsTrigger value="history" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm">
               <ReceiptIcon className="h-4 w-4" /> Collection History
             </TabsTrigger>
-            <TabsTrigger value="due" className="flex items-center gap-1.5">
+            <TabsTrigger value="due" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm">
               <CalendarClock className="h-4 w-4" /> Due by Date
             </TabsTrigger>
           </TabsList>
 
-          <Button onClick={() => { setForm(emptyForm); setShowNew(true) }}>
+          <Button onClick={() => { setForm(emptyForm); setShowNew(true) }} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-1" /> New Collection
           </Button>
         </div>
 
         <TabsContent value="due" className="space-y-4 pt-2">
           {/* Date Selector & Officer Filters */}
-          <div className="flex flex-wrap items-end justify-between gap-3 bg-card p-4 rounded-xl border">
-            <div className="flex flex-wrap items-end gap-3">
-              <div>
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 bg-card p-3 sm:p-4 rounded-xl border">
+            <div className="grid grid-cols-1 sm:flex sm:flex-wrap items-end gap-3 w-full sm:w-auto">
+              <div className="w-full sm:w-auto">
                 <Label className="text-xs font-semibold text-foreground">Select Due Date *</Label>
                 <Input
                   type="date"
                   value={dueDateFilter}
                   onChange={(e) => setDueDateFilter(e.target.value)}
-                  className="w-[170px] font-mono text-sm"
+                  className="w-full sm:w-[170px] font-mono text-sm"
                 />
               </div>
-              <div>
+              <div className="w-full sm:w-auto">
                 <Label className="text-xs font-semibold text-foreground">Employee / Officer</Label>
                 <Select value={dueEmployeeId} onValueChange={setDueEmployeeId}>
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-full sm:w-[180px]">
                     <SelectValue placeholder="All Officers" />
                   </SelectTrigger>
                   <SelectContent>
@@ -320,67 +320,70 @@ export function CollectionsView() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button variant="outline" size="sm" onClick={() => loadDue()} disabled={loadingDue}>
-                <CalendarClock className="h-3.5 w-3.5 mr-1" /> Refresh
-              </Button>
-              {dueData && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const allCustomers = dueData.officers.flatMap((off) =>
-                        off.customers.map((c: any) => ({
-                          officerName: off.officerName,
-                          officerCode: off.officerCode,
-                          customerName: c.customerName,
-                          customerId: c.customerRefId,
-                          mobile: c.mobile,
-                          group: `${c.groupId} (${c.groupName})`,
-                          accountNumber: c.accountNumber,
-                          weekNumber: c.installNo,
-                          dueDate: c.dueDate,
-                          emi: c.emi,
-                          savings: c.savings,
-                          totalDue: c.totalDue,
-                          paid: c.paid,
-                          pending: c.pending,
-                          status: c.status,
-                        }))
-                      )
-                      downloadCSV(`collections-due-${dueDateFilter}.csv`, allCustomers)
-                      toast.success(`Exported ${allCustomers.length} due collections to CSV`)
-                    }}
-                    disabled={!dueData.officers.length}
-                  >
-                    <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> Export CSV
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.print()}
-                    disabled={!dueData.officers.length}
-                    className="no-print"
-                  >
-                    <Printer className="h-3.5 w-3.5 mr-1" /> Print Sheet
-                  </Button>
-                </>
-              )}
+              <div className="flex items-center gap-2 w-full sm:w-auto mt-1 sm:mt-0">
+                <Button variant="outline" size="sm" onClick={() => loadDue()} disabled={loadingDue} className="flex-1 sm:flex-initial">
+                  <CalendarClock className="h-3.5 w-3.5 mr-1" /> Refresh
+                </Button>
+                {dueData && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 sm:flex-initial"
+                      onClick={() => {
+                        const allCustomers = dueData.officers.flatMap((off) =>
+                          off.customers.map((c: any) => ({
+                            officerName: off.officerName,
+                            officerCode: off.officerCode,
+                            customerName: c.customerName,
+                            customerId: c.customerRefId,
+                            mobile: c.mobile,
+                            group: `${c.groupId} (${c.groupName})`,
+                            accountNumber: c.accountNumber,
+                            weekNumber: c.installNo,
+                            dueDate: c.dueDate,
+                            emi: c.emi,
+                            savings: c.savings,
+                            totalDue: c.totalDue,
+                            paid: c.paid,
+                            pending: c.pending,
+                            status: c.status,
+                          }))
+                        )
+                        downloadCSV(`collections-due-${dueDateFilter}.csv`, allCustomers)
+                        toast.success(`Exported ${allCustomers.length} due collections to CSV`)
+                      }}
+                      disabled={!dueData.officers.length}
+                    >
+                      <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> Export
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 sm:flex-initial no-print"
+                      onClick={() => window.print()}
+                      disabled={!dueData.officers.length}
+                    >
+                      <Printer className="h-3.5 w-3.5 mr-1" /> Print
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
 
             {dueData && (
-              <div className="flex items-center gap-3 text-xs">
-                <div className="text-right">
+              <div className="grid grid-cols-3 sm:flex sm:items-center gap-2 sm:gap-3 p-2 bg-muted/40 rounded-lg border text-xs w-full sm:w-auto justify-between sm:justify-end">
+                <div>
                   <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Total Due</span>
-                  <span className="text-base font-bold text-primary">{formatMoney(dueData.grandTotals.totalDue)}</span>
+                  <span className="text-sm sm:text-base font-bold text-primary">{formatMoney(dueData.grandTotals.totalDue)}</span>
                 </div>
-                <div className="text-right">
+                <div className="text-center sm:text-right border-x sm:border-x-0 px-2 sm:px-0">
                   <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Collected</span>
-                  <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">{formatMoney(dueData.grandTotals.totalCollected)}</span>
+                  <span className="text-sm sm:text-base font-bold text-emerald-600 dark:text-emerald-400">{formatMoney(dueData.grandTotals.totalCollected)}</span>
                 </div>
                 <div className="text-right">
                   <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Pending</span>
-                  <span className="text-base font-bold text-amber-600 dark:text-amber-400">{formatMoney(dueData.grandTotals.totalPending)}</span>
+                  <span className="text-sm sm:text-base font-bold text-amber-600 dark:text-amber-400">{formatMoney(dueData.grandTotals.totalPending)}</span>
                 </div>
               </div>
             )}
@@ -398,7 +401,7 @@ export function CollectionsView() {
                   key={off.officerId}
                   title={`Field Officer: ${off.officerName} (${off.officerCode})`}
                   action={
-                    <div className="flex items-center gap-3 text-xs">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
                       <span>Customers: <strong>{off.totalCustomers}</strong></span>
                       <span>Total Due: <strong className="text-primary">{formatMoney(off.totalDue)}</strong></span>
                       <span>Collected: <strong className="text-emerald-600 dark:text-emerald-400">{formatMoney(off.totalCollected)}</strong></span>
@@ -406,7 +409,60 @@ export function CollectionsView() {
                     </div>
                   }
                 >
-                  <div className="overflow-x-auto">
+                  {/* Mobile card layout */}
+                  <div className="md:hidden space-y-3 p-1">
+                    {off.customers.map((c: any) => (
+                      <div key={c.installmentId} className="rounded-lg border bg-card p-3 space-y-2 text-xs">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-foreground text-sm">{c.customerName}</p>
+                            <p className="font-mono text-[11px] text-muted-foreground">{c.customerRefId} · {c.mobile}</p>
+                          </div>
+                          <Badge className={cn('text-[10px]', STATUS_COLORS[c.status] || 'bg-slate-100 text-slate-800')}>
+                            {c.status}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-muted-foreground text-[11px] border-y py-1.5">
+                          <span>Group: <strong className="text-foreground">{c.groupId}</strong> ({c.groupName})</span>
+                          <span className="font-mono">{c.accountNumber} (W#{c.installNo})</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5 text-center">
+                          <div className="bg-muted/40 p-1.5 rounded">
+                            <span className="text-[10px] text-muted-foreground block">Total Due</span>
+                            <span className="font-bold text-primary">{formatMoney(c.totalDue)}</span>
+                          </div>
+                          <div className="bg-muted/40 p-1.5 rounded">
+                            <span className="text-[10px] text-muted-foreground block">Paid</span>
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">{formatMoney(c.paid)}</span>
+                          </div>
+                          <div className="bg-muted/40 p-1.5 rounded">
+                            <span className="text-[10px] text-muted-foreground block">Pending</span>
+                            <span className="font-bold text-amber-600 dark:text-amber-400">{formatMoney(c.pending)}</span>
+                          </div>
+                        </div>
+                        {c.pending > 0 && (
+                          <Button
+                            size="sm"
+                            className="w-full h-8 text-xs font-medium mt-1"
+                            onClick={() => {
+                              setForm({
+                                ...emptyForm,
+                                customerId: c.customerId,
+                                accountId: c.accountId,
+                                amount: String(c.pending),
+                              })
+                              setShowNew(true)
+                            }}
+                          >
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Collect {formatMoney(c.pending)}
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop Table */}
+                  <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-xs zebra-table min-w-[760px]">
                       <thead className="bg-muted/50">
                         <tr className="text-left text-muted-foreground">
@@ -475,29 +531,29 @@ export function CollectionsView() {
         </TabsContent>
 
         <TabsContent value="history" className="space-y-4 pt-2">
-          <div className="flex flex-wrap items-end gap-3">
-            <div>
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-end gap-2.5 sm:gap-3">
+            <div className="col-span-1">
               <Label className="text-xs text-muted-foreground">From</Label>
-              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-[150px]" />
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full sm:w-[140px]" />
             </div>
-            <div>
+            <div className="col-span-1">
               <Label className="text-xs text-muted-foreground">To</Label>
-              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-[150px]" />
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full sm:w-[140px]" />
             </div>
-            <div>
+            <div className="col-span-2 sm:col-span-1">
               <Label className="text-xs text-muted-foreground">Employee</Label>
               <Select value={employeeId || 'ALL'} onValueChange={(v) => setEmployeeId(v === 'ALL' ? '' : v)}>
-                <SelectTrigger className="w-[160px]"><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-[150px]"><SelectValue placeholder="All" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All</SelectItem>
                   {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            <div className="col-span-1">
               <Label className="text-xs text-muted-foreground">Mode</Label>
               <Select value={paymentMode} onValueChange={setPaymentMode}>
-                <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-[120px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All</SelectItem>
                   <SelectItem value="CASH">Cash</SelectItem>
@@ -507,10 +563,10 @@ export function CollectionsView() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            <div className="col-span-1">
               <Label className="text-xs text-muted-foreground">Status</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full sm:w-[130px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ALL">All</SelectItem>
                   <SelectItem value="SUCCESSFUL">Successful</SelectItem>
@@ -519,13 +575,13 @@ export function CollectionsView() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="ml-auto flex gap-2">
+            <div className="col-span-2 sm:ml-auto flex items-center gap-2 justify-end pt-1 sm:pt-0">
               {(from || to || employeeId || paymentMode !== 'ALL' || statusFilter !== 'ALL') && (
-                <Button variant="ghost" size="sm" onClick={() => { setFrom(''); setTo(''); setEmployeeId(''); setPaymentMode('ALL'); setStatusFilter('SUCCESSFUL') }}>
-                  <X className="h-3.5 w-3.5 mr-1" /> Clear Filters
+                <Button variant="ghost" size="sm" onClick={() => { setFrom(''); setTo(''); setEmployeeId(''); setPaymentMode('ALL'); setStatusFilter('SUCCESSFUL') }} className="flex-1 sm:flex-initial">
+                  <X className="h-3.5 w-3.5 mr-1" /> Clear
                 </Button>
               )}
-              <Button variant="outline" onClick={exportCSV} disabled={!items.length}>
+              <Button variant="outline" size="sm" onClick={exportCSV} disabled={!items.length} className="flex-1 sm:flex-initial">
                 <FileSpreadsheet className="h-4 w-4 mr-1" /> Export
               </Button>
             </div>
@@ -538,7 +594,67 @@ export function CollectionsView() {
           <EmptyState message="No collections found for the selected filters." icon={HandCoins} />
         ) : (
           <>
-          <div className="max-h-[55vh] overflow-y-auto scroll-area overflow-x-auto">
+          {/* Mobile Card Layout (<md) */}
+          <div className="md:hidden space-y-3 p-1">
+            {paginatedItems.map((c) => (
+              <div
+                key={c.id}
+                onClick={() => setViewTarget(c)}
+                className="rounded-lg border bg-card p-3.5 space-y-2.5 shadow-xs cursor-pointer active:bg-muted/30"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-sm text-foreground truncate">{c.customer.fullName}</p>
+                    <p className="font-mono text-[11px] text-muted-foreground">{c.customer.customerId} · {c.customer.primaryMobile}</p>
+                  </div>
+                  <Badge className={cn('text-[10px]', STATUS_COLORS[c.status])}>{c.status}</Badge>
+                </div>
+
+                <div className="flex items-center justify-between text-xs border-y py-2">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground block">Receipt</span>
+                    <span className="font-mono font-medium text-foreground">{c.receiptNumber}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-muted-foreground block">Amount</span>
+                    <span className="font-bold text-base text-emerald-600 dark:text-emerald-400">{formatMoney(c.amount)}</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-1.5 text-[11px] text-muted-foreground">
+                  <div>
+                    <span className="block text-[10px]">Account</span>
+                    <span className="font-mono font-medium text-foreground">{c.account.accountNumber}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px]">Mode</span>
+                    <span className="font-medium text-foreground">{c.paymentMode}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="block text-[10px]">Balance</span>
+                    <span className="font-semibold text-foreground">{formatMoney(c.currentOutstanding)}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1 border-t text-[11px] text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+                  <span>By {c.collectedBy.name}</span>
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => printReceipt(c)}>
+                      <Printer className="h-3.5 w-3.5 mr-1" /> Receipt
+                    </Button>
+                    {canReverse(user?.role) && c.status === 'SUCCESSFUL' && (
+                      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-amber-600" onClick={() => setReverseTarget(c)}>
+                        <Undo2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop Table (>=md) */}
+          <div className="hidden md:block max-h-[55vh] overflow-y-auto scroll-area overflow-x-auto">
             <table className="w-full text-sm zebra-table min-w-[850px]">
               <thead className="bg-muted/50 sticky top-0 z-10">
                 <tr>
@@ -612,14 +728,14 @@ export function CollectionsView() {
           router.replace('/collections')
         }
       }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[96vw] max-w-2xl max-h-[92vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><HandCoins className="h-5 w-5 text-primary" /> New Collection</DialogTitle>
           </DialogHeader>
           <NewCollectionForm form={form} setForm={setForm} />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNew(false)}>Cancel</Button>
-            <Button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Record Collection'}</Button>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowNew(false)} className="w-full sm:w-auto">Cancel</Button>
+            <Button onClick={save} disabled={saving} className="w-full sm:w-auto">{saving ? 'Saving…' : 'Record Collection'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -786,7 +902,7 @@ function NewCollectionForm({ form, setForm }: { form: typeof emptyForm; setForm:
 
       {/* Step 4: entry */}
       {form.accountId && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label className="text-xs text-muted-foreground">Collection Date *</Label>
             <Input type="date" value={form.collectionDate} onChange={(e) => setForm({ ...form, collectionDate: e.target.value })} className="mt-1" />
@@ -798,7 +914,7 @@ function NewCollectionForm({ form, setForm }: { form: typeof emptyForm; setForm:
               <p className="text-xs text-red-600 mt-1">Exceeds outstanding ({formatMoney(selectedAccount.outstanding)})</p>
             )}
           </div>
-          <div>
+          <div className="sm:col-span-2">
             <Label className="text-xs text-muted-foreground">Payment Mode</Label>
             <Select value={form.paymentMode} onValueChange={(v) => setForm({ ...form, paymentMode: v })}>
               <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
@@ -810,12 +926,12 @@ function NewCollectionForm({ form, setForm }: { form: typeof emptyForm; setForm:
               </SelectContent>
             </Select>
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <Label className="text-xs text-muted-foreground">Remarks</Label>
             <Textarea value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} rows={2} className="mt-1" />
           </div>
           {selectedAccount && amount > 0 && (
-            <div className="col-span-2 rounded-md bg-primary/10 p-2 text-sm flex justify-between">
+            <div className="sm:col-span-2 rounded-md bg-primary/10 p-2 text-sm flex justify-between">
               <span className="text-muted-foreground">New Outstanding will be:</span>
               <span className="font-bold text-primary">{formatMoney(Math.max(selectedAccount.outstanding - amount, 0))}</span>
             </div>
