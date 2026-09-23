@@ -7,7 +7,7 @@ import type { SessionUser } from './auth'
 export interface BusinessDateWithTotals {
   id: string
   businessDate: string
-  status: 'OPEN' | 'RECONCILIATION_PENDING' | 'CLOSED'
+  status: 'OPEN' | 'RECONCILIATION_PENDING' | 'CLOSED' | 'REOPENED'
   openedAt: string
   openedBy: { id: string; name: string }
   closedAt?: string | null
@@ -30,16 +30,17 @@ export interface BusinessDateWithTotals {
 }
 
 /**
- * Returns the currently active (OPEN or RECONCILIATION_PENDING) business date.
+ * Returns the currently active (OPEN, REOPENED or RECONCILIATION_PENDING) business date.
  * If none exists, automatically initializes today's date (or user requested) as the first business date.
  */
 export async function getActiveBusinessDate(user?: SessionUser, tx?: any): Promise<any> {
   const client = tx || db
   let active = await client.businessDate.findFirst({
-    where: { status: { in: ['OPEN', 'RECONCILIATION_PENDING'] } },
+    where: { status: { in: ['OPEN', 'REOPENED', 'RECONCILIATION_PENDING'] } },
     include: {
       openedBy: { select: { id: true, name: true, role: true } },
       closedBy: { select: { id: true, name: true } },
+      reopenedBy: { select: { id: true, name: true } },
     },
     orderBy: { businessDate: 'desc' },
   })
@@ -162,15 +163,81 @@ export async function getBusinessDateSummary(businessDateId: string, tx?: any): 
 }
 
 /**
- * Asserts that a business date is OPEN before allowing new financial entries
+ * Asserts that a business date is OPEN or REOPENED before allowing new financial entries
  */
 export async function assertBusinessDateOpen(businessDateId?: string | null): Promise<void> {
   if (!businessDateId) return
   const b = await db.businessDate.findUnique({ where: { id: businessDateId } })
   if (!b) throw new Error('Referenced business date does not exist.')
   if (b.status === 'CLOSED') {
-    throw new Error(`Business date ${b.businessDate.toISOString().slice(0, 10)} is CLOSED. Financial modifications are locked.`)
+    throw new Error(`Business date ${b.businessDate.toISOString().slice(0, 10)} is CLOSED. Contact an authorized administrator to reopen it.`)
   }
+}
+
+/**
+ * Reopens a previously CLOSED business date for Admin corrections
+ */
+export async function reopenBusinessDate({
+  user,
+  businessDateId,
+  reason,
+}: {
+  user: SessionUser
+  businessDateId: string
+  reason: string
+}): Promise<any> {
+  if (user.role !== 'ADMIN') {
+    throw new Error('Unauthorized. Only an Administrator can reopen a closed business date.')
+  }
+  if (!reason || reason.trim().length === 0) {
+    throw new Error('A mandatory reason is required to reopen a business date.')
+  }
+
+  return await db.$transaction(async (tx) => {
+    const b = await tx.businessDate.findUnique({ where: { id: businessDateId } })
+    if (!b) throw new Error('Business date not found.')
+    if (b.status !== 'CLOSED') {
+      throw new Error(`Business date is in status "${b.status}". Only CLOSED dates can be reopened.`)
+    }
+
+    // Check if any later date has transactions that would cause inconsistent accounting
+    const laterActive = await tx.businessDate.findFirst({
+      where: {
+        businessDate: { gt: b.businessDate },
+        status: { in: ['OPEN', 'REOPENED'] },
+      },
+    })
+    if (laterActive) {
+      throw new Error(`Cannot reopen date ${b.businessDate.toISOString().slice(0, 10)} while a later business date (${laterActive.businessDate.toISOString().slice(0, 10)}) is currently open. Complete or close it first.`)
+    }
+
+    const reopened = await tx.businessDate.update({
+      where: { id: businessDateId },
+      data: {
+        status: 'REOPENED',
+        reopenedAt: new Date(),
+        reopenedById: user.id,
+        reopenReason: reason.trim(),
+      },
+      include: {
+        openedBy: { select: { id: true, name: true } },
+        closedBy: { select: { id: true, name: true } },
+        reopenedBy: { select: { id: true, name: true } },
+      },
+    })
+
+    await logAudit({
+      user,
+      action: 'EOD_REOPENED',
+      entity: 'BUSINESS_DATE',
+      entityId: b.id,
+      oldValue: { status: b.status },
+      newValue: { status: 'REOPENED', reopenedAt: reopened.reopenedAt, reason: reason.trim() },
+      reason: reason.trim(),
+    })
+
+    return reopened
+  })
 }
 
 /**

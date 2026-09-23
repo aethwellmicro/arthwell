@@ -34,10 +34,11 @@ model User {
   sessions      Session[]
 
   // Business date & bank deposit relations
-  openedBusinessDates BusinessDate[] @relation("OpenedBy")
-  closedBusinessDates BusinessDate[] @relation("ClosedBy")
-  authorizedEODs      BusinessDate[] @relation("AuthorizedBy")
-  bankDeposits        BankDeposit[]  @relation("CreatedBy")
+  openedBusinessDates   BusinessDate[] @relation("OpenedBy")
+  closedBusinessDates   BusinessDate[] @relation("ClosedBy")
+  reopenedBusinessDates BusinessDate[] @relation("ReopenedBy")
+  authorizedEODs        BusinessDate[] @relation("AuthorizedBy")
+  bankDeposits          BankDeposit[]  @relation("CreatedBy")
 }
 
 model Session {
@@ -65,6 +66,31 @@ model Group {
 
   @@index([status])
   @@index([branch])
+}
+
+model LoanProduct {
+  id               String    @id @default(cuid())
+  productCode      String    @unique // e.g. AMF-WL-20000
+  name             String
+  loanType         String    @default("JLG / Group Loan")
+  principal        Decimal
+  interestRate     Decimal
+  interestBasis    String    @default("YEARLY") // YEARLY, MONTHLY, FLAT_PERIOD
+  interestMethod   String    @default("REDUCING") // REDUCING, FLAT
+  tenure           Int       // e.g. 25, 50
+  frequency        String    @default("WEEKLY") // WEEKLY, MONTHLY, DAILY
+  emiAmount        Decimal
+  savingsAmount    Decimal   @default(100)
+  processingFee    Decimal   @default(0)
+  insurancePremium Decimal   @default(0)
+  status           String    @default("ACTIVE") // ACTIVE, INACTIVE, ARCHIVED
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  accounts         Account[]
+
+  @@index([status])
+  @@index([productCode])
 }
 
 model Customer {
@@ -119,7 +145,7 @@ model Customer {
 model BusinessDate {
   id                    String   @id @default(cuid())
   businessDate          DateTime @unique // e.g. 2026-09-23 00:00:00
-  status                String   @default("OPEN") // OPEN, RECONCILIATION_PENDING, CLOSED
+  status                String   @default("OPEN") // OPEN, RECONCILIATION_PENDING, CLOSED, REOPENED
   
   openedAt              DateTime @default(now())
   openedById            String
@@ -128,6 +154,11 @@ model BusinessDate {
   closedAt              DateTime?
   closedById            String?
   closedBy              User?    @relation("ClosedBy", fields: [closedById], references: [id])
+
+  reopenedAt            DateTime?
+  reopenedById          String?
+  reopenedBy            User?    @relation("ReopenedBy", fields: [reopenedById], references: [id])
+  reopenReason          String?
 
   openingCash           Decimal  @default(0)
   closingCash           Decimal  @default(0) // Expected or reconciled closing cash
@@ -179,6 +210,9 @@ model Account {
   customerId        String
   customer          Customer @relation(fields: [customerId], references: [id])
 
+  productId         String?
+  product           LoanProduct? @relation(fields: [productId], references: [id])
+
   businessDateId    String?
   businessDate      BusinessDate? @relation(fields: [businessDateId], references: [id])
 
@@ -191,6 +225,10 @@ model Account {
   installmentAmount Decimal  
   totalPayable      Decimal  
   totalInterest     Decimal  
+
+  savingsAmount     Decimal  @default(0)
+  processingFee     Decimal  @default(0)
+  insurancePremium  Decimal  @default(0)
 
   startDate        DateTime
   firstDueDate     DateTime
@@ -206,6 +244,7 @@ model Account {
   collections      Collection[]
 
   @@index([customerId])
+  @@index([productId])
   @@index([businessDateId])
 }
 
@@ -218,9 +257,11 @@ model Installment {
   amount         Decimal  
   principalPart  Decimal  @default(0)
   interestPart   Decimal  @default(0)
+  savingsPart    Decimal  @default(0)
   paidAmount     Decimal  @default(0)
   paidPrincipal  Decimal  @default(0)
   paidInterest   Decimal  @default(0)
+  paidSavings    Decimal  @default(0)
   balance        Decimal  @default(0)
   status         String   @default("PENDING") // PENDING, PAID, PARTIAL, OVERDUE, WAIVED, CANCELLED
   paidDate       DateTime?

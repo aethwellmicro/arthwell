@@ -11,6 +11,9 @@ import {
   Receipt as ReceiptIcon,
   X,
   FileSpreadsheet,
+  CalendarClock,
+  UsersRound,
+  CheckCircle2,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatDateTime, todayInput, STATUS_COLORS, downloadCSV } from '@/lib/format'
 import { useApp, canReverse } from '@/lib/store'
@@ -19,6 +22,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select,
   SelectContent,
@@ -108,6 +112,38 @@ export function CollectionsView() {
   const [reverseReason, setReverseReason] = useState('')
   const [viewTarget, setViewTarget] = useState<Collection | null>(null)
   const receiptRef = useRef<HTMLDivElement>(null)
+
+  const [activeTab, setActiveTab] = useState<'history' | 'due'>('history')
+  const [dueDateFilter, setDueDateFilter] = useState(new Date().toISOString().slice(0, 10))
+  const [dueEmployeeId, setDueEmployeeId] = useState('ALL')
+  const [dueData, setDueData] = useState<{
+    date: string
+    grandTotals: { totalCustomers: number; totalDue: number; totalCollected: number; totalPending: number }
+    officers: any[]
+  } | null>(null)
+  const [loadingDue, setLoadingDue] = useState(false)
+
+  const loadDue = async (targetDate?: string, targetEmp?: string) => {
+    setLoadingDue(true)
+    try {
+      const d = targetDate || dueDateFilter
+      const emp = targetEmp !== undefined ? targetEmp : dueEmployeeId
+      const params = new URLSearchParams({ date: d })
+      if (emp && emp !== 'ALL') params.set('employeeId', emp)
+      const res = await apiFetch<any>(`/api/collections/due?${params}`)
+      setDueData(res)
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setLoadingDue(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'due') {
+      loadDue()
+    }
+  }, [activeTab, dueDateFilter, dueEmployeeId])
 
   const load = async () => {
     setLoading(true)
@@ -239,64 +275,261 @@ export function CollectionsView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <Label className="text-xs text-muted-foreground">From</Label>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-[150px]" />
-        </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">To</Label>
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-[150px]" />
-        </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">Employee</Label>
-          <Select value={employeeId || 'ALL'} onValueChange={(v) => setEmployeeId(v === 'ALL' ? '' : v)}>
-            <SelectTrigger className="w-[160px]"><SelectValue placeholder="All" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All</SelectItem>
-              {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">Mode</Label>
-          <Select value={paymentMode} onValueChange={setPaymentMode}>
-            <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All</SelectItem>
-              <SelectItem value="CASH">Cash</SelectItem>
-              <SelectItem value="UPI">UPI</SelectItem>
-              <SelectItem value="BANK">Bank</SelectItem>
-              <SelectItem value="OTHER">Other</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label className="text-xs text-muted-foreground">Status</Label>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All</SelectItem>
-              <SelectItem value="SUCCESSFUL">Successful</SelectItem>
-              <SelectItem value="REVERSED">Reversed</SelectItem>
-              <SelectItem value="CANCELLED">Cancelled</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="ml-auto flex gap-2">
-          {(from || to || employeeId || paymentMode !== 'ALL' || statusFilter !== 'ALL') && (
-            <Button variant="ghost" size="sm" onClick={() => { setFrom(''); setTo(''); setEmployeeId(''); setPaymentMode('ALL'); setStatusFilter('SUCCESSFUL') }}>
-              <X className="h-3.5 w-3.5 mr-1" /> Clear Filters
-            </Button>
-          )}
-          <Button variant="outline" onClick={exportCSV} disabled={!items.length}>
-            <FileSpreadsheet className="h-4 w-4 mr-1" /> Export
-          </Button>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'history' | 'due')}>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+          <TabsList className="grid grid-cols-2 w-[340px]">
+            <TabsTrigger value="history" className="flex items-center gap-1.5">
+              <ReceiptIcon className="h-4 w-4" /> Collection History
+            </TabsTrigger>
+            <TabsTrigger value="due" className="flex items-center gap-1.5">
+              <CalendarClock className="h-4 w-4" /> Due by Date
+            </TabsTrigger>
+          </TabsList>
+
           <Button onClick={() => { setForm(emptyForm); setShowNew(true) }}>
             <Plus className="h-4 w-4 mr-1" /> New Collection
           </Button>
         </div>
-      </div>
+
+        <TabsContent value="due" className="space-y-4 pt-2">
+          {/* Date Selector & Officer Filters */}
+          <div className="flex flex-wrap items-end justify-between gap-3 bg-card p-4 rounded-xl border">
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <Label className="text-xs font-semibold text-foreground">Select Due Date *</Label>
+                <Input
+                  type="date"
+                  value={dueDateFilter}
+                  onChange={(e) => setDueDateFilter(e.target.value)}
+                  className="w-[170px] font-mono text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs font-semibold text-foreground">Employee / Officer</Label>
+                <Select value={dueEmployeeId} onValueChange={setDueEmployeeId}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="All Officers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Officers</SelectItem>
+                    {employees.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.name} ({e.employeeCode || 'FO'})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => loadDue()} disabled={loadingDue}>
+                <CalendarClock className="h-3.5 w-3.5 mr-1" /> Refresh
+              </Button>
+              {dueData && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const allCustomers = dueData.officers.flatMap((off) =>
+                        off.customers.map((c: any) => ({
+                          officerName: off.officerName,
+                          officerCode: off.officerCode,
+                          customerName: c.customerName,
+                          customerId: c.customerRefId,
+                          mobile: c.mobile,
+                          group: `${c.groupId} (${c.groupName})`,
+                          accountNumber: c.accountNumber,
+                          weekNumber: c.installNo,
+                          dueDate: c.dueDate,
+                          emi: c.emi,
+                          savings: c.savings,
+                          totalDue: c.totalDue,
+                          paid: c.paid,
+                          pending: c.pending,
+                          status: c.status,
+                        }))
+                      )
+                      downloadCSV(`collections-due-${dueDateFilter}.csv`, allCustomers)
+                      toast.success(`Exported ${allCustomers.length} due collections to CSV`)
+                    }}
+                    disabled={!dueData.officers.length}
+                  >
+                    <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> Export CSV
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.print()}
+                    disabled={!dueData.officers.length}
+                    className="no-print"
+                  >
+                    <Printer className="h-3.5 w-3.5 mr-1" /> Print Sheet
+                  </Button>
+                </>
+              )}
+            </div>
+
+            {dueData && (
+              <div className="flex items-center gap-3 text-xs">
+                <div className="text-right">
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Total Due</span>
+                  <span className="text-base font-bold text-primary">{formatMoney(dueData.grandTotals.totalDue)}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Collected</span>
+                  <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">{formatMoney(dueData.grandTotals.totalCollected)}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Pending</span>
+                  <span className="text-base font-bold text-amber-600 dark:text-amber-400">{formatMoney(dueData.grandTotals.totalPending)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Grouped by Field Officer */}
+          {loadingDue ? (
+            <LoadingRows rows={4} />
+          ) : !dueData || dueData.officers.length === 0 ? (
+            <EmptyState message={`No installments due on ${dueDateFilter}.`} icon={CalendarClock} />
+          ) : (
+            <div className="space-y-5 print-report">
+              {dueData.officers.map((off: any) => (
+                <SectionCard
+                  key={off.officerId}
+                  title={`Field Officer: ${off.officerName} (${off.officerCode})`}
+                  action={
+                    <div className="flex items-center gap-3 text-xs">
+                      <span>Customers: <strong>{off.totalCustomers}</strong></span>
+                      <span>Total Due: <strong className="text-primary">{formatMoney(off.totalDue)}</strong></span>
+                      <span>Collected: <strong className="text-emerald-600 dark:text-emerald-400">{formatMoney(off.totalCollected)}</strong></span>
+                      <span>Pending: <strong className="text-amber-600 dark:text-amber-400">{formatMoney(off.totalPending)}</strong></span>
+                    </div>
+                  }
+                >
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs zebra-table min-w-[760px]">
+                      <thead className="bg-muted/50">
+                        <tr className="text-left text-muted-foreground">
+                          <th className="px-3 py-2 font-medium">Customer</th>
+                          <th className="px-3 py-2 font-medium">Mobile</th>
+                          <th className="px-3 py-2 font-medium">Group</th>
+                          <th className="px-3 py-2 font-medium">Account</th>
+                          <th className="px-3 py-2 font-medium text-right">EMI</th>
+                          <th className="px-3 py-2 font-medium text-right">Savings</th>
+                          <th className="px-3 py-2 font-medium text-right">Total Due</th>
+                          <th className="px-3 py-2 font-medium text-right">Paid</th>
+                          <th className="px-3 py-2 font-medium text-right">Pending</th>
+                          <th className="px-3 py-2 font-medium text-center">Status</th>
+                          <th className="px-3 py-2 font-medium text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {off.customers.map((c: any) => (
+                          <tr key={c.installmentId} className="border-b last:border-0 hover:bg-muted/30">
+                            <td className="px-3 py-2">
+                              <p className="font-semibold text-foreground">{c.customerName}</p>
+                              <span className="font-mono text-[10px] text-muted-foreground">{c.customerRefId}</span>
+                            </td>
+                            <td className="px-3 py-2 font-mono">{c.mobile}</td>
+                            <td className="px-3 py-2">
+                              <span className="font-mono text-primary font-medium">{c.groupId}</span>
+                              <span className="text-muted-foreground block text-[10px]">{c.groupName}</span>
+                            </td>
+                            <td className="px-3 py-2 font-mono text-xs">{c.accountNumber} (W#{c.installNo})</td>
+                            <td className="px-3 py-2 text-right">{formatMoney(c.emi)}</td>
+                            <td className="px-3 py-2 text-right text-teal-600 dark:text-teal-400 font-medium">{formatMoney(c.savings)}</td>
+                            <td className="px-3 py-2 text-right font-bold text-primary">{formatMoney(c.totalDue)}</td>
+                            <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400 font-semibold">{formatMoney(c.paid)}</td>
+                            <td className="px-3 py-2 text-right text-amber-600 dark:text-amber-400 font-bold">{formatMoney(c.pending)}</td>
+                            <td className="px-3 py-2 text-center">
+                              <Badge className={cn('text-[10px]', STATUS_COLORS[c.status] || 'bg-slate-100 text-slate-800')}>{c.status}</Badge>
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              {c.pending > 0 && (
+                                <Button
+                                  size="sm"
+                                  className="h-7 text-xs px-2.5"
+                                  onClick={() => {
+                                    setForm({
+                                      ...emptyForm,
+                                      customerId: c.customerId,
+                                      accountId: c.accountId,
+                                      amount: String(c.pending),
+                                    })
+                                    setShowNew(true)
+                                  }}
+                                >
+                                  Collect
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </SectionCard>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="history" className="space-y-4 pt-2">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">From</Label>
+              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-[150px]" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">To</Label>
+              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-[150px]" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Employee</Label>
+              <Select value={employeeId || 'ALL'} onValueChange={(v) => setEmployeeId(v === 'ALL' ? '' : v)}>
+                <SelectTrigger className="w-[160px]"><SelectValue placeholder="All" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All</SelectItem>
+                  {employees.map((e) => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Mode</Label>
+              <Select value={paymentMode} onValueChange={setPaymentMode}>
+                <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All</SelectItem>
+                  <SelectItem value="CASH">Cash</SelectItem>
+                  <SelectItem value="UPI">UPI</SelectItem>
+                  <SelectItem value="BANK">Bank</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All</SelectItem>
+                  <SelectItem value="SUCCESSFUL">Successful</SelectItem>
+                  <SelectItem value="REVERSED">Reversed</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="ml-auto flex gap-2">
+              {(from || to || employeeId || paymentMode !== 'ALL' || statusFilter !== 'ALL') && (
+                <Button variant="ghost" size="sm" onClick={() => { setFrom(''); setTo(''); setEmployeeId(''); setPaymentMode('ALL'); setStatusFilter('SUCCESSFUL') }}>
+                  <X className="h-3.5 w-3.5 mr-1" /> Clear Filters
+                </Button>
+              )}
+              <Button variant="outline" onClick={exportCSV} disabled={!items.length}>
+                <FileSpreadsheet className="h-4 w-4 mr-1" /> Export
+              </Button>
+            </div>
+          </div>
 
       <SectionCard title={`Collections (${items.length})`}>
         {loading ? (
@@ -369,6 +602,8 @@ export function CollectionsView() {
           </>
         )}
       </SectionCard>
+      </TabsContent>
+      </Tabs>
 
       {/* New collection dialog */}
       <Dialog open={showNew} onOpenChange={(o) => { 

@@ -6,7 +6,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     const { id } = await ctx.params
     const account = await db.account.findUnique({
       where: { id },
-      include: { customer: true, createdBy: { select: { name: true } } },
+      include: { customer: true, product: true, createdBy: { select: { name: true } } },
     })
     if (!account) return error('Account not found.', 404)
 
@@ -27,6 +27,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       principal: Number(account.principal),
       interestRate: Number(account.interestRate),
       installmentAmount: Number(account.installmentAmount),
+      savingsAmount: Number(account.savingsAmount || 0),
+      processingFee: Number(account.processingFee || 0),
+      insurancePremium: Number(account.insurancePremium || 0),
+      totalFees: Number(account.processingFee || 0) + Number(account.insurancePremium || 0),
       totalPayable,
       totalInterest: Number(account.totalInterest),
       paidAmount: paid,
@@ -34,7 +38,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       installments: installments.map((i) => ({
         ...i,
         amount: Number(i.amount),
+        savingsPart: Number(i.savingsPart || 0),
         paidAmount: Number(i.paidAmount),
+        paidSavings: Number(i.paidSavings || 0),
       })),
     })
   })

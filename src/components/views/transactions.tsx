@@ -39,7 +39,8 @@ import { cn } from '@/lib/utils'
 interface TransactionItem {
   id: string
   txNumber: string
-  type: 'COLLECTION' | 'DISBURSEMENT' | 'BANK_DEPOSIT'
+  type: 'COLLECTION' | 'DISBURSEMENT' | 'BANK_DEPOSIT' | 'CHARGE_RECOVERY'
+  side?: 'DEBIT' | 'CREDIT'
   date: string
   businessDate: string
   customerName: string
@@ -150,13 +151,16 @@ export function TransactionsView() {
   }
 
   const totalInflows = items
-    .filter((t) => t.type === 'COLLECTION' && t.status === 'SUCCESSFUL')
+    .filter((t) => (t.type === 'COLLECTION' || t.type === 'CHARGE_RECOVERY') && t.status === 'SUCCESSFUL')
     .reduce((s, t) => s + t.amount, 0)
   const totalOutflows = items
     .filter((t) => t.type === 'DISBURSEMENT')
     .reduce((s, t) => s + t.amount, 0)
   const totalDeposits = items
     .filter((t) => t.type === 'BANK_DEPOSIT')
+    .reduce((s, t) => s + t.amount, 0)
+  const totalRecoveredCharges = items
+    .filter((t) => t.type === 'CHARGE_RECOVERY')
     .reduce((s, t) => s + t.amount, 0)
 
   return (
@@ -176,15 +180,16 @@ export function TransactionsView() {
           </div>
         </div>
 
-        <div className="w-[calc(50%-5px)] sm:w-[150px]">
+        <div className="w-[calc(50%-5px)] sm:w-[170px]">
           <Label className="text-xs text-muted-foreground">Transaction Type</Label>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Types</SelectItem>
-              <SelectItem value="COLLECTION">Collections (+)</SelectItem>
-              <SelectItem value="DISBURSEMENT">Disbursements (-)</SelectItem>
-              <SelectItem value="BANK_DEPOSIT">Bank Deposits (-)</SelectItem>
+              <SelectItem value="COLLECTION">Collections (Credit +)</SelectItem>
+              <SelectItem value="CHARGE_RECOVERY">Recovered Charges (Credit +)</SelectItem>
+              <SelectItem value="DISBURSEMENT">Disbursements (Debit -)</SelectItem>
+              <SelectItem value="BANK_DEPOSIT">Bank Deposits (Debit -)</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -217,28 +222,36 @@ export function TransactionsView() {
       </div>
 
       {/* KPI Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
-        <div className="rounded-lg border bg-card p-3 flex items-center justify-between sm:block">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+        <div className="rounded-lg border bg-card p-3 flex flex-col justify-between">
           <p className="text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400 font-medium">
-            Total Collections
+            Total Inflows / Credits
           </p>
-          <p className="text-xl sm:text-lg font-bold text-emerald-600 dark:text-emerald-400">
+          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
             +{formatMoney(totalInflows)}
           </p>
         </div>
-        <div className="rounded-lg border bg-card p-3 flex items-center justify-between sm:block">
-          <p className="text-[10px] uppercase tracking-wide text-rose-600 dark:text-rose-400 font-medium">
-            Total Disbursements
+        <div className="rounded-lg border bg-card p-3 flex flex-col justify-between">
+          <p className="text-[10px] uppercase tracking-wide text-teal-600 dark:text-teal-400 font-medium">
+            Recovered Charges (Cr)
           </p>
-          <p className="text-xl sm:text-lg font-bold text-rose-600 dark:text-rose-400">
+          <p className="text-lg font-bold text-teal-600 dark:text-teal-400">
+            +{formatMoney(totalRecoveredCharges)}
+          </p>
+        </div>
+        <div className="rounded-lg border bg-card p-3 flex flex-col justify-between">
+          <p className="text-[10px] uppercase tracking-wide text-rose-600 dark:text-rose-400 font-medium">
+            Disbursements (Dr)
+          </p>
+          <p className="text-lg font-bold text-rose-600 dark:text-rose-400">
             -{formatMoney(totalOutflows)}
           </p>
         </div>
-        <div className="rounded-lg border bg-card p-3 flex items-center justify-between sm:block">
+        <div className="rounded-lg border bg-card p-3 flex flex-col justify-between">
           <p className="text-[10px] uppercase tracking-wide text-blue-600 dark:text-blue-400 font-medium">
-            Total Bank Deposits
+            Bank Deposits (Dr)
           </p>
-          <p className="text-xl sm:text-lg font-bold text-blue-600 dark:text-blue-400">
+          <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
             -{formatMoney(totalDeposits)}
           </p>
         </div>
@@ -254,125 +267,164 @@ export function TransactionsView() {
           <>
             {/* Mobile Card List (< md) */}
             <div className="block md:hidden space-y-3">
-              {items.map((t) => (
-                <div key={t.id} className="rounded-lg border bg-card p-3.5 shadow-2xs space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-xs font-bold text-primary">{t.txNumber}</span>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            'text-[10px] px-1.5 py-0',
-                            t.type === 'COLLECTION'
-                              ? 'text-emerald-700 border-emerald-300'
-                              : t.type === 'DISBURSEMENT'
-                              ? 'text-rose-700 border-rose-300'
-                              : 'text-blue-700 border-blue-300'
-                          )}
-                        >
-                          {t.type}
-                        </Badge>
+              {items.map((t) => {
+                const isCredit = t.side === 'CREDIT' || t.type === 'COLLECTION' || t.type === 'CHARGE_RECOVERY'
+                return (
+                  <div key={t.id} className="rounded-lg border bg-card p-3.5 shadow-2xs space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-mono text-xs font-bold text-primary">{t.txNumber}</span>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'text-[10px] px-1.5 py-0',
+                              t.type === 'COLLECTION'
+                                ? 'text-emerald-700 border-emerald-300'
+                                : t.type === 'CHARGE_RECOVERY'
+                                ? 'text-teal-700 border-teal-300 bg-teal-50 dark:bg-teal-950/40'
+                                : t.type === 'DISBURSEMENT'
+                                ? 'text-rose-700 border-rose-300'
+                                : 'text-blue-700 border-blue-300'
+                            )}
+                          >
+                            {t.type === 'CHARGE_RECOVERY' ? 'RECOVERED CHARGES' : t.type}
+                          </Badge>
+                          <Badge
+                            className={cn(
+                              'text-[10px] px-1.5 py-0 font-bold',
+                              isCredit
+                                ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                : 'bg-rose-100 text-rose-800 border-rose-200'
+                            )}
+                          >
+                            {isCredit ? 'Credit (Cr)' : 'Debit (Dr)'}
+                          </Badge>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
+                          {formatDateTime(t.date)} (B-Date: {t.businessDate})
+                        </p>
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 font-mono">
-                        {formatDateTime(t.date)} (B-Date: {t.businessDate})
+                      <p
+                        className={cn(
+                          'text-sm font-bold',
+                          isCredit ? 'text-emerald-600' : 'text-rose-600'
+                        )}
+                      >
+                        {isCredit ? '+' : '-'}
+                        {formatMoney(t.amount)}
                       </p>
                     </div>
-                    <p
-                      className={cn(
-                        'text-sm font-bold',
-                        t.type === 'COLLECTION' ? 'text-emerald-600' : 'text-rose-600'
-                      )}
-                    >
-                      {t.type === 'COLLECTION' ? '+' : '-'}
-                      {formatMoney(t.amount)}
-                    </p>
-                  </div>
 
-                  <div className="border-t border-dashed pt-2 space-y-1 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Party:</span>
-                      <span className="font-medium text-right truncate max-w-[200px]">{t.customerName}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Account / Ref:</span>
-                      <span className="font-mono text-muted-foreground">{t.accountNumber}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Officer / Mode:</span>
-                      <span className="text-muted-foreground">
-                        {t.createdBy} · {t.paymentMode}
-                      </span>
+                    <div className="border-t border-dashed pt-2 space-y-1 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Party:</span>
+                        <span className="font-medium text-right truncate max-w-[200px]">{t.customerName}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Account / Ref:</span>
+                        <span className="font-mono text-muted-foreground">{t.accountNumber}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Officer / Mode:</span>
+                        <span className="text-muted-foreground">
+                          {t.createdBy} · {t.paymentMode}
+                        </span>
+                      </div>
+                      {t.remarks && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Particulars:</span>
+                          <span className="text-muted-foreground italic truncate max-w-[220px]">{t.remarks}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             {/* Desktop Table (>= md) */}
             <div className="hidden md:block max-h-[60vh] overflow-y-auto scroll-area overflow-x-auto">
-              <table className="w-full text-xs zebra-table min-w-[850px]">
+              <table className="w-full text-xs zebra-table min-w-[920px]">
                 <thead className="bg-muted/50 sticky top-0 z-10">
                   <tr className="text-left text-muted-foreground">
                     <th className="px-3 py-2.5 font-medium whitespace-nowrap">Tx #</th>
                     <th className="px-3 py-2.5 font-medium whitespace-nowrap">Type</th>
+                    <th className="px-3 py-2.5 font-medium whitespace-nowrap text-center">Side</th>
                     <th className="px-3 py-2.5 font-medium whitespace-nowrap">Time</th>
                     <th className="px-3 py-2.5 font-medium whitespace-nowrap">Business Date</th>
                     <th className="px-3 py-2.5 font-medium">Customer / Party</th>
                     <th className="px-3 py-2.5 font-medium whitespace-nowrap">Account / Ref</th>
                     <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap">Amount</th>
                     <th className="px-3 py-2.5 font-medium whitespace-nowrap">Mode</th>
-                    <th className="px-3 py-2.5 font-medium whitespace-nowrap">Created By</th>
+                    <th className="px-3 py-2.5 font-medium whitespace-nowrap">Staff / Channel</th>
                     <th className="px-3 py-2.5 font-medium whitespace-nowrap">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((t) => (
-                    <tr key={t.id} className="border-b last:border-0 hover:bg-muted/30">
-                      <td className="px-3 py-2 font-mono font-medium text-primary whitespace-nowrap">
-                        {t.txNumber}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        <Badge
-                          variant="outline"
+                  {items.map((t) => {
+                    const isCredit = t.side === 'CREDIT' || t.type === 'COLLECTION' || t.type === 'CHARGE_RECOVERY'
+                    return (
+                      <tr key={t.id} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="px-3 py-2 font-mono font-medium text-primary whitespace-nowrap">
+                          {t.txNumber}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'text-[10px] px-1.5 py-0',
+                              t.type === 'COLLECTION'
+                                ? 'text-emerald-700 border-emerald-300'
+                                : t.type === 'CHARGE_RECOVERY'
+                                ? 'text-teal-700 border-teal-300 bg-teal-50 dark:bg-teal-950/40'
+                                : t.type === 'DISBURSEMENT'
+                                ? 'text-rose-700 border-rose-300'
+                                : 'text-blue-700 border-blue-300'
+                            )}
+                          >
+                            {t.type === 'CHARGE_RECOVERY' ? 'RECOVERED CHARGES' : t.type}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2 text-center whitespace-nowrap">
+                          <Badge
+                            className={cn(
+                              'text-[10px] px-1.5 py-0 font-bold',
+                              isCredit
+                                ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                                : 'bg-rose-100 text-rose-800 border-rose-200'
+                            )}
+                          >
+                            {isCredit ? 'Credit (Cr)' : 'Debit (Dr)'}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatDateTime(t.date)}</td>
+                        <td className="px-3 py-2 font-mono whitespace-nowrap">{t.businessDate}</td>
+                        <td className="px-3 py-2 font-medium max-w-[200px] truncate" title={t.customerName}>
+                          {t.customerName}
+                        </td>
+                        <td className="px-3 py-2 font-mono text-muted-foreground whitespace-nowrap">
+                          {t.accountNumber}
+                        </td>
+                        <td
                           className={cn(
-                            'text-[10px] px-1.5 py-0',
-                            t.type === 'COLLECTION'
-                              ? 'text-emerald-700 border-emerald-300'
-                              : t.type === 'DISBURSEMENT'
-                              ? 'text-rose-700 border-rose-300'
-                              : 'text-blue-700 border-blue-300'
+                            'px-3 py-2 text-right font-bold whitespace-nowrap',
+                            isCredit ? 'text-emerald-600' : 'text-rose-600'
                           )}
                         >
-                          {t.type}
-                        </Badge>
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatDateTime(t.date)}</td>
-                      <td className="px-3 py-2 font-mono whitespace-nowrap">{t.businessDate}</td>
-                      <td className="px-3 py-2 font-medium max-w-[200px] truncate" title={t.customerName}>
-                        {t.customerName}
-                      </td>
-                      <td className="px-3 py-2 font-mono text-muted-foreground whitespace-nowrap">
-                        {t.accountNumber}
-                      </td>
-                      <td
-                        className={cn(
-                          'px-3 py-2 text-right font-bold whitespace-nowrap',
-                          t.type === 'COLLECTION' ? 'text-emerald-600' : 'text-rose-600'
-                        )}
-                      >
-                        {t.type === 'COLLECTION' ? '+' : '-'}
-                        {formatMoney(t.amount)}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap">{t.paymentMode}</td>
-                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{t.createdBy}</td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        <Badge className="text-[10px] bg-slate-100 text-slate-800 border-slate-200">
-                          {t.status}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
+                          {isCredit ? '+' : '-'}
+                          {formatMoney(t.amount)}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">{t.paymentMode}</td>
+                        <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{t.createdBy}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <Badge className="text-[10px] bg-slate-100 text-slate-800 border-slate-200">
+                            {t.status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

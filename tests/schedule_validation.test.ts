@@ -222,11 +222,99 @@ function testFlat() {
   console.log('FLAT TESTS: PASS (principal=20000, interest=2500, payable=22500, installment=900, final bal=0.00)')
 }
 
+function testReferenceD() {
+  console.log('=== RUNNING REFERENCE D (100k / 50 weeks) TESTS ===')
+  const res = calculateLoan({
+    principal: 100000,
+    interestRate: 22.83,
+    interestType: 'REDUCING',
+    interestPeriod: 'YEARLY',
+    tenure: 50,
+    installmentFreq: 'WEEKLY',
+    startDate: '2026-09-20',
+  })
+
+  if (res.schedule.length !== 50) {
+    throw new Error(`Expected exactly 50 installments, got ${res.schedule.length}`)
+  }
+
+  // Week 1: Interest approx 913.20, Principal approx 1586.99, EMI 2500.19
+  const w1 = res.schedule[0]
+  if (Math.abs(w1.interestPart - 913.20) > 0.05) {
+    throw new Error(`Week 1 interest mismatch: ${w1.interestPart} vs expected 913.20`)
+  }
+  if (Math.abs(w1.principalPart - 1586.99) > 0.05) {
+    throw new Error(`Week 1 principal mismatch: ${w1.principalPart} vs expected 1586.99`)
+  }
+  if (Math.abs(w1.amount - 2500.19) > 0.05) {
+    throw new Error(`Week 1 EMI mismatch: ${w1.amount} vs expected 2500.19`)
+  }
+
+  // Week 50: Interest approx 22.63, Principal approx 2477.56, EMI 2500.19
+  const w50 = res.schedule[49]
+  if (Math.abs(w50.interestPart - 22.63) > 0.10) {
+    throw new Error(`Week 50 interest mismatch: ${w50.interestPart} vs expected ~22.63`)
+  }
+
+  // Invariant: Reducing balance interest must decrease over time
+  for (let i = 0; i < 49; i++) {
+    if (res.schedule[i].interestPart < res.schedule[i+1].interestPart) {
+      throw new Error(`Interest did not decrease between week ${i+1} and ${i+2}`)
+    }
+  }
+
+  // Exact reconciliation
+  const sumPrin = res.schedule.reduce((s, row) => s + row.principalPart, 0)
+  if (Math.abs(sumPrin - 100000) > 0.001) {
+    throw new Error(`Sum of principal parts does not equal original principal: ${sumPrin}`)
+  }
+  if (Math.abs(res.schedule[49].balance) > 0.001) {
+    throw new Error(`Final balance does not equal 0.00: ${res.schedule[49].balance}`)
+  }
+
+  console.log('REFERENCE D (100k/50w): PASS (50 rows, EMI ₹2500.19, W1 int ₹913.20, W50 int ₹22.63, final bal ₹0.00)')
+}
+
+function testReferenceE() {
+  console.log('=== RUNNING REFERENCE E (50k / 50 weeks) TESTS ===')
+  const res = calculateLoan({
+    principal: 50000,
+    interestRate: 22.83,
+    interestType: 'REDUCING',
+    interestPeriod: 'YEARLY',
+    tenure: 50,
+    installmentFreq: 'WEEKLY',
+    startDate: '2026-09-20',
+  })
+
+  if (res.schedule.length !== 50) {
+    throw new Error(`Expected exactly 50 installments, got ${res.schedule.length}`)
+  }
+
+  const w1 = res.schedule[0]
+  if (Math.abs(w1.amount - 1250.09) > 0.05) {
+    throw new Error(`Week 1 EMI mismatch: ${w1.amount} vs expected 1250.09`)
+  }
+
+  // Exact reconciliation
+  const sumPrin = res.schedule.reduce((s, row) => s + row.principalPart, 0)
+  if (Math.abs(sumPrin - 50000) > 0.001) {
+    throw new Error(`Sum of principal parts does not equal original principal: ${sumPrin}`)
+  }
+  if (Math.abs(res.schedule[49].balance) > 0.001) {
+    throw new Error(`Final balance does not equal 0.00: ${res.schedule[49].balance}`)
+  }
+
+  console.log('REFERENCE E (50k/50w): PASS (50 rows, EMI ₹1250.09, principal reconciled to 50000.00, final bal ₹0.00)')
+}
+
 function runAll() {
   testDates()
   testReferenceA()
   testReferenceB()
   testReferenceC()
+  testReferenceD()
+  testReferenceE()
   testFlat()
   console.log('\n========================================')
   console.log('ALL SCHEDULE & CALCULATION TESTS PASSED!')

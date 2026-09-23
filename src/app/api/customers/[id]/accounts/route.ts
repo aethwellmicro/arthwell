@@ -22,6 +22,9 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
           installmentAmount: Number(a.installmentAmount),
           totalPayable: Number(a.totalPayable),
           totalInterest: Number(a.totalInterest),
+          processingFee: Number(a.processingFee || 0),
+          insurancePremium: Number(a.insurancePremium || 0),
+          totalFees: Number(a.processingFee || 0) + Number(a.insurancePremium || 0),
           paidAmount: paid,
           outstanding: Math.max(Number(a.totalPayable) - paid, 0),
         }

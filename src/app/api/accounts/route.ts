@@ -7,12 +7,16 @@ import { z } from 'zod'
 
 const accountSchema = z.object({
   customerId: z.string().min(1, 'Customer is required'),
+  productId: z.string().optional().nullable(),
   principal: z.coerce.number().positive('Principal must be greater than 0'),
   interestRate: z.coerce.number().min(0, 'Valid interest rate is required'),
   interestType: z.enum(['FLAT', 'REDUCING'], { message: 'Invalid interest type' }),
   interestPeriod: z.enum(['MONTHLY', 'YEARLY', 'FLAT_PERIOD'], { message: 'Invalid interest period' }),
   tenure: z.coerce.number().int().positive('Tenure must be greater than 0'),
   installmentFreq: z.enum(['DAILY', 'WEEKLY', 'MONTHLY'], { message: 'Invalid installment frequency' }),
+  savingsAmount: z.coerce.number().min(0).default(0),
+  processingFee: z.coerce.number().min(0).default(0),
+  insurancePremium: z.coerce.number().min(0).default(0),
   startDate: z.string().min(1, 'Start date is required').refine((val) => !isNaN(Date.parse(val)), 'Invalid date format'),
   remarks: z.string().max(500).optional().nullable(),
 })
@@ -83,6 +87,9 @@ export async function GET(req: Request) {
         installmentAmount: Number(a.installmentAmount),
         totalPayable,
         totalInterest: Number(a.totalInterest),
+        processingFee: Number(a.processingFee || 0),
+        insurancePremium: Number(a.insurancePremium || 0),
+        totalFees: Number(a.processingFee || 0) + Number(a.insurancePremium || 0),
         paidAmount: paid,
         outstanding,
         overdueAmount,
@@ -111,7 +118,15 @@ export async function POST(req: Request) {
     if (!customer) return error('Customer not found.', 404)
 
     // Critical Disbursement Gate:
-    // 1. Customer must not be cancelled
+    // 1. Customer must belong to a valid group
+    if (!customer.groupId || !customer.group) {
+      return error('Customer must belong to a valid active Group before disbursement.', 422)
+    }
+    if (customer.group.status !== 'ACTIVE') {
+      return error(`Customer's group is ${customer.group.status.toLowerCase()}. Cannot disburse loan.`, 422)
+    }
+
+    // 2. Customer must not be cancelled
     if (customer.status === 'CANCELLED') {
       return error('Cannot disburse loan to a cancelled customer.', 422)
     }
@@ -160,6 +175,7 @@ export async function POST(req: Request) {
         data: {
           accountNumber,
           customerId: data.customerId,
+          productId: data.productId || null,
           businessDateId: activeBDate.id,
           principal: computed.principal,
           interestRate: data.interestRate,
@@ -168,6 +184,9 @@ export async function POST(req: Request) {
           tenure: data.tenure,
           installmentFreq: data.installmentFreq,
           installmentAmount: computed.installmentAmount,
+          savingsAmount: data.savingsAmount,
+          processingFee: data.processingFee,
+          insurancePremium: data.insurancePremium,
           totalPayable: computed.totalPayable,
           totalInterest: computed.totalInterest,
           startDate,
@@ -187,6 +206,7 @@ export async function POST(req: Request) {
           amount: s.amount,
           principalPart: s.principalPart,
           interestPart: s.interestPart,
+          savingsPart: data.savingsAmount,
           balance: s.balance,
           status: 'PENDING',
         })),

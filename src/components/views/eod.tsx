@@ -14,6 +14,9 @@ import {
   FileSpreadsheet,
   Clock,
   Lock,
+  RotateCcw,
+  FileText,
+  Printer,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatDateTime, formatDate, downloadCSV } from '@/lib/format'
 import { useApp } from '@/lib/store'
@@ -37,7 +40,7 @@ import { cn } from '@/lib/utils'
 interface BusinessDateSummary {
   id: string
   businessDate: string
-  status: 'OPEN' | 'RECONCILIATION_PENDING' | 'CLOSED'
+  status: 'OPEN' | 'RECONCILIATION_PENDING' | 'CLOSED' | 'REOPENED'
   openedAt: string
   openedBy: { id: string; name: string }
   closedAt?: string | null
@@ -86,6 +89,17 @@ export function EODView() {
   const [physicalCash, setPhysicalCash] = useState('')
   const [differenceReason, setDifferenceReason] = useState('')
   const [eodNotes, setEodNotes] = useState('')
+
+  // Reopen Modal State (Admin only)
+  const [showReopenModal, setShowReopenModal] = useState(false)
+  const [reopenTargetDate, setReopenTargetDate] = useState('')
+  const [reopenReason, setReopenReason] = useState('')
+  const [reopening, setReopening] = useState(false)
+
+  // Daily EOD Report Modal State
+  const [showReportModal, setShowReportModal] = useState(false)
+  const [reportData, setReportData] = useState<any>(null)
+  const [loadingReport, setLoadingReport] = useState(false)
 
   // 10-step EOD checklist
   const [checklist, setChecklist] = useState({
@@ -180,6 +194,44 @@ export function EODView() {
     }
   }
 
+  async function openEodReport(dateStr?: string) {
+    setLoadingReport(true)
+    setShowReportModal(true)
+    try {
+      const d = dateStr || summary?.businessDate
+      const res = await apiFetch<any>(`/api/business-date/eod/report${d ? `?date=${d}` : ''}`)
+      setReportData(res)
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setLoadingReport(false)
+    }
+  }
+
+  async function handleReopenDay() {
+    if (!reopenTargetDate) return toast.error('Business date to reopen is required.')
+    if (!reopenReason.trim()) return toast.error('Mandatory reason for reopening must be provided.')
+    setReopening(true)
+    try {
+      const res = await apiFetch<any>('/api/business-date/reopen', {
+        method: 'POST',
+        body: JSON.stringify({
+          businessDate: reopenTargetDate,
+          reason: reopenReason.trim(),
+        }),
+      })
+      toast.success(res.message || `Business date ${reopenTargetDate} reopened successfully.`)
+      setShowReopenModal(false)
+      setReopenTargetDate('')
+      setReopenReason('')
+      load()
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setReopening(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Top Banner / Status */}
@@ -197,6 +249,8 @@ export function EODView() {
                     'font-mono text-xs',
                     summary.status === 'OPEN'
                       ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                      : summary.status === 'REOPENED'
+                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
                       : 'bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-300'
                   )}
                 >
@@ -214,11 +268,27 @@ export function EODView() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+          <Button variant="outline" size="sm" onClick={() => openEodReport()} className="flex-1 sm:flex-initial">
+            <FileText className="h-3.5 w-3.5 mr-1.5" /> Daily EOD Report
+          </Button>
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="flex-1 sm:flex-initial">
             <RefreshCw className={cn('h-3.5 w-3.5 mr-1.5', loading && 'animate-spin')} /> Refresh
           </Button>
-          {isManagerOrAdmin && summary && summary.status === 'OPEN' && (
+          {user?.role === 'ADMIN' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setReopenTargetDate(summary?.businessDate || '')
+                setShowReopenModal(true)
+              }}
+              className="flex-1 sm:flex-initial text-amber-600 hover:text-amber-700 border-amber-300"
+            >
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5" /> Reopen Date
+            </Button>
+          )}
+          {isManagerOrAdmin && summary && (summary.status === 'OPEN' || (summary.status as string) === 'REOPENED') && (
             <Button
               size="sm"
               onClick={() => setShowCloseModal(true)}
@@ -504,6 +574,192 @@ export function EODView() {
               className="bg-primary text-primary-foreground font-semibold"
             >
               {closing ? 'Closing Day End…' : 'Confirm & Close Business Day'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin Reopen Business Date Dialog (Section 25 Acceptance Criteria) */}
+      <Dialog open={showReopenModal} onOpenChange={setShowReopenModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <RotateCcw className="h-5 w-5" /> Reopen / Backdate Business Date
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-xs">
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg text-amber-900 dark:text-amber-200">
+              <p className="font-semibold flex items-center gap-1.5">
+                <AlertTriangle className="h-4 w-4" /> Administrative Authorization Required
+              </p>
+              <p className="mt-1">
+                Reopening a closed date unlocks historical transaction modifications. All actions taken while reopened are strictly recorded in the immutable audit trail. The reopened date must be closed again before subsequent days can proceed.
+              </p>
+            </div>
+
+            <div>
+              <Label className="text-xs font-semibold">Business Date to Reopen *</Label>
+              <Input
+                type="date"
+                value={reopenTargetDate}
+                onChange={(e) => setReopenTargetDate(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs font-semibold">Mandatory Reopen Reason *</Label>
+              <Textarea
+                value={reopenReason}
+                onChange={(e) => setReopenReason(e.target.value)}
+                placeholder="Explain the specific correction, missing deposit, or reconciliation adjustment requiring date unlock..."
+                className="mt-1 text-xs"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0 border-t pt-3">
+            <Button variant="outline" onClick={() => setShowReopenModal(false)} disabled={reopening}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleReopenDay}
+              disabled={reopening || !reopenTargetDate || !reopenReason.trim()}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
+            >
+              {reopening ? 'Reopening Date…' : 'Confirm Reopen Date'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Daily EOD Report Dialog (Section 26 Acceptance Criteria) */}
+      <Dialog open={showReportModal} onOpenChange={setShowReportModal}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" /> Daily EOD Report
+              </span>
+              {reportData?.report && (
+                <Badge variant="outline" className="font-mono text-xs">
+                  {reportData.report.businessDate} ({reportData.report.status || 'CLOSED'})
+                </Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          {loadingReport ? (
+            <LoadingRows rows={5} />
+          ) : !reportData?.report ? (
+            <p className="text-xs text-muted-foreground py-4">No report data found.</p>
+          ) : (
+            <div className="print-report space-y-4 py-2 text-xs">
+              {/* Cash Reconciliation Summary */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-muted/30 p-3 rounded-lg border">
+                <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Opening Cash</span>
+                  <span className="text-sm font-bold">{formatMoney(reportData.report.cashReconciliation.openingCash)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">+ Collections</span>
+                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatMoney(reportData.report.cashReconciliation.totalCollections)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">- Disbursements</span>
+                  <span className="text-sm font-bold text-rose-600 dark:text-rose-400">{formatMoney(reportData.report.cashReconciliation.totalDisbursements)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">- Bank Deposits</span>
+                  <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{formatMoney(reportData.report.cashReconciliation.bankDeposits)}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2.5 bg-primary/5 p-3 rounded-lg border border-primary/20">
+                <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Expected Closing Cash</span>
+                  <span className="text-base font-bold text-primary">{formatMoney(reportData.report.cashReconciliation.expectedClosingCash)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Actual Counted Cash</span>
+                  <span className="text-base font-bold text-emerald-700 dark:text-emerald-300">
+                    {reportData.report.cashReconciliation.actualClosingCash != null ? formatMoney(reportData.report.cashReconciliation.actualClosingCash) : '—'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Cash Difference</span>
+                  <span className={cn('text-base font-bold', reportData.report.cashReconciliation.cashDifference !== 0 ? 'text-amber-600' : 'text-muted-foreground')}>
+                    {reportData.report.cashReconciliation.cashDifference != null ? formatMoney(reportData.report.cashReconciliation.cashDifference) : '₹0.00'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Collections by Employee */}
+              <div>
+                <p className="font-semibold text-foreground mb-1.5">Collections by Employee</p>
+                <div className="overflow-x-auto border rounded-md">
+                  <table className="w-full text-xs zebra-table">
+                    <thead className="bg-muted/50">
+                      <tr className="text-left text-muted-foreground">
+                        <th className="px-3 py-1.5 font-medium">Employee</th>
+                        <th className="px-3 py-1.5 font-medium text-right">Transactions</th>
+                        <th className="px-3 py-1.5 font-medium text-right">Total Collected</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportData.report.collectionsByEmployee.map((e: any) => (
+                        <tr key={e.employeeId} className="border-b last:border-0">
+                          <td className="px-3 py-1.5 font-medium">{e.employeeName}</td>
+                          <td className="px-3 py-1.5 text-right">{e.count}</td>
+                          <td className="px-3 py-1.5 text-right font-bold text-emerald-600">{formatMoney(e.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Bank Deposits */}
+              <div>
+                <p className="font-semibold text-foreground mb-1.5">Bank Deposits ({reportData.report.bankDepositRecords.length})</p>
+                {reportData.report.bankDepositRecords.length === 0 ? (
+                  <p className="text-muted-foreground italic">No bank deposits on this business date.</p>
+                ) : (
+                  <div className="overflow-x-auto border rounded-md">
+                    <table className="w-full text-xs zebra-table">
+                      <thead className="bg-muted/50">
+                        <tr className="text-left text-muted-foreground">
+                          <th className="px-3 py-1.5 font-medium">Bank Account</th>
+                          <th className="px-3 py-1.5 font-medium">Reference</th>
+                          <th className="px-3 py-1.5 font-medium text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportData.report.bankDepositRecords.map((d: any) => (
+                          <tr key={d.id} className="border-b last:border-0">
+                            <td className="px-3 py-1.5 font-medium">{d.bankAccount}</td>
+                            <td className="px-3 py-1.5 font-mono">{d.referenceNumber || '—'}</td>
+                            <td className="px-3 py-1.5 text-right font-bold text-blue-600">{formatMoney(d.amount)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Day Closure Details */}
+              <div className="grid grid-cols-2 gap-2 text-muted-foreground border-t pt-2">
+                <div>Closed By: <strong className="text-foreground">{reportData.report.closedBy || 'Pending'}</strong></div>
+                <div>Closed At: <strong className="text-foreground">{reportData.report.closedAt ? formatDateTime(reportData.report.closedAt) : 'Pending'}</strong></div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0 border-t pt-3 no-print">
+            <Button variant="outline" onClick={() => setShowReportModal(false)}>Close</Button>
+            <Button onClick={() => window.print()} className="gap-1.5">
+              <Printer className="h-4 w-4" /> Print Report
             </Button>
           </DialogFooter>
         </DialogContent>

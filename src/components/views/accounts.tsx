@@ -17,6 +17,8 @@ import {
   Eye,
   RefreshCw,
   FileSpreadsheet,
+  Download,
+  Printer,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatMoneyCompact, formatDate, STATUS_COLORS, downloadCSV } from '@/lib/format'
 import { useApp } from '@/lib/store'
@@ -79,6 +81,9 @@ interface Account {
   startDate: string
   maturityDate: string
   firstDueDate: string
+  processingFee?: number
+  insurancePremium?: number
+  totalFees?: number
   remarks?: string | null
 }
 
@@ -91,14 +96,35 @@ interface CustomerOption {
   group?: { groupId: string; name: string } | null
 }
 
+interface LoanProductOption {
+  id: string
+  productCode: string
+  name: string
+  loanType: string
+  principal: number
+  interestRate: number
+  interestBasis: string
+  interestMethod: string
+  tenure: number
+  frequency: string
+  emiAmount: number
+  savingsAmount: number
+  processingFee: number
+  insurancePremium: number
+}
+
 const emptyForm = {
   customerId: '',
+  productId: '',
   principal: '',
   interestRate: '',
   interestType: 'FLAT' as InterestType,
   interestPeriod: 'FLAT_PERIOD' as InterestPeriod,
   tenure: '',
   installmentFreq: 'MONTHLY' as InstallmentFreq,
+  savingsAmount: '0',
+  processingFee: '0',
+  insurancePremium: '0',
   startDate: new Date().toISOString().slice(0, 10),
   remarks: '',
 }
@@ -473,6 +499,16 @@ function AccountDetailBody({
         <Info label="First Due">{formatDate(account.firstDueDate)}</Info>
         <Info label="Maturity">{formatDate(account.maturityDate)}</Info>
         <Info label="Customer">{account.customer.fullName} ({account.customer.customerId})</Info>
+        {((account.processingFee || 0) > 0 || (account.insurancePremium || 0) > 0) && (
+          <div className="col-span-2 sm:col-span-3 p-2 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded flex items-center justify-between text-xs">
+            <span className="text-emerald-900 dark:text-emerald-200 font-medium">
+              Recovered / Deducted Charges: Proc Fee {formatMoney(account.processingFee || 0)} + Ins. Premium {formatMoney(account.insurancePremium || 0)}
+            </span>
+            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/60 dark:text-emerald-200 font-bold">
+              Credit (Cr): {formatMoney((account.processingFee || 0) + (account.insurancePremium || 0))}
+            </Badge>
+          </div>
+        )}
       </div>
       <div className="px-4 py-3 flex flex-wrap items-center gap-2 border-b bg-muted/20">
         <span className="text-xs text-muted-foreground mr-1">Status actions:</span>
@@ -498,9 +534,46 @@ function AccountDetailBody({
         </div>
       </div>
       <div className="px-4 py-3">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-semibold">Complete Installment Schedule ({schedule.length} installments)</p>
-          <span className="text-xs text-muted-foreground font-mono">Full repayment schedule</span>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <div>
+            <p className="text-sm font-semibold">Complete Installment Schedule ({schedule.length} installments)</p>
+            <span className="text-xs text-muted-foreground font-mono">Full repayment schedule</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs px-2.5"
+              disabled={schedule.length === 0}
+              onClick={() => {
+                const rows = schedule.map((s) => ({
+                  week: s.installNo,
+                  dueDate: formatDate(s.dueDate),
+                  interestPart: Number(s.interestPart || 0),
+                  principalPart: Number(s.principalPart || 0),
+                  savingsPart: Number(s.savingsPart || 0),
+                  emiAmount: Number(s.amount),
+                  paidAmount: Number(s.paidAmount || 0),
+                  paidSavings: Number(s.paidSavings || 0),
+                  closingBalance: Number(s.balance || 0),
+                  status: s.status,
+                }))
+                downloadCSV(`loan-schedule-${account.accountNumber}-${new Date().toISOString().slice(0, 10)}.csv`, rows)
+                toast.success('Loan repayment schedule downloaded as CSV')
+              }}
+            >
+              <Download className="h-3.5 w-3.5 mr-1" /> Download CSV
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs px-2.5 no-print"
+              disabled={schedule.length === 0}
+              onClick={() => window.print()}
+            >
+              <Printer className="h-3.5 w-3.5 mr-1" /> Print
+            </Button>
+          </div>
         </div>
         <div className="max-h-[42vh] overflow-y-auto overflow-x-auto scroll-area border rounded-md">
           <table className="w-full text-xs zebra-table min-w-[620px]">
@@ -541,7 +614,12 @@ function AccountDetailBody({
 
 function NewAccountForm({ form, setForm, preview }: { form: typeof emptyForm; setForm: (f: typeof emptyForm) => void; preview: any }) {
   const [customers, setCustomers] = useState<CustomerOption[]>([])
+  const [products, setProducts] = useState<LoanProductOption[]>([])
   const [cq, setCq] = useState('')
+
+  useEffect(() => {
+    apiFetch<{ items: LoanProductOption[] }>('/api/products').then((d) => setProducts(d.items || [])).catch(() => {})
+  }, [])
 
   useEffect(() => {
     const t = setTimeout(async () => {
@@ -557,6 +635,27 @@ function NewAccountForm({ form, setForm, preview }: { form: typeof emptyForm; se
     }, 250)
     return () => clearTimeout(t)
   }, [cq])
+
+  function handleProductSelect(prodId: string) {
+    const prod = products.find((p) => p.id === prodId)
+    if (!prod) {
+      setForm({ ...form, productId: '' })
+      return
+    }
+    setForm({
+      ...form,
+      productId: prod.id,
+      principal: String(prod.principal),
+      interestRate: String(prod.interestRate),
+      interestType: prod.interestMethod as InterestType,
+      interestPeriod: prod.interestBasis as InterestPeriod,
+      tenure: String(prod.tenure),
+      installmentFreq: prod.frequency as InstallmentFreq,
+      savingsAmount: String(prod.savingsAmount || 0),
+      processingFee: String(prod.processingFee || 0),
+      insurancePremium: String(prod.insurancePremium || 0),
+    })
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-2">
@@ -582,6 +681,21 @@ function NewAccountForm({ form, setForm, preview }: { form: typeof emptyForm; se
             )}
           </div>
         </Field>
+
+        <Field label="Loan Product / Scheme (Auto-populates rates & charges)" full>
+          <Select value={form.productId || 'custom'} onValueChange={(v) => v === 'custom' ? setForm({ ...form, productId: '' }) : handleProductSelect(v)}>
+            <SelectTrigger><SelectValue placeholder="Select loan scheme / product" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="custom">-- Custom / Manual Configuration --</SelectItem>
+              {products.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name} ({p.productCode}) — ₹{p.principal.toLocaleString('en-IN')} / {p.tenure}w @ {p.interestRate}%
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+
         <div className="grid grid-cols-2 gap-3">
           <Field label="Principal (₹)"><Input type="number" value={form.principal} onChange={(e) => setForm({ ...form, principal: e.target.value })} /></Field>
           <Field label="Interest Rate (%)"><Input type="number" step="0.01" value={form.interestRate} onChange={(e) => setForm({ ...form, interestRate: e.target.value })} /></Field>
@@ -615,8 +729,13 @@ function NewAccountForm({ form, setForm, preview }: { form: typeof emptyForm; se
             </Select>
           </Field>
         </div>
+        <div className="grid grid-cols-3 gap-2">
+          <Field label="Savings (₹/wk)"><Input type="number" value={form.savingsAmount} onChange={(e) => setForm({ ...form, savingsAmount: e.target.value })} /></Field>
+          <Field label="Proc Fee (₹)"><Input type="number" value={form.processingFee} onChange={(e) => setForm({ ...form, processingFee: e.target.value })} /></Field>
+          <Field label="Insurance (₹)"><Input type="number" value={form.insurancePremium} onChange={(e) => setForm({ ...form, insurancePremium: e.target.value })} /></Field>
+        </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Start Date"><Input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} /></Field>
+          <Field label="Disbursement Date"><Input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} /></Field>
         </div>
         <Field label="Remarks"><Input value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} /></Field>
       </div>
@@ -642,8 +761,23 @@ function NewAccountForm({ form, setForm, preview }: { form: typeof emptyForm; se
 
             <div className="space-y-1.5 pt-1 bg-background/50 p-2.5 rounded-md border">
               <PreviewRow label="Total Interest" value={formatMoney(preview.totalInterest)} tone="warning" />
-              <PreviewRow label="Total Payable" value={formatMoney(preview.totalPayable)} tone="success" big />
-              <PreviewRow label="Installment Amount" value={formatMoney(preview.installmentAmount)} tone="info" big />
+              <PreviewRow label="Total Loan Payable" value={formatMoney(preview.totalPayable)} tone="success" big />
+              <PreviewRow label="Installment EMI" value={formatMoney(preview.installmentAmount)} tone="info" big />
+              {Number(form.savingsAmount) > 0 && (
+                <PreviewRow
+                  label={`Total Weekly Collection (EMI + ₹${Number(form.savingsAmount)} savings)`}
+                  value={formatMoney(preview.installmentAmount + Number(form.savingsAmount))}
+                  tone="success"
+                  big
+                />
+              )}
+              {(Number(form.processingFee) > 0 || Number(form.insurancePremium) > 0) && (
+                <PreviewRow
+                  label="Total Fees (Processing + Insurance)"
+                  value={formatMoney(Number(form.processingFee || 0) + Number(form.insurancePremium || 0))}
+                  tone="info"
+                />
+              )}
             </div>
 
             <div className="pt-2 border-t space-y-2">
@@ -654,14 +788,17 @@ function NewAccountForm({ form, setForm, preview }: { form: typeof emptyForm; se
                 <span className="text-[10px] text-muted-foreground">All installments visible</span>
               </div>
               <div className="max-h-56 overflow-y-auto overflow-x-auto border rounded-md bg-background scroll-area">
-                <table className="w-full text-xs min-w-[500px]">
+                <table className="w-full text-xs min-w-[560px]">
                   <thead className="bg-muted/60 sticky top-0 border-b">
                     <tr className="text-left text-muted-foreground">
-                      <th className="px-2.5 py-1.5 font-medium whitespace-nowrap">Week</th>
+                      <th className="px-2.5 py-1.5 font-medium whitespace-nowrap">#</th>
                       <th className="px-2.5 py-1.5 font-medium whitespace-nowrap">Due Date</th>
                       <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">IPMT / Interest</th>
                       <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">PPMT / Principal</th>
-                      <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">Installment (EMI)</th>
+                      <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">EMI</th>
+                      {Number(form.savingsAmount) > 0 && (
+                        <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">Savings</th>
+                      )}
                       <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">Closing Balance</th>
                       <th className="px-2.5 py-1.5 font-medium text-center whitespace-nowrap">Status</th>
                     </tr>
@@ -674,6 +811,9 @@ function NewAccountForm({ form, setForm, preview }: { form: typeof emptyForm; se
                         <td className="px-2.5 py-1.5 text-right text-amber-600 dark:text-amber-400 whitespace-nowrap">{formatMoney(s.interestPart)}</td>
                         <td className="px-2.5 py-1.5 text-right whitespace-nowrap">{formatMoney(s.principalPart)}</td>
                         <td className="px-2.5 py-1.5 text-right font-semibold text-primary whitespace-nowrap">{formatMoney(s.amount)}</td>
+                        {Number(form.savingsAmount) > 0 && (
+                          <td className="px-2.5 py-1.5 text-right text-teal-600 dark:text-teal-400 whitespace-nowrap">{formatMoney(Number(form.savingsAmount))}</td>
+                        )}
                         <td className="px-2.5 py-1.5 text-right whitespace-nowrap text-muted-foreground">{formatMoney(s.balance)}</td>
                         <td className="px-2.5 py-1.5 text-center whitespace-nowrap">
                           <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">

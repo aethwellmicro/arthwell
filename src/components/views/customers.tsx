@@ -25,6 +25,9 @@ import {
   Ban,
   Trash2,
   AlertTriangle,
+  Share2,
+  Download,
+  Printer,
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { apiFetch, formatMoney, formatMoneyCompact, formatDate, STATUS_COLORS, ROLE_LABELS, downloadCSV } from '@/lib/format'
@@ -122,6 +125,9 @@ interface Account {
   tenure: number
   startDate: string
   maturityDate: string
+  processingFee?: number
+  insurancePremium?: number
+  totalFees?: number
 }
 
 interface Payment {
@@ -431,6 +437,10 @@ export function CustomersView({ customerId }: { customerId?: string }) {
     }
   }
 
+  function handleOpenEdit(customerToEdit: Customer) {
+    setSelected(customerToEdit)
+  }
+
   return (
     <div className="space-y-4">
       {/* Top Filter & Action Bar */}
@@ -716,6 +726,27 @@ export function CustomersView({ customerId }: { customerId?: string }) {
                       size="sm"
                       variant="ghost"
                       className="h-8 px-2 text-xs"
+                      onClick={() => setSelected(c)}
+                    >
+                      <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                    </Button>
+
+                    {(!c._count?.accounts || c._count.accounts === 0) && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                        onClick={() => setDeleteTarget(c)}
+                        title="Delete Customer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+                      </Button>
+                    )}
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-2 text-xs"
                       onClick={() => router.push(`/customers/${c.id}`)}
                     >
                       <Eye className="h-3.5 w-3.5 mr-1" /> View
@@ -857,6 +888,10 @@ export function CustomersView({ customerId }: { customerId?: string }) {
                             <DropdownMenuContent align="end" className="w-48">
                               <DropdownMenuItem onClick={() => router.push(`/customers/${c.id}`)}>
                                 <Eye className="h-3.5 w-3.5 mr-2" /> View Details
+                              </DropdownMenuItem>
+
+                              <DropdownMenuItem onClick={() => handleOpenEdit(c)}>
+                                <Pencil className="h-3.5 w-3.5 mr-2" /> Edit Customer
                               </DropdownMenuItem>
 
                               {c.status === 'APPROVED' && (
@@ -1217,6 +1252,7 @@ export function CustomersView({ customerId }: { customerId?: string }) {
               onReject={() => setRejectTarget(selected)}
               onResubmit={() => handleResubmit(selected)}
               onCancel={() => setCancelTarget(selected)}
+              onDelete={() => setDeleteTarget(selected)}
             />
           )}
         </DrawerContent>
@@ -1244,6 +1280,7 @@ function CustomerDetail({
   onReject,
   onResubmit,
   onCancel,
+  onDelete,
 }: {
   customer: Customer
   groups: GroupOption[]
@@ -1254,7 +1291,9 @@ function CustomerDetail({
   onReject: () => void
   onResubmit: () => void
   onCancel: () => void
+  onDelete?: () => void
 }) {
+  const router = useRouter()
   const [tab, setTab] = useState('overview')
   const [accounts, setAccounts] = useState<Account[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
@@ -1274,8 +1313,86 @@ function CustomerDetail({
     apiFetch<{ items: Payment[] }>(`/api/customers/${customer.id}/payments`).then((d) => setPayments(d.items)).finally(() => setLoadingP(false))
   }, [customer.id])
 
+  const [sharingStatement, setSharingStatement] = useState(false)
+  const [statementLink, setStatementLink] = useState('')
+
   function printStatement() {
     setTimeout(() => window.print(), 200)
+  }
+
+  async function shareStatement() {
+    setSharingStatement(true)
+    try {
+      const res = await apiFetch<any>(`/api/customers/${customer.id}/statement/share`, { method: 'POST' })
+      setStatementLink(res.shareUrl)
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(res.shareUrl)
+        toast.success('Share link copied to clipboard! (Valid for 7 days)')
+      } else {
+        toast.success(`Share link generated: ${res.shareUrl}`)
+      }
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setSharingStatement(false)
+    }
+  }
+
+  async function downloadStatementCSV() {
+    try {
+      const data = await apiFetch<any>(`/api/customers/${customer.id}/statement`)
+      if (data.ledgerEntries && data.ledgerEntries.length > 0) {
+        const rows = data.ledgerEntries.map((l: any) => ({
+          date: l.date,
+          particulars: l.particulars,
+          refNumber: l.receiptNumber || '—',
+          accountNumber: l.accountNumber || data.account?.accountNumber || '—',
+          debit_Dr: l.debit || 0,
+          credit_Cr: l.credit || 0,
+          paymentMode: l.paymentMode,
+          staffChannel: l.collectedBy,
+          balanceAfter: l.balanceAfter,
+          status: l.status,
+        }))
+        downloadCSV(`statement-ledger-${customer.customerId}-${new Date().toISOString().slice(0, 10)}.csv`, rows)
+        toast.success('Account statement ledger (Dr/Cr) downloaded as CSV')
+      } else if (data.transactions && data.transactions.length > 0) {
+        const rows = data.transactions.map((p: any) => ({
+          date: p.date,
+          particulars: p.particulars || 'EMI Collection',
+          receiptNumber: p.receiptNumber,
+          accountNumber: data.account?.accountNumber || '—',
+          debit_Dr: p.debit || 0,
+          credit_Cr: p.credit || p.amount,
+          amount: p.amount,
+          paymentMode: p.paymentMode,
+          previousOutstanding: p.previousOutstanding,
+          currentOutstanding: p.currentOutstanding,
+          status: p.status,
+        }))
+        downloadCSV(`statement-transactions-${customer.customerId}-${new Date().toISOString().slice(0, 10)}.csv`, rows)
+        toast.success('Transaction history downloaded as CSV')
+      } else if (data.schedule && data.schedule.length > 0) {
+        const rows = data.schedule.map((s: any) => ({
+          week: s.installNo,
+          dueDate: s.dueDate,
+          emi: s.amount,
+          principalPart: s.principalPart,
+          interestPart: s.interestPart,
+          savingsPart: s.savingsPart,
+          paidAmount: s.paidAmount,
+          paidSavings: s.paidSavings,
+          balance: s.balance,
+          status: s.status,
+        }))
+        downloadCSV(`loan-schedule-${customer.customerId}-${new Date().toISOString().slice(0, 10)}.csv`, rows)
+        toast.success('Repayment schedule downloaded as CSV')
+      } else {
+        toast.info('No statement transactions or schedule available for download.')
+      }
+    } catch (e: any) {
+      toast.error(e.message)
+    }
   }
 
   function openEdit() {
@@ -1382,11 +1499,18 @@ function CustomerDetail({
         <MiniStat label="Total Payable" value={formatMoney(customer.totalPayable)} />
         <MiniStat label="Total Collected" value={formatMoney(customer.totalCollected)} tone="success" />
         <MiniStat label="Outstanding" value={formatMoney(customer.outstanding)} tone="warning" />
-        <div className="flex items-end gap-2 flex-wrap">
+        <div className="flex items-end gap-1.5 flex-wrap">
           <Button size="sm" variant="outline" onClick={openEdit}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
-          <Button size="sm" variant="outline" onClick={printStatement}><FileText className="h-3.5 w-3.5 mr-1" /> Statement</Button>
+          <Button size="sm" variant="outline" onClick={printStatement} title="Print Statement"><Printer className="h-3.5 w-3.5 mr-1" /> Print</Button>
+          <Button size="sm" variant="outline" onClick={shareStatement} disabled={sharingStatement} title="Generate Shareable Link"><Share2 className="h-3.5 w-3.5 mr-1" /> {sharingStatement ? 'Sharing…' : 'Share'}</Button>
+          <Button size="sm" variant="outline" onClick={downloadStatementCSV} title="Download CSV"><Download className="h-3.5 w-3.5 mr-1" /> CSV</Button>
           {(customer.status === 'DISBURSED' || customer.status === 'ACTIVE') && (
             <Button size="sm" onClick={onCollect}><HandCoins className="h-3.5 w-3.5 mr-1" /> Collect</Button>
+          )}
+          {accounts.length === 0 && customer.status !== 'DISBURSED' && onDelete && (
+            <Button size="sm" variant="outline" className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-300" onClick={onDelete} title="Delete Customer">
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+            </Button>
           )}
         </div>
       </div>
@@ -1426,18 +1550,30 @@ function CustomerDetail({
                     <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Paid</th>
                     <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Outstanding</th>
                     <th className="px-3 py-2 font-medium whitespace-nowrap">Status</th>
+                    <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {accounts.map((a) => (
-                    <tr key={a.id} className="border-b last:border-0">
-                      <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{a.accountNumber}</td>
+                    <tr key={a.id} className="border-b last:border-0 hover:bg-muted/30">
+                      <td className="px-3 py-2 font-mono text-xs whitespace-nowrap font-semibold text-primary">{a.accountNumber}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{a.interestType}</td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">{formatMoney(a.principal)}</td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">{formatMoney(a.totalPayable)}</td>
                       <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatMoney(a.paidAmount)}</td>
                       <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">{formatMoney(a.outstanding)}</td>
                       <td className="px-3 py-2 whitespace-nowrap"><Badge className={cn(STATUS_COLORS[a.status])}>{a.status}</Badge></td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs px-2"
+                          onClick={() => router.push(`/accounts/${a.id}`)}
+                          title="View Schedule & Loan Details"
+                        >
+                          <Eye className="h-3.5 w-3.5 mr-1" /> Schedule
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1557,22 +1693,87 @@ function CustomerDetail({
       </Dialog>
 
       {/* Print-only customer statement */}
-      <CustomerStatement
-        customer={customer}
-        totalPayable={customer.totalPayable}
-        totalCollected={customer.totalCollected}
-        outstanding={customer.outstanding}
-        entries={payments.map((p) => ({
-          date: p.collectionDate,
-          receiptNumber: p.receiptNumber,
-          accountNumber: p.accountNumber,
-          amount: p.amount,
-          paymentMode: p.paymentMode,
-          collectedBy: p.collectedBy,
-          balanceAfter: p.balanceAfter,
-          status: p.status,
-        }))}
-      />
+      {(() => {
+        const activeAcc = accounts.find((a) => a.status === 'ACTIVE') || accounts[0] || null
+        const statementEntries: any[] = []
+
+        if (activeAcc) {
+          // 1. Disbursement: Debit side
+          statementEntries.push({
+            date: activeAcc.startDate,
+            particulars: `Loan Sanction & Disbursement`,
+            receiptNumber: activeAcc.accountNumber,
+            accountNumber: activeAcc.accountNumber,
+            debit: activeAcc.principal,
+            credit: 0,
+            side: 'DEBIT',
+            paymentMode: 'DISBURSEMENT',
+            collectedBy: customer.createdBy?.name || 'Branch Office',
+            balanceAfter: activeAcc.principal,
+            status: 'DISBURSED',
+          })
+
+          // 2. Upfront Recovered / Deducted Charges: CREDIT side
+          const procFee = Number(activeAcc.processingFee || 0)
+          const insPrem = Number(activeAcc.insurancePremium || 0)
+          const totalCharges = procFee + insPrem
+
+          if (totalCharges > 0) {
+            statementEntries.push({
+              date: activeAcc.startDate,
+              particulars: `Recovered Charges (Proc: ₹${procFee} + Ins: ₹${insPrem})`,
+              receiptNumber: 'CHG-' + activeAcc.accountNumber.slice(-4),
+              accountNumber: activeAcc.accountNumber,
+              debit: 0,
+              credit: totalCharges,
+              side: 'CREDIT',
+              paymentMode: 'DEDUCTION',
+              collectedBy: 'Auto Deduction',
+              balanceAfter: activeAcc.principal,
+              status: 'RECOVERED',
+            })
+          }
+        }
+
+        // 3. Collection payments: CREDIT side
+        for (const p of payments) {
+          statementEntries.push({
+            date: p.collectionDate,
+            particulars: 'EMI Repayment Received',
+            receiptNumber: p.receiptNumber,
+            accountNumber: p.accountNumber,
+            debit: 0,
+            credit: p.amount,
+            side: 'CREDIT',
+            paymentMode: p.paymentMode,
+            collectedBy: p.collectedBy,
+            balanceAfter: p.balanceAfter,
+            status: p.status,
+          })
+        }
+
+        return (
+          <CustomerStatement
+            customer={customer}
+            account={
+              activeAcc
+                ? {
+                    accountNumber: activeAcc.accountNumber,
+                    principal: activeAcc.principal,
+                    processingFee: activeAcc.processingFee,
+                    insurancePremium: activeAcc.insurancePremium,
+                    totalFees: (activeAcc.processingFee || 0) + (activeAcc.insurancePremium || 0),
+                  }
+                : null
+            }
+            totalPayable={customer.totalPayable}
+            totalCollected={customer.totalCollected}
+            outstanding={customer.outstanding}
+            entries={statementEntries}
+            branchName={customer.branch || 'Main Branch - MG Road'}
+          />
+        )
+      })()}
     </div>
   )
 }
