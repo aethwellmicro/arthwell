@@ -498,26 +498,37 @@ function AccountDetailBody({
         </div>
       </div>
       <div className="px-4 py-3">
-        <p className="text-sm font-semibold mb-2">Installment Schedule</p>
-        <div className="max-h-[40vh] overflow-y-auto overflow-x-auto scroll-area border rounded-md">
-          <table className="w-full text-sm zebra-table min-w-[480px]">
-            <thead className="bg-muted/50 sticky top-0">
-              <tr className="text-left text-xs text-muted-foreground">
-                <th className="px-3 py-2 font-medium whitespace-nowrap">#</th>
-                <th className="px-3 py-2 font-medium whitespace-nowrap">Due Date</th>
-                <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Amount</th>
-                <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Paid</th>
-                <th className="px-3 py-2 font-medium whitespace-nowrap">Status</th>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-semibold">Complete Installment Schedule ({schedule.length} installments)</p>
+          <span className="text-xs text-muted-foreground font-mono">Full repayment schedule</span>
+        </div>
+        <div className="max-h-[42vh] overflow-y-auto overflow-x-auto scroll-area border rounded-md">
+          <table className="w-full text-xs zebra-table min-w-[620px]">
+            <thead className="bg-muted/60 sticky top-0 border-b">
+              <tr className="text-left text-muted-foreground">
+                <th className="px-2.5 py-2 font-medium whitespace-nowrap">#</th>
+                <th className="px-2.5 py-2 font-medium whitespace-nowrap">Due Date</th>
+                <th className="px-2.5 py-2 font-medium text-right whitespace-nowrap">Principal</th>
+                <th className="px-2.5 py-2 font-medium text-right whitespace-nowrap">Interest</th>
+                <th className="px-2.5 py-2 font-medium text-right whitespace-nowrap">Installment</th>
+                <th className="px-2.5 py-2 font-medium text-right whitespace-nowrap">Paid</th>
+                <th className="px-2.5 py-2 font-medium text-right whitespace-nowrap">Closing Balance</th>
+                <th className="px-2.5 py-2 font-medium text-center whitespace-nowrap">Status</th>
               </tr>
             </thead>
             <tbody>
               {schedule.map((s) => (
-                <tr key={s.id} className="border-b last:border-0">
-                  <td className="px-3 py-2 whitespace-nowrap">{s.installNo}</td>
-                  <td className="px-3 py-2 whitespace-nowrap">{formatDate(s.dueDate)}</td>
-                  <td className="px-3 py-2 text-right whitespace-nowrap">{formatMoney(Number(s.amount))}</td>
-                  <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatMoney(Number(s.paidAmount))}</td>
-                  <td className="px-3 py-2 whitespace-nowrap"><Badge className={cn(STATUS_COLORS[s.status])}>{s.status}</Badge></td>
+                <tr key={s.id} className="border-b last:border-0 hover:bg-muted/30">
+                  <td className="px-2.5 py-2 whitespace-nowrap font-medium">{s.installNo}</td>
+                  <td className="px-2.5 py-2 whitespace-nowrap">{formatDate(s.dueDate)}</td>
+                  <td className="px-2.5 py-2 text-right whitespace-nowrap">{formatMoney(Number(s.principalPart || 0))}</td>
+                  <td className="px-2.5 py-2 text-right text-amber-600 dark:text-amber-400 whitespace-nowrap">{formatMoney(Number(s.interestPart || 0))}</td>
+                  <td className="px-2.5 py-2 text-right font-semibold text-primary whitespace-nowrap">{formatMoney(Number(s.amount))}</td>
+                  <td className="px-2.5 py-2 text-right text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatMoney(Number(s.paidAmount || 0))}</td>
+                  <td className="px-2.5 py-2 text-right whitespace-nowrap text-muted-foreground">{formatMoney(Number(s.balance || 0))}</td>
+                  <td className="px-2.5 py-2 text-center whitespace-nowrap">
+                    <Badge className={cn('text-[10px] px-1.5 py-0', STATUS_COLORS[s.status] || 'bg-slate-100 text-slate-800')}>{s.status}</Badge>
+                  </td>
                 </tr>
               ))}
             </tbody>

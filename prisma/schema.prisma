@@ -32,6 +32,12 @@ model User {
   auditLogs     AuditLog[]
   notifications Notification[]
   sessions      Session[]
+
+  // Business date & bank deposit relations
+  openedBusinessDates BusinessDate[] @relation("OpenedBy")
+  closedBusinessDates BusinessDate[] @relation("ClosedBy")
+  authorizedEODs      BusinessDate[] @relation("AuthorizedBy")
+  bankDeposits        BankDeposit[]  @relation("CreatedBy")
 }
 
 model Session {
@@ -110,11 +116,71 @@ model Customer {
   @@index([branch])
 }
 
+model BusinessDate {
+  id                    String   @id @default(cuid())
+  businessDate          DateTime @unique // e.g. 2026-09-23 00:00:00
+  status                String   @default("OPEN") // OPEN, RECONCILIATION_PENDING, CLOSED
+  
+  openedAt              DateTime @default(now())
+  openedById            String
+  openedBy              User     @relation("OpenedBy", fields: [openedById], references: [id])
+
+  closedAt              DateTime?
+  closedById            String?
+  closedBy              User?    @relation("ClosedBy", fields: [closedById], references: [id])
+
+  openingCash           Decimal  @default(0)
+  closingCash           Decimal  @default(0) // Expected or reconciled closing cash
+  actualCashInHand      Decimal  @default(0) // Entered physical cash during EOD
+  cashDifference        Decimal  @default(0) // actual - expected
+  differenceReason      String?
+
+  authorizedById        String?
+  authorizedBy          User?    @relation("AuthorizedBy", fields: [authorizedById], references: [id])
+
+  reconciliationStatus  String   @default("PENDING") // PENDING, BALANCED, DIFFERENCE_RESOLVED
+  notes                 String?
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  collections           Collection[]
+  accounts              Account[]     // Disbursements executed on this business date
+  bankDeposits          BankDeposit[]
+
+  @@index([status])
+  @@index([businessDate])
+}
+
+model BankDeposit {
+  id              String       @id @default(cuid())
+  depositNumber   String       @unique // DEP-0001
+  businessDateId  String
+  businessDate    BusinessDate @relation(fields: [businessDateId], references: [id])
+
+  bankAccount     String       // e.g. HDFC Bank - 50200012345678
+  amount          Decimal
+  referenceNumber String?      // Bank challan / transaction ref
+  depositDate     DateTime     // Date recorded at bank
+  notes           String?
+
+  createdById     String
+  createdBy       User         @relation("CreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([businessDateId])
+  @@index([depositDate])
+}
+
 model Account {
   id                String   @id @default(cuid())
   accountNumber     String   @unique // LN-0001
   customerId        String
   customer          Customer @relation(fields: [customerId], references: [id])
+
+  businessDateId    String?
+  businessDate      BusinessDate? @relation(fields: [businessDateId], references: [id])
 
   principal         Decimal  
   interestRate      Decimal  
@@ -140,21 +206,28 @@ model Account {
   collections      Collection[]
 
   @@index([customerId])
+  @@index([businessDateId])
 }
 
 model Installment {
-  id         String   @id @default(cuid())
-  accountId  String
-  account    Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  installNo  Int
-  dueDate    DateTime
-  amount     Decimal  
-  paidAmount Decimal  @default(0) 
-  status     String   @default("PENDING") // PENDING, PAID, PARTIAL, OVERDUE
-  paidDate   DateTime?
-  createdAt  DateTime @default(now())
+  id             String   @id @default(cuid())
+  accountId      String
+  account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  installNo      Int
+  dueDate        DateTime
+  amount         Decimal  
+  principalPart  Decimal  @default(0)
+  interestPart   Decimal  @default(0)
+  paidAmount     Decimal  @default(0)
+  paidPrincipal  Decimal  @default(0)
+  paidInterest   Decimal  @default(0)
+  balance        Decimal  @default(0)
+  status         String   @default("PENDING") // PENDING, PAID, PARTIAL, OVERDUE, WAIVED, CANCELLED
+  paidDate       DateTime?
+  createdAt      DateTime @default(now())
 
   @@index([accountId])
+  @@index([dueDate])
 }
 
 model Collection {
@@ -165,6 +238,9 @@ model Collection {
   accountId           String
   account             Account  @relation(fields: [accountId], references: [id])
 
+  businessDateId      String?
+  businessDate        BusinessDate? @relation(fields: [businessDateId], references: [id])
+
   collectionDate      DateTime
   amount              Decimal  
   paymentMode         String   // CASH, UPI, BANK, OTHER
@@ -173,6 +249,8 @@ model Collection {
 
   previousOutstanding Decimal  
   currentOutstanding  Decimal  
+  allocatedPrincipal  Decimal  @default(0)
+  allocatedInterest   Decimal  @default(0)
   remarks             String?
   status              String   @default("SUCCESSFUL") // SUCCESSFUL, REVERSED, CANCELLED
   reversalReason      String?
@@ -184,6 +262,8 @@ model Collection {
 
   @@index([customerId])
   @@index([accountId])
+  @@index([businessDateId])
+  @@index([collectionDate])
 }
 
 model Receipt {
@@ -217,8 +297,8 @@ model AuditLog {
   id        String   @id @default(cuid())
   userId    String?
   user      User?    @relation(fields: [userId], references: [id])
-  action    String   // CREATE, UPDATE, DELETE, REVERSE, LOGIN, LOGOUT
-  entity    String   // CUSTOMER, ACCOUNT, COLLECTION, USER, etc.
+  action    String   // CREATE, UPDATE, DELETE, REVERSE, LOGIN, LOGOUT, EOD_STARTED, EOD_CLOSED, etc.
+  entity    String   // CUSTOMER, ACCOUNT, COLLECTION, GROUP, BUSINESS_DATE, BANK_DEPOSIT, etc.
   entityId  String?
   oldValue  String?
   newValue  String?
@@ -228,6 +308,7 @@ model AuditLog {
 
   @@index([userId])
   @@index([entityId])
+  @@index([action])
 }
 
 model SystemSetting {

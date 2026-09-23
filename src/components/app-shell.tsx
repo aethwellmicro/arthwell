@@ -23,6 +23,8 @@ import {
   Lock,
   Database,
   Keyboard,
+  Banknote,
+  CalendarClock,
 } from 'lucide-react'
 import { useApp, canManageUsers, canManageSettings } from '@/lib/store'
 import { apiFetch, formatMoneyCompact, ROLE_LABELS, ROLE_COLORS } from '@/lib/format'
@@ -67,6 +69,8 @@ const NAV: NavItem[] = [
   { href: '/customers', label: 'Customers', icon: Users },
   { href: '/accounts', label: 'Accounts / Loans', icon: Landmark },
   { href: '/collections', label: 'Collections', icon: HandCoins },
+  { href: '/transactions', label: 'Daily Transactions', icon: Banknote },
+  { href: '/eod', label: 'Day End / EOD', icon: CalendarClock },
   { href: '/receipts', label: 'Receipts', icon: ReceiptText },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
   { href: '/employees', label: 'Employees', icon: UserCog, restricted: true },
@@ -81,6 +85,8 @@ const TITLES: Record<string, string> = {
   '/customers': 'Customer Management',
   '/accounts': 'Accounts / Loans',
   '/collections': 'Daily Collection',
+  '/transactions': 'Daily Transactions',
+  '/eod': 'Day End / EOD Reconciliation',
   '/receipts': 'Receipt Management',
   '/reports': 'Reports & Analytics',
   '/employees': 'Employee Management',
@@ -156,6 +162,51 @@ function SidebarQuickStats() {
         <span className={cn('text-sm font-bold', stats.overdueCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}>{stats.overdueCount}</span>
       </div>
     </div>
+  )
+}
+
+function BusinessDateHeaderBadge() {
+  const [bDate, setBDate] = useState<{ businessDate: string; status: string } | null>(null)
+
+  useEffect(() => {
+    let cancel = false
+    async function load() {
+      try {
+        const d = await apiFetch<{ active: { businessDate: string; status: string } | null }>('/api/business-date')
+        if (!cancel && d.active) {
+          setBDate(d.active)
+        }
+      } catch {}
+    }
+    load()
+    const interval = setInterval(load, 30000)
+    return () => { cancel = true; clearInterval(interval) }
+  }, [])
+
+  if (!bDate) return null
+
+  const isClosed = bDate.status === 'CLOSED'
+  const formattedDate = new Date(bDate.businessDate).toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).toUpperCase()
+
+  return (
+    <Link href="/eod" className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-muted/50 hover:bg-muted transition-colors">
+      <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Business Date:</span>
+      <span className="font-mono font-bold text-foreground">{formattedDate}</span>
+      {isClosed ? (
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-slate-400 text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-300">
+          ✓ CLOSED
+        </Badge>
+      ) : (
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-400 flex items-center gap-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          OPEN
+        </Badge>
+      )}
+    </Link>
   )
 }
 
@@ -367,6 +418,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold tracking-tight truncate">{getTitle(pathname)}</h1>
+                <BusinessDateHeaderBadge />
               </div>
               <p className="text-xs text-muted-foreground hidden sm:block">
                 {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}

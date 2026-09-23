@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
 import { num } from '@/lib/calc'
+import { getActiveBusinessDate, assertBusinessDateOpen } from '@/lib/business-date'
 
 export async function GET(req: Request) {
   return withAuth(async () => {
@@ -99,68 +100,109 @@ export async function POST(req: Request) {
     })
     if (recent) return error('A duplicate collection entry was detected. Please wait or check the list.', 409)
 
-    // generate receipt number
-    const prefix = 'RCP'
-    const last = await db.collection.findFirst({ orderBy: { createdAt: 'desc' } })
-    let nextN = 0
-    if (last && last.receiptNumber) {
-      const m = last.receiptNumber.match(/(\d+)$/)
-      if (m) nextN = parseInt(m[1])
+    const activeBDate = await getActiveBusinessDate(user)
+    if (!activeBDate) {
+      return error('No active business date found. Please initialize a business date first.', 422)
     }
-    const receiptNumber = `${prefix}-${String(nextN + 1).padStart(5, '0')}`
+    await assertBusinessDateOpen(activeBDate.id)
 
+    // generate receipt number & execute transaction atomically
+    const prefix = 'RCP'
     const collectionDate = new Date(collectionDateStr)
 
-    // transactional insert
-    const collection = await db.collection.create({
-      data: {
-        receiptNumber,
-        customerId,
+    const { collection, receipt } = await db.$transaction(async (tx) => {
+      const last = await tx.collection.findFirst({ orderBy: { createdAt: 'desc' } })
+      let nextN = 0
+      if (last && last.receiptNumber) {
+        const m = last.receiptNumber.match(/(\d+)$/)
+        if (m) nextN = parseInt(m[1])
+      }
+      const receiptNumber = `${prefix}-${String(nextN + 1).padStart(5, '0')}`
+
+      const newCollection = await tx.collection.create({
+        data: {
+          receiptNumber,
+          customerId,
+          accountId,
+          businessDateId: activeBDate.id,
+          collectionDate,
+          amount,
+          paymentMode,
+          collectedById: user.id,
+          previousOutstanding,
+          currentOutstanding,
+          remarks: remarks || null,
+          status: 'SUCCESSFUL',
+        },
+      })
+
+      const newReceipt = await tx.receipt.create({
+        data: {
+          collectionId: newCollection.id,
+          receiptNumber,
+          branchName: 'ArthWell Micro Finance - Main Branch',
+          printCount: 0,
+        },
+      })
+
+      // update installment allocation (FIFO) inside same tx
+      const installments = await tx.installment.findMany({
+        where: { accountId, status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] } },
+        orderBy: { installNo: 'asc' },
+      })
+      let remaining = amount
+      for (const inst of installments) {
+        if (remaining <= 0) break
+        const due = num(inst.amount)
+        const alreadyPaid = num(inst.paidAmount)
+        const needed = Math.max(due - alreadyPaid, 0)
+        if (needed <= 0) continue
+        const pay = Math.min(needed, remaining)
+        const newPaid = alreadyPaid + pay
+        const status = newPaid >= due - 0.01 ? 'PAID' : 'PARTIAL'
+        await tx.installment.update({
+          where: { id: inst.id },
+          data: { paidAmount: newPaid, status, paidDate: collectionDate },
+        })
+        remaining -= pay
+      }
+
+      // notification
+      const message = `Dear ${account.customer.fullName}, we received ${amount.toFixed(2)} via ${paymentMode} on ${collectionDate.toISOString().slice(0, 10)}. Outstanding: ${currentOutstanding.toFixed(2)}. Receipt: ${receiptNumber}. Thank you.`
+      await tx.notification.create({
+        data: {
+          collectionId: newCollection.id,
+          customerId,
+          type: 'PAYMENT_CONFIRMATION',
+          message,
+          recipient: account.customer.primaryMobile,
+          status: 'SENT',
+          userId: user.id,
+        },
+      })
+
+      // update account status if completed
+      if (currentOutstanding <= 0.01) {
+        await tx.account.update({ where: { id: accountId }, data: { status: 'COMPLETED' } })
+      }
+
+      return { collection: newCollection, receipt: newReceipt }
+    })
+
+    await logAudit({
+      user,
+      action: 'COLLECTION_RECORDED',
+      entity: 'COLLECTION',
+      entityId: collection.id,
+      newValue: {
+        receiptNumber: collection.receiptNumber,
         accountId,
-        collectionDate,
         amount,
         paymentMode,
-        collectedById: user.id,
-        previousOutstanding,
         currentOutstanding,
-        remarks: remarks || null,
-        status: 'SUCCESSFUL',
+        businessDate: activeBDate.businessDate,
       },
     })
-
-    // receipt
-    const receipt = await db.receipt.create({
-      data: {
-        collectionId: collection.id,
-        receiptNumber,
-        branchName: 'ArthWell Micro Finance - Main Branch',
-        printCount: 0,
-      },
-    })
-
-    // update installment allocation (FIFO)
-    await allocateToInstallments(accountId, amount, collectionDate)
-
-    // notification
-    const message = `Dear ${account.customer.fullName}, we received ${amount.toFixed(2)} via ${paymentMode} on ${collectionDate.toISOString().slice(0, 10)}. Outstanding: ${currentOutstanding.toFixed(2)}. Receipt: ${receiptNumber}. Thank you.`
-    await db.notification.create({
-      data: {
-        collectionId: collection.id,
-        customerId,
-        type: 'PAYMENT_CONFIRMATION',
-        message,
-        recipient: account.customer.primaryMobile,
-        status: 'SENT',
-        userId: user.id,
-      },
-    })
-
-    // update account status if completed
-    if (currentOutstanding <= 0.01) {
-      await db.account.update({ where: { id: accountId }, data: { status: 'COMPLETED' } })
-    }
-
-    await logAudit({ user, action: 'CREATE', entity: 'COLLECTION', entityId: collection.id, newValue: { receiptNumber, accountId, amount, paymentMode, currentOutstanding } })
 
     return json({
       ...collection,

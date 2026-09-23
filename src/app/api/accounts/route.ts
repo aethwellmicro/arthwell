@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
 import { calculateLoan, parseCalendarDate, type InterestType, type InterestPeriod, type InstallmentFreq } from '@/lib/calc'
+import { getActiveBusinessDate, assertBusinessDateOpen } from '@/lib/business-date'
 import { z } from 'zod'
 
 const accountSchema = z.object({
@@ -128,6 +129,12 @@ export async function POST(req: Request) {
       return error(`Customer is in "${customer.status}" status and is not eligible for disbursement.`, 422)
     }
 
+    const activeBDate = await getActiveBusinessDate(user)
+    if (!activeBDate) {
+      return error('No active business date found. Please initialize a business date first.', 422)
+    }
+    await assertBusinessDateOpen(activeBDate.id)
+
     const startDate = parseCalendarDate(data.startDate)
     const computed = calculateLoan({
       principal: data.principal,
@@ -153,6 +160,7 @@ export async function POST(req: Request) {
         data: {
           accountNumber,
           customerId: data.customerId,
+          businessDateId: activeBDate.id,
           principal: computed.principal,
           interestRate: data.interestRate,
           interestType: data.interestType,
@@ -177,6 +185,9 @@ export async function POST(req: Request) {
           installNo: s.installNo,
           dueDate: s.dueDate,
           amount: s.amount,
+          principalPart: s.principalPart,
+          interestPart: s.interestPart,
+          balance: s.balance,
           status: 'PENDING',
         })),
       })

@@ -615,7 +615,118 @@ export function CustomersView({ customerId }: { customerId?: string }) {
           <EmptyState message="No customers found. Register your first customer." icon={Users} />
         ) : (
           <>
-            <div className="max-h-[58vh] overflow-y-auto scroll-area overflow-x-auto">
+            {/* Mobile Card Layout (<md) */}
+            <div className="md:hidden space-y-3 p-1">
+              {paginatedItems.map((c) => (
+                <div
+                  key={c.id}
+                  onClick={() => router.push(`/customers/${c.id}`)}
+                  className={cn(
+                    'rounded-lg border bg-card p-3.5 space-y-2.5 shadow-sm active:scale-[0.99] transition-transform cursor-pointer',
+                    selectedIds.has(c.id) && 'border-primary bg-primary/5'
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-primary">{c.customerId}</span>
+                        <Badge className={cn('text-[10px] px-1.5 py-0', STATUS_COLORS[c.status] || 'bg-slate-100 text-slate-800')}>
+                          {c.status.replace(/_/g, ' ')}
+                        </Badge>
+                      </div>
+                      <p className="font-semibold text-sm truncate mt-1 text-foreground" title={c.fullName}>
+                        {c.fullName}
+                      </p>
+                      {c.group && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          <span className="font-semibold text-primary">{c.group.groupId}</span> — {c.group.name}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Outstanding</p>
+                      <p className="text-sm font-bold text-primary">
+                        {c.outstanding > 0 ? formatMoney(c.outstanding) : '₹0.00'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-2 gap-2">
+                    <span className="font-mono flex items-center gap-1">
+                      <Phone className="h-3 w-3" /> {c.primaryMobile}
+                    </span>
+                    <span>{c.branch || 'Main Branch'}</span>
+                  </div>
+
+                  {/* Mobile Actions */}
+                  <div className="flex items-center justify-end gap-1.5 pt-1 border-t" onClick={(e) => e.stopPropagation()}>
+                    {isManagerOrAdmin && c.status === 'PENDING_VERIFICATION' && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-2 text-xs text-emerald-600 border-emerald-300 flex-1"
+                          onClick={() => handleApprove(c)}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 px-2 text-xs text-rose-600 border-rose-300 flex-1"
+                          onClick={() => setRejectTarget(c)}
+                        >
+                          <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+                        </Button>
+                      </>
+                    )}
+
+                    {c.status === 'REJECTED' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 px-2 text-xs text-amber-600 border-amber-300 flex-1"
+                        onClick={() => handleResubmit(c)}
+                      >
+                        <RotateCcw className="h-3.5 w-3.5 mr-1" /> Resubmit
+                      </Button>
+                    )}
+
+                    {c.status === 'APPROVED' && (
+                      <Button
+                        size="sm"
+                        className="h-8 px-2 text-xs flex-1"
+                        onClick={() => router.push(`/accounts?customer=${c.id}`)}
+                      >
+                        <Landmark className="h-3.5 w-3.5 mr-1" /> Disburse
+                      </Button>
+                    )}
+
+                    {(c.status === 'DISBURSED' || c.status === 'ACTIVE') && (
+                      <Button
+                        size="sm"
+                        className="h-8 px-2 text-xs flex-1"
+                        onClick={() => router.push(`/collections?customer=${c.id}`)}
+                      >
+                        <HandCoins className="h-3.5 w-3.5 mr-1" /> Collect
+                      </Button>
+                    )}
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 px-2 text-xs"
+                      onClick={() => router.push(`/customers/${c.id}`)}
+                    >
+                      <Eye className="h-3.5 w-3.5 mr-1" /> View
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table Layout (hidden on mobile, visible md+) */}
+            <div className="hidden md:block max-h-[58vh] overflow-y-auto scroll-area overflow-x-auto">
               <table className="w-full text-sm zebra-table min-w-[1080px]">
                 <thead className="bg-muted/50 sticky top-0 z-10">
                   <tr>
