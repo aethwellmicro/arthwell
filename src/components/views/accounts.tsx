@@ -521,8 +521,8 @@ function AccountDetailBody({
                 <tr key={s.id} className="border-b last:border-0 hover:bg-muted/30">
                   <td className="px-2.5 py-2 whitespace-nowrap font-medium">{s.installNo}</td>
                   <td className="px-2.5 py-2 whitespace-nowrap">{formatDate(s.dueDate)}</td>
-                  <td className="px-2.5 py-2 text-right whitespace-nowrap">{formatMoney(Number(s.principalPart || 0))}</td>
                   <td className="px-2.5 py-2 text-right text-amber-600 dark:text-amber-400 whitespace-nowrap">{formatMoney(Number(s.interestPart || 0))}</td>
+                  <td className="px-2.5 py-2 text-right whitespace-nowrap">{formatMoney(Number(s.principalPart || 0))}</td>
                   <td className="px-2.5 py-2 text-right font-semibold text-primary whitespace-nowrap">{formatMoney(Number(s.amount))}</td>
                   <td className="px-2.5 py-2 text-right text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatMoney(Number(s.paidAmount || 0))}</td>
                   <td className="px-2.5 py-2 text-right whitespace-nowrap text-muted-foreground">{formatMoney(Number(s.balance || 0))}</td>
@@ -662,6 +662,7 @@ function NewAccountForm({ form, setForm, preview }: { form: typeof emptyForm; se
                       <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">IPMT / Interest</th>
                       <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">PPMT / Principal</th>
                       <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">Installment (EMI)</th>
+                      <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">Closing Balance</th>
                       <th className="px-2.5 py-1.5 font-medium text-center whitespace-nowrap">Status</th>
                     </tr>
                   </thead>
@@ -670,9 +671,10 @@ function NewAccountForm({ form, setForm, preview }: { form: typeof emptyForm; se
                       <tr key={s.installNo} className="border-b last:border-0 hover:bg-muted/30">
                         <td className="px-2.5 py-1.5 font-medium whitespace-nowrap">{s.installNo}</td>
                         <td className="px-2.5 py-1.5 whitespace-nowrap">{formatDate(s.dueDate)}</td>
-                        <td className="px-2.5 py-1.5 text-right whitespace-nowrap">{formatMoney(s.principalPart)}</td>
                         <td className="px-2.5 py-1.5 text-right text-amber-600 dark:text-amber-400 whitespace-nowrap">{formatMoney(s.interestPart)}</td>
+                        <td className="px-2.5 py-1.5 text-right whitespace-nowrap">{formatMoney(s.principalPart)}</td>
                         <td className="px-2.5 py-1.5 text-right font-semibold text-primary whitespace-nowrap">{formatMoney(s.amount)}</td>
+                        <td className="px-2.5 py-1.5 text-right whitespace-nowrap text-muted-foreground">{formatMoney(s.balance)}</td>
                         <td className="px-2.5 py-1.5 text-center whitespace-nowrap">
                           <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
                             {s.status}
