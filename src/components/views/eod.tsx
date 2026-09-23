@@ -190,7 +190,7 @@ export function EODView() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg sm:text-xl font-bold">Day End &amp; EOD Cash Reconciliation</h2>
+              <h2 className="text-base sm:text-lg font-bold tracking-tight">Day End &amp; EOD Cash Reconciliation</h2>
               {summary && (
                 <Badge
                   className={cn(
@@ -204,7 +204,7 @@ export function EODView() {
                 </Badge>
               )}
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Active Business Date:{' '}
               <span className="font-mono font-semibold text-foreground">
                 {summary ? summary.businessDate : 'Not Initialized'}
@@ -239,24 +239,24 @@ export function EODView() {
         />
       ) : (
         <>
-          {/* Visual Cash Flow Waterfall (Section 27 Acceptance Criteria) */}
+          {/* Visual Cash Flow Waterfall (Standardized with other modules) */}
           <SectionCard title="Authoritative Cash Reconciliation Waterfall">
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {/* 1. Opening Cash */}
-              <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1">
+              <div className="rounded-lg border bg-card p-3 shadow-2xs">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1">
                   <Wallet className="h-3.5 w-3.5 text-primary" /> Opening Cash
                 </p>
-                <p className="text-xl font-bold mt-1">{formatMoney(summary.openingCash)}</p>
+                <p className="text-lg font-bold mt-1 text-foreground">{formatMoney(summary.openingCash)}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Start of business day</p>
               </div>
 
               {/* 2. Cash Collections (+) */}
-              <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
-                <p className="text-[11px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+              <div className="rounded-lg border bg-card p-3 shadow-2xs">
+                <p className="text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
                   <ArrowDownRight className="h-3.5 w-3.5" /> + Cash Collections
                 </p>
-                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-1">
                   {formatMoney(summary.cashCollections)}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -265,33 +265,33 @@ export function EODView() {
               </div>
 
               {/* 3. Disbursements (-) */}
-              <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
-                <p className="text-[11px] uppercase tracking-wide text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1">
+              <div className="rounded-lg border bg-card p-3 shadow-2xs">
+                <p className="text-[10px] uppercase tracking-wide text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1">
                   <ArrowUpRight className="h-3.5 w-3.5" /> - Disbursements
                 </p>
-                <p className="text-xl font-bold text-rose-600 dark:text-rose-400 mt-1">
+                <p className="text-lg font-bold text-rose-600 dark:text-rose-400 mt-1">
                   {formatMoney(summary.cashDisbursements)}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Physical loans issued</p>
               </div>
 
               {/* 4. Bank Deposits (-) */}
-              <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
-                <p className="text-[11px] uppercase tracking-wide text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1">
+              <div className="rounded-lg border bg-card p-3 shadow-2xs">
+                <p className="text-[10px] uppercase tracking-wide text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1">
                   <Landmark className="h-3.5 w-3.5" /> - Bank Deposits
                 </p>
-                <p className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+                <p className="text-lg font-bold text-blue-600 dark:text-blue-400 mt-1">
                   {formatMoney(summary.bankDeposits)}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Cash sent to bank</p>
               </div>
 
               {/* 5. Expected Closing Cash (=) */}
-              <div className="rounded-lg border border-primary/40 bg-primary/5 p-3.5 shadow-2xs">
-                <p className="text-[11px] uppercase tracking-wide text-primary font-bold flex items-center gap-1">
+              <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 shadow-2xs">
+                <p className="text-[10px] uppercase tracking-wide text-primary font-bold flex items-center gap-1">
                   <CheckCircle2 className="h-3.5 w-3.5" /> = Expected Cash
                 </p>
-                <p className="text-xl font-bold text-primary mt-1">
+                <p className="text-lg font-bold text-primary mt-1">
                   {formatMoney(summary.expectedClosingCash)}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Must balance physical count</p>
@@ -305,31 +305,31 @@ export function EODView() {
               <p className="text-xs text-muted-foreground py-2">No historical EOD records yet.</p>
             ) : (
               <div className="max-h-[40vh] overflow-y-auto scroll-area overflow-x-auto">
-                <table className="w-full text-xs zebra-table min-w-[700px]">
-                  <thead className="bg-muted/50 sticky top-0">
+                <table className="w-full text-sm zebra-table min-w-[760px]">
+                  <thead className="bg-muted/50 sticky top-0 z-10">
                     <tr className="text-left text-muted-foreground">
-                      <th className="px-3 py-2 font-medium">Business Date</th>
-                      <th className="px-3 py-2 font-medium text-right">Opening Cash</th>
-                      <th className="px-3 py-2 font-medium text-right">Expected Closing</th>
-                      <th className="px-3 py-2 font-medium text-right">Actual Counted</th>
-                      <th className="px-3 py-2 font-medium text-right">Difference</th>
-                      <th className="px-3 py-2 font-medium">Reconciliation</th>
-                      <th className="px-3 py-2 font-medium">Closed By</th>
-                      <th className="px-3 py-2 font-medium">Closed At</th>
+                      <th className="px-3 py-2.5 font-medium text-xs">Business Date</th>
+                      <th className="px-3 py-2.5 font-medium text-xs text-right">Opening Cash</th>
+                      <th className="px-3 py-2.5 font-medium text-xs text-right">Expected Closing</th>
+                      <th className="px-3 py-2.5 font-medium text-xs text-right">Actual Counted</th>
+                      <th className="px-3 py-2.5 font-medium text-xs text-right">Difference</th>
+                      <th className="px-3 py-2.5 font-medium text-xs">Reconciliation</th>
+                      <th className="px-3 py-2.5 font-medium text-xs">Closed By</th>
+                      <th className="px-3 py-2.5 font-medium text-xs">Closed At</th>
                     </tr>
                   </thead>
                   <tbody>
                     {history.map((h) => (
                       <tr key={h.id} className="border-b last:border-0 hover:bg-muted/30">
-                        <td className="px-3 py-2 font-mono font-semibold">{h.businessDate}</td>
-                        <td className="px-3 py-2 text-right">{formatMoney(h.openingCash)}</td>
-                        <td className="px-3 py-2 text-right font-medium">{formatMoney(h.closingCash)}</td>
-                        <td className="px-3 py-2 text-right font-semibold text-emerald-700 dark:text-emerald-300">
+                        <td className="px-3 py-2.5 font-mono text-xs font-semibold">{h.businessDate}</td>
+                        <td className="px-3 py-2.5 text-right font-medium">{formatMoney(h.openingCash)}</td>
+                        <td className="px-3 py-2.5 text-right font-medium">{formatMoney(h.closingCash)}</td>
+                        <td className="px-3 py-2.5 text-right font-semibold text-emerald-700 dark:text-emerald-300">
                           {formatMoney(h.actualCashInHand)}
                         </td>
                         <td
                           className={cn(
-                            'px-3 py-2 text-right font-bold',
+                            'px-3 py-2.5 text-right font-bold',
                             h.cashDifference !== 0
                               ? 'text-amber-600 dark:text-amber-400'
                               : 'text-muted-foreground'
@@ -337,21 +337,21 @@ export function EODView() {
                         >
                           {h.cashDifference !== 0 ? formatMoney(h.cashDifference) : '₹0.00'}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2.5">
                           <Badge
                             variant="outline"
                             className={cn(
-                              'text-[10px]',
+                              'text-[10px] px-1.5 py-0',
                               h.reconciliationStatus === 'BALANCED'
-                                ? 'text-emerald-700 border-emerald-300'
-                                : 'text-amber-700 border-amber-300'
+                                ? 'text-emerald-700 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/40'
+                                : 'text-amber-700 border-amber-300 bg-amber-50 dark:bg-amber-950/40'
                             )}
                           >
                             {h.reconciliationStatus}
                           </Badge>
                         </td>
-                        <td className="px-3 py-2">{h.closedBy?.name || '—'}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{formatDateTime(h.closedAt)}</td>
+                        <td className="px-3 py-2.5 text-xs text-muted-foreground">{h.closedBy?.name || '—'}</td>
+                        <td className="px-3 py-2.5 text-xs text-muted-foreground">{formatDateTime(h.closedAt)}</td>
                       </tr>
                     ))}
                   </tbody>
