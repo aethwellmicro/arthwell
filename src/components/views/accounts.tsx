@@ -506,11 +506,11 @@ function AccountDetailBody({
           <table className="w-full text-xs zebra-table min-w-[620px]">
             <thead className="bg-muted/60 sticky top-0 border-b">
               <tr className="text-left text-muted-foreground">
-                <th className="px-2.5 py-2 font-medium whitespace-nowrap">#</th>
+                <th className="px-2.5 py-2 font-medium whitespace-nowrap">Week</th>
                 <th className="px-2.5 py-2 font-medium whitespace-nowrap">Due Date</th>
-                <th className="px-2.5 py-2 font-medium text-right whitespace-nowrap">Principal</th>
-                <th className="px-2.5 py-2 font-medium text-right whitespace-nowrap">Interest</th>
-                <th className="px-2.5 py-2 font-medium text-right whitespace-nowrap">Installment</th>
+                <th className="px-2.5 py-2 font-medium text-right whitespace-nowrap">IPMT / Interest</th>
+                <th className="px-2.5 py-2 font-medium text-right whitespace-nowrap">PPMT / Principal</th>
+                <th className="px-2.5 py-2 font-medium text-right whitespace-nowrap">Installment (EMI)</th>
                 <th className="px-2.5 py-2 font-medium text-right whitespace-nowrap">Paid</th>
                 <th className="px-2.5 py-2 font-medium text-right whitespace-nowrap">Closing Balance</th>
                 <th className="px-2.5 py-2 font-medium text-center whitespace-nowrap">Status</th>
@@ -657,11 +657,11 @@ function NewAccountForm({ form, setForm, preview }: { form: typeof emptyForm; se
                 <table className="w-full text-xs min-w-[500px]">
                   <thead className="bg-muted/60 sticky top-0 border-b">
                     <tr className="text-left text-muted-foreground">
-                      <th className="px-2.5 py-1.5 font-medium whitespace-nowrap">#</th>
+                      <th className="px-2.5 py-1.5 font-medium whitespace-nowrap">Week</th>
                       <th className="px-2.5 py-1.5 font-medium whitespace-nowrap">Due Date</th>
-                      <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">Principal</th>
-                      <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">Interest</th>
-                      <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">Installment</th>
+                      <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">IPMT / Interest</th>
+                      <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">PPMT / Principal</th>
+                      <th className="px-2.5 py-1.5 font-medium text-right whitespace-nowrap">Installment (EMI)</th>
                       <th className="px-2.5 py-1.5 font-medium text-center whitespace-nowrap">Status</th>
                     </tr>
                   </thead>
