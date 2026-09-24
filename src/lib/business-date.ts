@@ -26,6 +26,10 @@ export interface BusinessDateWithTotals {
   cashDisbursements: number
   totalDisbursements: number
   bankDeposits: number
+  cashInvestments: number
+  totalInvestments: number
+  cashExpenses: number
+  totalExpenses: number
   expectedClosingCash: number
 }
 
@@ -99,6 +103,8 @@ export async function getBusinessDateSummary(businessDateId: string, tx?: any): 
       collections: { where: { status: 'SUCCESSFUL' }, select: { amount: true, paymentMode: true } },
       accounts: { where: { status: { not: 'CANCELLED' } }, select: { principal: true } },
       bankDeposits: { select: { amount: true } },
+      investments: { where: { status: { not: 'CANCELLED' } }, select: { amount: true, paymentMode: true } },
+      expenses: { where: { status: { not: 'CANCELLED' } }, select: { amount: true, paymentMode: true } },
     },
   })
 
@@ -134,8 +140,33 @@ export async function getBusinessDateSummary(businessDateId: string, tx?: any): 
     bankDeposits = addMoney(bankDeposits, num(d.amount))
   }
 
-  // Formula: Expected Closing Cash = Opening Cash + Cash Collections - Cash Disbursements - Bank Deposits
-  const expectedClosingCash = Math.max(0, subMoney(subMoney(addMoney(openingCash, cashCollections), cashDisbursements), bankDeposits))
+  // Investments breakdown (Inflow / Credit)
+  let cashInvestments: Money = 0
+  let totalInvestments: Money = 0
+  for (const inv of bDate.investments) {
+    const amt = num(inv.amount)
+    totalInvestments = addMoney(totalInvestments, amt)
+    if (inv.paymentMode === 'CASH') {
+      cashInvestments = addMoney(cashInvestments, amt)
+    }
+  }
+
+  // Expenses breakdown (Outflow / Debit)
+  let cashExpenses: Money = 0
+  let totalExpenses: Money = 0
+  for (const exp of bDate.expenses) {
+    const amt = num(exp.amount)
+    totalExpenses = addMoney(totalExpenses, amt)
+    if (exp.paymentMode === 'CASH') {
+      cashExpenses = addMoney(cashExpenses, amt)
+    }
+  }
+
+  // Authoritative Formula:
+  // Expected Closing Cash = Opening Cash + Cash Collections + Cash Investments - Cash Disbursements - Cash Expenses - Bank Deposits
+  const totalInflow = addMoney(addMoney(openingCash, cashCollections), cashInvestments)
+  const totalOutflow = addMoney(addMoney(cashDisbursements, cashExpenses), bankDeposits)
+  const expectedClosingCash = Math.max(0, subMoney(totalInflow, totalOutflow))
 
   return {
     id: bDate.id,
@@ -158,6 +189,10 @@ export async function getBusinessDateSummary(businessDateId: string, tx?: any): 
     cashDisbursements,
     totalDisbursements,
     bankDeposits,
+    cashInvestments,
+    totalInvestments,
+    cashExpenses,
+    totalExpenses,
     expectedClosingCash,
   }
 }

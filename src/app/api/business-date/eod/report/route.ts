@@ -87,6 +87,24 @@ export async function GET(req: Request) {
       orderBy: { depositDate: 'asc' },
     })
 
+    // Investments breakdown
+    const investments = await db.investment.findMany({
+      where: { businessDateId: bDate.id, status: { not: 'CANCELLED' } },
+      include: {
+        createdBy: { select: { name: true } },
+      },
+      orderBy: { investmentDate: 'asc' },
+    })
+
+    // Expenses breakdown
+    const expenses = await db.expense.findMany({
+      where: { businessDateId: bDate.id, status: { not: 'CANCELLED' } },
+      include: {
+        createdBy: { select: { name: true } },
+      },
+      orderBy: { expenseDate: 'asc' },
+    })
+
     const reportObj = {
       businessDate: bDate.businessDate.toISOString().slice(0, 10),
       status: summary.status,
@@ -94,7 +112,9 @@ export async function GET(req: Request) {
         openingCash: summary.openingCash,
         totalCollections: summary.cashCollections,
         otherCollections: summary.otherCollections,
+        totalInvestments: summary.cashInvestments,
         totalDisbursements: summary.cashDisbursements,
+        totalExpenses: summary.cashExpenses,
         bankDeposits: summary.bankDeposits,
         expectedClosingCash: summary.expectedClosingCash,
         actualClosingCash: summary.actualCashInHand,
@@ -125,6 +145,24 @@ export async function GET(req: Request) {
         referenceNumber: d.referenceNumber || '—',
         depositedBy: d.createdBy.name,
       })),
+      investmentRecords: investments.map((inv) => ({
+        id: inv.id,
+        investmentNumber: inv.investmentNumber,
+        investorName: inv.investorName,
+        investmentType: inv.investmentType,
+        amount: num(inv.amount),
+        paymentMode: inv.paymentMode,
+        receivedBy: inv.createdBy.name,
+      })),
+      expenseRecords: expenses.map((exp) => ({
+        id: exp.id,
+        expenseNumber: exp.expenseNumber,
+        expenseType: exp.expenseType,
+        particulars: exp.particulars,
+        amount: num(exp.amount),
+        paymentMode: exp.paymentMode,
+        spentBy: exp.createdBy.name,
+      })),
       closedBy: summary.closedBy?.name || null,
       closedAt: summary.closedAt || null,
       reopenHistory: bDate.reopenedAt ? {
@@ -141,6 +179,8 @@ export async function GET(req: Request) {
       employees: reportObj.collectionsByEmployee,
       disbursements: reportObj.disbursements,
       bankDeposits: reportObj.bankDepositRecords,
+      investments: reportObj.investmentRecords,
+      expenses: reportObj.expenseRecords,
     })
   })
 }

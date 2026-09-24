@@ -39,7 +39,7 @@ import { cn } from '@/lib/utils'
 interface TransactionItem {
   id: string
   txNumber: string
-  type: 'COLLECTION' | 'DISBURSEMENT' | 'BANK_DEPOSIT' | 'CHARGE_RECOVERY'
+  type: 'COLLECTION' | 'DISBURSEMENT' | 'BANK_DEPOSIT' | 'CHARGE_RECOVERY' | 'INVESTMENT' | 'EXPENSE'
   side?: 'DEBIT' | 'CREDIT'
   date: string
   businessDate: string
@@ -151,10 +151,16 @@ export function TransactionsView() {
   }
 
   const totalInflows = items
-    .filter((t) => (t.type === 'COLLECTION' || t.type === 'CHARGE_RECOVERY') && t.status === 'SUCCESSFUL')
+    .filter((t) => (t.type === 'COLLECTION' || t.type === 'CHARGE_RECOVERY' || t.type === 'INVESTMENT') && t.status === 'SUCCESSFUL')
     .reduce((s, t) => s + t.amount, 0)
   const totalOutflows = items
-    .filter((t) => t.type === 'DISBURSEMENT')
+    .filter((t) => (t.type === 'DISBURSEMENT' || t.type === 'EXPENSE'))
+    .reduce((s, t) => s + t.amount, 0)
+  const totalInvestments = items
+    .filter((t) => t.type === 'INVESTMENT')
+    .reduce((s, t) => s + t.amount, 0)
+  const totalExpenses = items
+    .filter((t) => t.type === 'EXPENSE')
     .reduce((s, t) => s + t.amount, 0)
   const totalDeposits = items
     .filter((t) => t.type === 'BANK_DEPOSIT')
@@ -187,7 +193,9 @@ export function TransactionsView() {
             <SelectContent>
               <SelectItem value="ALL">All Types</SelectItem>
               <SelectItem value="COLLECTION">Collections (Credit +)</SelectItem>
+              <SelectItem value="INVESTMENT">Investments (Credit +)</SelectItem>
               <SelectItem value="CHARGE_RECOVERY">Recovered Charges (Credit +)</SelectItem>
+              <SelectItem value="EXPENSE">Expenses (Debit -)</SelectItem>
               <SelectItem value="DISBURSEMENT">Disbursements (Debit -)</SelectItem>
               <SelectItem value="BANK_DEPOSIT">Bank Deposits (Debit -)</SelectItem>
             </SelectContent>
@@ -222,21 +230,37 @@ export function TransactionsView() {
       </div>
 
       {/* KPI Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
         <div className="rounded-lg border bg-card p-3 flex flex-col justify-between">
           <p className="text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400 font-medium">
-            Total Inflows / Credits
+            Total Inflows (Cr)
           </p>
           <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
             +{formatMoney(totalInflows)}
           </p>
         </div>
         <div className="rounded-lg border bg-card p-3 flex flex-col justify-between">
+          <p className="text-[10px] uppercase tracking-wide text-indigo-600 dark:text-indigo-400 font-medium">
+            Investments (Cr)
+          </p>
+          <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
+            +{formatMoney(totalInvestments)}
+          </p>
+        </div>
+        <div className="rounded-lg border bg-card p-3 flex flex-col justify-between">
           <p className="text-[10px] uppercase tracking-wide text-teal-600 dark:text-teal-400 font-medium">
-            Recovered Charges (Cr)
+            Recovered Charges
           </p>
           <p className="text-lg font-bold text-teal-600 dark:text-teal-400">
             +{formatMoney(totalRecoveredCharges)}
+          </p>
+        </div>
+        <div className="rounded-lg border bg-card p-3 flex flex-col justify-between">
+          <p className="text-[10px] uppercase tracking-wide text-amber-600 dark:text-amber-400 font-medium">
+            Expenses (Dr)
+          </p>
+          <p className="text-lg font-bold text-amber-600 dark:text-amber-400">
+            -{formatMoney(totalExpenses)}
           </p>
         </div>
         <div className="rounded-lg border bg-card p-3 flex flex-col justify-between">
@@ -268,7 +292,7 @@ export function TransactionsView() {
             {/* Mobile Card List (< md) */}
             <div className="block md:hidden space-y-3">
               {items.map((t) => {
-                const isCredit = t.side === 'CREDIT' || t.type === 'COLLECTION' || t.type === 'CHARGE_RECOVERY'
+                const isCredit = t.side === 'CREDIT' || t.type === 'COLLECTION' || t.type === 'CHARGE_RECOVERY' || t.type === 'INVESTMENT'
                 return (
                   <div key={t.id} className="rounded-lg border bg-card p-3.5 shadow-2xs space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -281,8 +305,12 @@ export function TransactionsView() {
                               'text-[10px] px-1.5 py-0',
                               t.type === 'COLLECTION'
                                 ? 'text-emerald-700 border-emerald-300'
+                                : t.type === 'INVESTMENT'
+                                ? 'text-indigo-700 border-indigo-300 bg-indigo-50 dark:bg-indigo-950/40'
                                 : t.type === 'CHARGE_RECOVERY'
                                 ? 'text-teal-700 border-teal-300 bg-teal-50 dark:bg-teal-950/40'
+                                : t.type === 'EXPENSE'
+                                ? 'text-amber-700 border-amber-300 bg-amber-50 dark:bg-amber-950/40'
                                 : t.type === 'DISBURSEMENT'
                                 ? 'text-rose-700 border-rose-300'
                                 : 'text-blue-700 border-blue-300'
@@ -363,7 +391,7 @@ export function TransactionsView() {
                 </thead>
                 <tbody>
                   {items.map((t) => {
-                    const isCredit = t.side === 'CREDIT' || t.type === 'COLLECTION' || t.type === 'CHARGE_RECOVERY'
+                    const isCredit = t.side === 'CREDIT' || t.type === 'COLLECTION' || t.type === 'CHARGE_RECOVERY' || t.type === 'INVESTMENT'
                     return (
                       <tr key={t.id} className="border-b last:border-0 hover:bg-muted/30">
                         <td className="px-3 py-2 font-mono font-medium text-primary whitespace-nowrap">
@@ -376,8 +404,12 @@ export function TransactionsView() {
                               'text-[10px] px-1.5 py-0',
                               t.type === 'COLLECTION'
                                 ? 'text-emerald-700 border-emerald-300'
+                                : t.type === 'INVESTMENT'
+                                ? 'text-indigo-700 border-indigo-300 bg-indigo-50 dark:bg-indigo-950/40'
                                 : t.type === 'CHARGE_RECOVERY'
                                 ? 'text-teal-700 border-teal-300 bg-teal-50 dark:bg-teal-950/40'
+                                : t.type === 'EXPENSE'
+                                ? 'text-amber-700 border-amber-300 bg-amber-50 dark:bg-amber-950/40'
                                 : t.type === 'DISBURSEMENT'
                                 ? 'text-rose-700 border-rose-300'
                                 : 'text-blue-700 border-blue-300'

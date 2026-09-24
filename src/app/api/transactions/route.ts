@@ -151,6 +151,68 @@ export async function GET(req: Request) {
       }
     }
 
+    // 4. Investments (Inflow / Automatic Credit to Cash/Bank Balance)
+    if (type === 'ALL' || type === 'INVESTMENT') {
+      const investments = await db.investment.findMany({
+        where: targetBusinessDateId ? { businessDateId: targetBusinessDateId } : {},
+        include: {
+          businessDate: { select: { businessDate: true } },
+          createdBy: { select: { name: true } },
+        },
+        orderBy: { investmentDate: 'desc' },
+        take: limit,
+      })
+      for (const inv of investments) {
+        txs.push({
+          id: inv.id,
+          txNumber: inv.investmentNumber,
+          type: 'INVESTMENT',
+          side: 'CREDIT',
+          date: inv.investmentDate.toISOString(),
+          businessDate: inv.businessDate.businessDate.toISOString().slice(0, 10),
+          customerName: inv.investorName,
+          customerId: inv.investmentType,
+          accountNumber: inv.investmentNumber,
+          amount: num(inv.amount),
+          paymentMode: inv.paymentMode,
+          createdBy: inv.createdBy.name,
+          status: inv.status,
+          remarks: inv.remarks || `Investment received (${inv.investmentType})`,
+        })
+      }
+    }
+
+    // 5. Expenses (Outflow / Automatic Debit from Cash/Bank Balance)
+    if (type === 'ALL' || type === 'EXPENSE') {
+      const expenses = await db.expense.findMany({
+        where: targetBusinessDateId ? { businessDateId: targetBusinessDateId } : {},
+        include: {
+          businessDate: { select: { businessDate: true } },
+          createdBy: { select: { name: true } },
+        },
+        orderBy: { expenseDate: 'desc' },
+        take: limit,
+      })
+      for (const exp of expenses) {
+        txs.push({
+          id: exp.id,
+          txNumber: exp.expenseNumber,
+          type: 'EXPENSE',
+          side: 'DEBIT',
+          date: exp.expenseDate.toISOString(),
+          businessDate: exp.businessDate.businessDate.toISOString().slice(0, 10),
+          customerName: exp.recipientName || exp.particulars,
+          customerId: exp.expenseType,
+          accountNumber: exp.voucherNumber || exp.expenseNumber,
+          amount: num(exp.amount),
+          paymentMode: exp.paymentMode,
+          createdBy: exp.createdBy.name,
+          status: exp.status,
+          remarks: exp.remarks || exp.particulars,
+        })
+      }
+    }
+
     // Sort all combined by timestamp desc
     txs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 

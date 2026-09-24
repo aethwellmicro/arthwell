@@ -25,6 +25,8 @@ import {
   Keyboard,
   Banknote,
   CalendarClock,
+  PiggyBank,
+  ReceiptIndianRupee,
 } from 'lucide-react'
 import { useApp, canManageUsers, canManageSettings } from '@/lib/store'
 import { apiFetch, formatMoneyCompact, ROLE_LABELS, ROLE_COLORS } from '@/lib/format'
@@ -69,6 +71,8 @@ const NAV: NavItem[] = [
   { href: '/customers', label: 'Customers', icon: Users },
   { href: '/accounts', label: 'Accounts / Loans', icon: Landmark },
   { href: '/collections', label: 'Collections', icon: HandCoins },
+  { href: '/investments', label: 'Investments', icon: PiggyBank },
+  { href: '/expenses', label: 'Expenses', icon: ReceiptIndianRupee },
   { href: '/transactions', label: 'Daily Transactions', icon: Banknote },
   { href: '/eod', label: 'Day End / EOD', icon: CalendarClock },
   { href: '/receipts', label: 'Receipts', icon: ReceiptText },
@@ -85,7 +89,9 @@ const TITLES: Record<string, string> = {
   '/customers': 'Customer Management',
   '/accounts': 'Accounts / Loans',
   '/collections': 'Daily Collection',
-  '/transactions': 'Daily Transactions',
+  '/investments': 'Investment Management',
+  '/expenses': 'Expense Management',
+  '/transactions': 'Daily Transactions / Cash Book',
   '/eod': 'Day End / EOD Reconciliation',
   '/receipts': 'Receipt Management',
   '/reports': 'Reports & Analytics',

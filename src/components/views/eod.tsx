@@ -55,6 +55,10 @@ interface BusinessDateSummary {
   cashCollections: number
   otherCollections: number
   totalCollections: number
+  cashInvestments?: number
+  totalInvestments?: number
+  cashExpenses?: number
+  totalExpenses?: number
   cashDisbursements: number
   totalDisbursements: number
   bankDeposits: number
@@ -321,7 +325,7 @@ export function EODView() {
         <>
           {/* Visual Cash Flow Waterfall (Section 27 Acceptance Criteria) */}
           <SectionCard title="Authoritative Cash Reconciliation Waterfall">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
               {/* 1. Opening Cash */}
               <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1">
@@ -334,7 +338,7 @@ export function EODView() {
               {/* 2. Cash Collections (+) */}
               <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
                 <p className="text-[11px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                  <ArrowDownRight className="h-3.5 w-3.5" /> + Cash Collections
+                  <ArrowDownRight className="h-3.5 w-3.5" /> + Collections
                 </p>
                 <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
                   {formatMoney(summary.cashCollections)}
@@ -344,7 +348,20 @@ export function EODView() {
                 </p>
               </div>
 
-              {/* 3. Disbursements (-) */}
+              {/* 3. Cash Investments (+) */}
+              <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
+                <p className="text-[11px] uppercase tracking-wide text-indigo-600 dark:text-indigo-400 font-medium flex items-center gap-1">
+                  <ArrowDownRight className="h-3.5 w-3.5" /> + Investments
+                </p>
+                <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+                  {formatMoney(summary.cashInvestments || 0)}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Total: {formatMoney(summary.totalInvestments || 0)}
+                </p>
+              </div>
+
+              {/* 4. Disbursements (-) */}
               <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
                 <p className="text-[11px] uppercase tracking-wide text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1">
                   <ArrowUpRight className="h-3.5 w-3.5" /> - Disbursements
@@ -355,10 +372,23 @@ export function EODView() {
                 <p className="text-[11px] text-muted-foreground mt-0.5">Physical loans issued</p>
               </div>
 
-              {/* 4. Bank Deposits (-) */}
+              {/* 5. Expenses (-) */}
+              <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
+                <p className="text-[11px] uppercase tracking-wide text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
+                  <ArrowUpRight className="h-3.5 w-3.5" /> - Expenses
+                </p>
+                <p className="text-xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+                  {formatMoney(summary.cashExpenses || 0)}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Total: {formatMoney(summary.totalExpenses || 0)}
+                </p>
+              </div>
+
+              {/* 6. Bank Deposits (-) */}
               <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
                 <p className="text-[11px] uppercase tracking-wide text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1">
-                  <Landmark className="h-3.5 w-3.5" /> - Bank Deposits
+                  <Landmark className="h-3.5 w-3.5" /> - Deposits
                 </p>
                 <p className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1">
                   {formatMoney(summary.bankDeposits)}
@@ -366,8 +396,8 @@ export function EODView() {
                 <p className="text-[11px] text-muted-foreground mt-0.5">Cash sent to bank</p>
               </div>
 
-              {/* 5. Expected Closing Cash (=) */}
-              <div className="rounded-lg border border-primary/40 bg-primary/5 p-3.5 shadow-2xs sm:col-span-2 lg:col-span-1">
+              {/* 7. Expected Closing Cash (=) */}
+              <div className="rounded-lg border border-primary/40 bg-primary/5 p-3.5 shadow-2xs sm:col-span-2 md:col-span-3 lg:col-span-1">
                 <p className="text-[11px] uppercase tracking-wide text-primary font-bold flex items-center gap-1">
                   <CheckCircle2 className="h-3.5 w-3.5" /> = Expected Cash
                 </p>
@@ -535,22 +565,30 @@ export function EODView() {
 
           {summary && (
             <div className="space-y-4 py-1">
-              <div className="rounded-lg border bg-muted/40 p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className="rounded-lg border bg-muted/40 p-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-xs">
                 <div>
                   <span className="text-muted-foreground block text-[10px] uppercase">Business Date</span>
-                  <span className="font-mono font-bold text-sm">{summary.businessDate}</span>
+                  <span className="font-mono font-bold text-xs">{summary.businessDate}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block text-[10px] uppercase">Opening Cash</span>
+                  <span className="text-muted-foreground block text-[10px] uppercase">Opening</span>
                   <span className="font-bold">{formatMoney(summary.openingCash)}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block text-[10px] uppercase">Cash Collected</span>
+                  <span className="text-muted-foreground block text-[10px] uppercase">+ Collections</span>
                   <span className="font-bold text-emerald-600">{formatMoney(summary.cashCollections)}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block text-[10px] uppercase">Expected Cash</span>
-                  <span className="font-bold text-primary text-sm">{formatMoney(summary.expectedClosingCash)}</span>
+                  <span className="text-muted-foreground block text-[10px] uppercase">+ Investments</span>
+                  <span className="font-bold text-indigo-600">{formatMoney(summary.cashInvestments || 0)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase">- Expenses</span>
+                  <span className="font-bold text-amber-600">{formatMoney(summary.cashExpenses || 0)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase">= Expected Cash</span>
+                  <span className="font-bold text-primary text-xs">{formatMoney(summary.expectedClosingCash)}</span>
                 </div>
               </div>
 
@@ -787,7 +825,7 @@ export function EODView() {
           ) : (
             <div className="print-report space-y-4 py-2 text-xs">
               {/* Cash Reconciliation Summary */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-muted/30 p-3 rounded-lg border">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5 bg-muted/30 p-3 rounded-lg border">
                 <div>
                   <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Opening Cash</span>
                   <span className="text-sm font-bold">{formatMoney(reportData.report.cashReconciliation.openingCash)}</span>
@@ -797,8 +835,16 @@ export function EODView() {
                   <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatMoney(reportData.report.cashReconciliation.totalCollections)}</span>
                 </div>
                 <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">+ Investments</span>
+                  <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{formatMoney(reportData.report.cashReconciliation.cashInvestments || 0)}</span>
+                </div>
+                <div>
                   <span className="text-muted-foreground block text-[10px] uppercase font-semibold">- Disbursements</span>
                   <span className="text-sm font-bold text-rose-600 dark:text-rose-400">{formatMoney(reportData.report.cashReconciliation.totalDisbursements)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">- Expenses</span>
+                  <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{formatMoney(reportData.report.cashReconciliation.cashExpenses || 0)}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-[10px] uppercase font-semibold">- Bank Deposits</span>
@@ -848,6 +894,68 @@ export function EODView() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+
+              {/* Investments Received */}
+              <div>
+                <p className="font-semibold text-foreground mb-1.5">Investments Received ({reportData.report.investmentRecords?.length || 0})</p>
+                {(!reportData.report.investmentRecords || reportData.report.investmentRecords.length === 0) ? (
+                  <p className="text-muted-foreground italic">No investments recorded on this business date.</p>
+                ) : (
+                  <div className="overflow-x-auto border rounded-md">
+                    <table className="w-full text-xs zebra-table">
+                      <thead className="bg-muted/50">
+                        <tr className="text-left text-muted-foreground">
+                          <th className="px-3 py-1.5 font-medium">Investor</th>
+                          <th className="px-3 py-1.5 font-medium">Type</th>
+                          <th className="px-3 py-1.5 font-medium">Mode</th>
+                          <th className="px-3 py-1.5 font-medium text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportData.report.investmentRecords.map((inv: any) => (
+                          <tr key={inv.id} className="border-b last:border-0">
+                            <td className="px-3 py-1.5 font-medium">{inv.investorName}</td>
+                            <td className="px-3 py-1.5">{inv.investmentType}</td>
+                            <td className="px-3 py-1.5">{inv.paymentMode}</td>
+                            <td className="px-3 py-1.5 text-right font-bold text-indigo-600">{formatMoney(inv.amount)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Expenses Paid */}
+              <div>
+                <p className="font-semibold text-foreground mb-1.5">Expenses Paid ({reportData.report.expenseRecords?.length || 0})</p>
+                {(!reportData.report.expenseRecords || reportData.report.expenseRecords.length === 0) ? (
+                  <p className="text-muted-foreground italic">No expenses recorded on this business date.</p>
+                ) : (
+                  <div className="overflow-x-auto border rounded-md">
+                    <table className="w-full text-xs zebra-table">
+                      <thead className="bg-muted/50">
+                        <tr className="text-left text-muted-foreground">
+                          <th className="px-3 py-1.5 font-medium">Particulars</th>
+                          <th className="px-3 py-1.5 font-medium">Type</th>
+                          <th className="px-3 py-1.5 font-medium">Mode</th>
+                          <th className="px-3 py-1.5 font-medium text-right">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reportData.report.expenseRecords.map((exp: any) => (
+                          <tr key={exp.id} className="border-b last:border-0">
+                            <td className="px-3 py-1.5 font-medium">{exp.particulars}</td>
+                            <td className="px-3 py-1.5">{exp.expenseType}</td>
+                            <td className="px-3 py-1.5">{exp.paymentMode}</td>
+                            <td className="px-3 py-1.5 text-right font-bold text-amber-600">-{formatMoney(exp.amount)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
 
               {/* Bank Deposits */}

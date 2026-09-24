@@ -39,6 +39,8 @@ model User {
   reopenedBusinessDates BusinessDate[] @relation("ReopenedBy")
   authorizedEODs        BusinessDate[] @relation("AuthorizedBy")
   bankDeposits          BankDeposit[]  @relation("CreatedBy")
+  investments           Investment[]   @relation("CreatedBy")
+  expenses              Expense[]      @relation("CreatedBy")
 }
 
 model Session {
@@ -178,6 +180,8 @@ model BusinessDate {
   collections           Collection[]
   accounts              Account[]     // Disbursements executed on this business date
   bankDeposits          BankDeposit[]
+  investments           Investment[]  // Capital & Investor Inflows credited to this business date
+  expenses              Expense[]     // Expenditures & Outflows debited from this business date
 
   @@index([status])
   @@index([businessDate])
@@ -358,3 +362,62 @@ model SystemSetting {
   value     String
   updatedAt DateTime @updatedAt
 }
+
+model Investment {
+  id              String       @id @default(cuid())
+  investmentNumber String      @unique // INV-0001
+  businessDateId  String
+  businessDate    BusinessDate @relation(fields: [businessDateId], references: [id])
+
+  investorName    String       // Name of investor, director, or institution
+  investorPhone   String?
+  investmentType  String       // DIRECTOR_MEMBER, INVESTOR_DEPOSIT, CAPITAL_INVESTMENT, INSTITUTIONAL, OTHER
+  amount          Decimal
+  paymentMode     String       // CASH, BANK, UPI, CHEQUE, OTHER
+  investmentDate  DateTime     // Date investment received
+  
+  termMonths      Int?         // Investment term/tenure in months
+  interestRate    Decimal?     // Annual or term interest rate %
+  maturityDate    DateTime?    // Projected return/maturity date
+  interestPaid    Decimal      @default(0) // Total interest paid to date
+  status          String       @default("ACTIVE") // ACTIVE, MATURED, CLOSED, CANCELLED
+  remarks         String?
+
+  createdById     String
+  createdBy       User         @relation("CreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([businessDateId])
+  @@index([investmentDate])
+  @@index([investmentType])
+  @@index([status])
+}
+
+model Expense {
+  id              String       @id @default(cuid())
+  expenseNumber   String       @unique // EXP-0001
+  businessDateId  String
+  businessDate    BusinessDate @relation(fields: [businessDateId], references: [id])
+
+  expenseType     String       // INVESTMENT_INTEREST, OFFICE_EXPENSE, EMPLOYEE_SALARY, TRAVELING, STATIONERY_ADMIN, UTILITIES, RENT, OTHER
+  particulars     String       // Description / bill / voucher detail
+  amount          Decimal
+  paymentMode     String       // CASH, BANK, UPI, CHEQUE, OTHER
+  expenseDate     DateTime     // Date expenditure incurred
+  recipientName   String?      // Vendor / Employee / Party name
+  voucherNumber   String?      // Physical voucher or receipt ref
+  remarks         String?
+  status          String       @default("CONFIRMED") // CONFIRMED, CANCELLED
+
+  createdById     String
+  createdBy       User         @relation("CreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([businessDateId])
+  @@index([expenseDate])
+  @@index([expenseType])
+  @@index([status])
+}
+
