@@ -93,6 +93,7 @@ export function EODView() {
   // Reopen Modal State (Admin only)
   const [showReopenModal, setShowReopenModal] = useState(false)
   const [reopenTargetDate, setReopenTargetDate] = useState('')
+  const [reopenTargetId, setReopenTargetId] = useState('')
   const [reopenReason, setReopenReason] = useState('')
   const [reopening, setReopening] = useState(false)
 
@@ -209,20 +210,29 @@ export function EODView() {
   }
 
   async function handleReopenDay() {
-    if (!reopenTargetDate) return toast.error('Business date to reopen is required.')
+    if (!reopenTargetDate && !reopenTargetId) return toast.error('Business date to reopen is required.')
     if (!reopenReason.trim()) return toast.error('Mandatory reason for reopening must be provided.')
     setReopening(true)
     try {
+      // Find matching ID from history if target ID wasn't directly passed
+      let matchedId = reopenTargetId
+      if (!matchedId && reopenTargetDate) {
+        const found = history.find((h) => h.businessDate === reopenTargetDate)
+        if (found) matchedId = found.id
+      }
+
       const res = await apiFetch<any>('/api/business-date/reopen', {
         method: 'POST',
         body: JSON.stringify({
-          businessDate: reopenTargetDate,
+          businessDate: reopenTargetDate || undefined,
+          businessDateId: matchedId || undefined,
           reason: reopenReason.trim(),
         }),
       })
       toast.success(res.message || `Business date ${reopenTargetDate} reopened successfully.`)
       setShowReopenModal(false)
       setReopenTargetDate('')
+      setReopenTargetId('')
       setReopenReason('')
       load()
     } catch (e: any) {
@@ -415,7 +425,23 @@ export function EODView() {
                       </div>
                       <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-1 border-t">
                         <span>Closed by {h.closedBy?.name || '—'}</span>
-                        <span>{formatDateTime(h.closedAt)}</span>
+                        <div className="flex items-center gap-2">
+                          <span>{formatDateTime(h.closedAt)}</span>
+                          {user?.role === 'ADMIN' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-1.5 text-[10px] text-amber-600 hover:text-amber-700"
+                              onClick={() => {
+                                setReopenTargetId(h.id)
+                                setReopenTargetDate(h.businessDate)
+                                setShowReopenModal(true)
+                              }}
+                            >
+                              <RotateCcw className="h-3 w-3 mr-0.5" /> Reopen
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -423,7 +449,7 @@ export function EODView() {
 
                 {/* Desktop Table (>=md) */}
                 <div className="hidden md:block max-h-[40vh] overflow-y-auto scroll-area overflow-x-auto">
-                  <table className="w-full text-xs zebra-table min-w-[700px]">
+                  <table className="w-full text-xs zebra-table min-w-[750px]">
                     <thead className="bg-muted/50 sticky top-0">
                       <tr className="text-left text-muted-foreground">
                         <th className="px-3 py-2 font-medium">Business Date</th>
@@ -434,6 +460,7 @@ export function EODView() {
                         <th className="px-3 py-2 font-medium">Reconciliation</th>
                         <th className="px-3 py-2 font-medium">Closed By</th>
                         <th className="px-3 py-2 font-medium">Closed At</th>
+                        {user?.role === 'ADMIN' && <th className="px-3 py-2 font-medium text-right">Action</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -470,6 +497,22 @@ export function EODView() {
                           </td>
                           <td className="px-3 py-2">{h.closedBy?.name || '—'}</td>
                           <td className="px-3 py-2 text-muted-foreground">{formatDateTime(h.closedAt)}</td>
+                          {user?.role === 'ADMIN' && (
+                            <td className="px-3 py-2 text-right">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px] text-amber-600 hover:text-amber-700"
+                                onClick={() => {
+                                  setReopenTargetId(h.id)
+                                  setReopenTargetDate(h.businessDate)
+                                  setShowReopenModal(true)
+                                }}
+                              >
+                                <RotateCcw className="h-3 w-3 mr-1" /> Reopen
+                              </Button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -647,13 +690,52 @@ export function EODView() {
             </div>
 
             <div>
-              <Label className="text-xs font-semibold">Business Date to Reopen *</Label>
-              <Input
-                type="date"
-                value={reopenTargetDate}
-                onChange={(e) => setReopenTargetDate(e.target.value)}
-                className="mt-1"
-              />
+              <Label className="text-xs font-semibold">Select Closed Business Date to Reopen *</Label>
+              {history.length > 0 ? (
+                <div className="space-y-2 mt-1">
+                  <select
+                    className="w-full text-xs h-9 rounded-md border border-input bg-transparent px-3 py-1 shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={reopenTargetId}
+                    onChange={(e) => {
+                      const id = e.target.value
+                      setReopenTargetId(id)
+                      const item = history.find((h) => h.id === id)
+                      if (item) setReopenTargetDate(item.businessDate)
+                    }}
+                  >
+                    <option value="">-- Choose from closed business dates --</option>
+                    {history.map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.businessDate} · Expected: {formatMoney(h.closingCash)} (ID: {h.id.slice(0, 8)}…)
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">Or enter custom date:</span>
+                    <Input
+                      type="date"
+                      value={reopenTargetDate}
+                      onChange={(e) => {
+                        setReopenTargetDate(e.target.value)
+                        const item = history.find((h) => h.businessDate === e.target.value)
+                        setReopenTargetId(item ? item.id : '')
+                      }}
+                      className="h-8 text-xs flex-1"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <Input
+                  type="date"
+                  value={reopenTargetDate}
+                  onChange={(e) => {
+                    setReopenTargetDate(e.target.value)
+                    const item = history.find((h) => h.businessDate === e.target.value)
+                    setReopenTargetId(item ? item.id : '')
+                  }}
+                  className="mt-1"
+                />
+              )}
             </div>
 
             <div>
@@ -668,12 +750,12 @@ export function EODView() {
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0 border-t pt-3">
-            <Button variant="outline" onClick={() => setShowReopenModal(false)} disabled={reopening}>
+            <Button variant="outline" onClick={() => { setShowReopenModal(false); setReopenTargetId(''); setReopenTargetDate('') }} disabled={reopening}>
               Cancel
             </Button>
             <Button
               onClick={handleReopenDay}
-              disabled={reopening || !reopenTargetDate || !reopenReason.trim()}
+              disabled={reopening || (!reopenTargetDate && !reopenTargetId) || !reopenReason.trim()}
               className="bg-amber-600 hover:bg-amber-700 text-white font-semibold"
             >
               {reopening ? 'Reopening Date…' : 'Confirm Reopen Date'}
