@@ -27,9 +27,20 @@ export async function GET(req: Request) {
     const txs: any[] = []
 
     // 1. Collections (Inflow / Credit)
+    // CRITICAL: Cash Book must contain ONLY approved/final transactions.
+    // Pending collections must NOT contaminate the final Cash Book.
     if (type === 'ALL' || type === 'COLLECTION') {
+      const collectionWhere: any = targetBusinessDateId ? { businessDateId: targetBusinessDateId } : {}
+      const statusParam = searchParams.get('status')
+      if (statusParam) {
+        collectionWhere.status = statusParam
+      } else {
+        // By default, only include approved or legacy successful collections in Cash Book
+        collectionWhere.status = { in: ['APPROVED', 'SUCCESSFUL'] }
+      }
+
       const collections = await db.collection.findMany({
-        where: targetBusinessDateId ? { businessDateId: targetBusinessDateId } : {},
+        where: collectionWhere,
         include: {
           customer: { select: { fullName: true, customerId: true, primaryMobile: true } },
           account: { select: { accountNumber: true } },

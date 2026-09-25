@@ -28,6 +28,12 @@ export type SessionUser = {
   role: string
   employeeCode?: string | null
   phone?: string | null
+  branchId?: string | null
+  branch?: {
+    id: string
+    branchCode: string
+    name: string
+  } | null
 }
 
 export async function createSession(userId: string): Promise<string> {
@@ -60,7 +66,15 @@ export async function getSession(): Promise<SessionUser | null> {
     if (!token) return null
     const session = await db.session.findUnique({
       where: { token },
-      include: { user: true },
+      include: {
+        user: {
+          include: {
+            branch: {
+              select: { id: true, branchCode: true, name: true },
+            },
+          },
+        },
+      },
     })
     if (!session) return null
     if (session.expiresAt < new Date()) {
@@ -75,6 +89,8 @@ export async function getSession(): Promise<SessionUser | null> {
       role: session.user.role,
       employeeCode: session.user.employeeCode,
       phone: session.user.phone,
+      branchId: session.user.branchId,
+      branch: session.user.branch,
     }
   } catch {
     return null

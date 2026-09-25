@@ -1,4 +1,4 @@
-import { db } from '@/lib/db'
+﻿import { db } from '@/lib/db'
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
 import { hashPassword, ROLE_ADMIN } from '@/lib/auth'
@@ -10,7 +10,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     const existing = await db.user.findUnique({ where: { id } })
     if (!existing) return error('Employee not found.', 404)
 
-    // only admin or self (self can't change role/active)
+    // only admin or self (self can't change role/active/branch)
     const isSelf = user.id === id
     const isAdmin = user.role === ROLE_ADMIN
     if (!isSelf && !isAdmin) return error('Not authorized to edit this employee.', 403)
@@ -26,10 +26,34 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     if (isAdmin) {
       if (body.role !== undefined) data.role = body.role
       if (body.active !== undefined) data.active = !!body.active
+      if (body.branchId !== undefined) data.branchId = body.branchId ? body.branchId.toString().trim() : null
     }
 
-    const updated = await db.user.update({ where: { id }, data, select: { id: true, email: true, name: true, role: true, employeeCode: true, phone: true, active: true } })
-    await logAudit({ user, action: 'UPDATE', entity: 'USER', entityId: id, oldValue: { name: existing.name, role: existing.role, active: existing.active }, newValue: data })
+    const updated = await db.user.update({
+      where: { id },
+      data,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        employeeCode: true,
+        phone: true,
+        active: true,
+        branchId: true,
+        branch: { select: { id: true, branchCode: true, name: true } },
+      },
+    })
+
+    await logAudit({
+      user,
+      action: 'UPDATE',
+      entity: 'USER',
+      entityId: id,
+      oldValue: { name: existing.name, role: existing.role, active: existing.active, branchId: existing.branchId },
+      newValue: data,
+    })
+
     return json(updated)
   })
 }

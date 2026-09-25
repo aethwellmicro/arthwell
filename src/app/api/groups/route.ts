@@ -1,4 +1,4 @@
-﻿import { db } from '@/lib/db'
+import { db } from '@/lib/db'
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
 import { z } from 'zod'
@@ -11,11 +11,12 @@ const groupSchema = z.object({
 })
 
 export async function GET(req: Request) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { searchParams } = new URL(req.url)
     const q = (searchParams.get('q') || '').trim()
     const status = searchParams.get('status') || undefined
     const branch = searchParams.get('branch') || undefined
+    const branchId = searchParams.get('branchId') || undefined
     const limit = parseInt(searchParams.get('limit') || '100')
     const offset = parseInt(searchParams.get('offset') || '0')
 
@@ -30,10 +31,20 @@ export async function GET(req: Request) {
     if (status && status !== 'ALL') where.status = status
     if (branch && branch !== 'ALL') where.branch = branch
 
+    // Enforce branch-wise access
+    if (user.role !== 'ADMIN') {
+      if (user.branchId) {
+        where.branchId = user.branchId
+      }
+    } else if (branchId && branchId !== 'ALL') {
+      where.branchId = branchId
+    }
+
     const [items, total] = await Promise.all([
       db.group.findMany({
         where,
         include: {
+          branchRel: { select: { id: true, branchCode: true, name: true } },
           _count: { select: { customers: true } },
           createdBy: { select: { id: true, name: true, role: true, email: true } },
         },
@@ -87,6 +98,7 @@ export async function POST(req: Request) {
           groupId,
           name: trimmedName,
           branch,
+          branchId: (body as any).branchId || user.branchId || null,
           description: data.description?.trim() || null,
           status: data.status,
           createdById: user.id,

@@ -22,16 +22,27 @@ const accountSchema = z.object({
 })
 
 export async function GET(req: Request) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { searchParams } = new URL(req.url)
     const q = (searchParams.get('q') || '').trim()
     const status = searchParams.get('status') || undefined
     const customerId = searchParams.get('customerId') || undefined
+    const branchId = searchParams.get('branchId') || undefined
     const limit = parseInt(searchParams.get('limit') || '100')
 
     const where: any = {}
     if (status) where.status = status
     if (customerId) where.customerId = customerId
+
+    // Branch scoping
+    if (user.role !== 'ADMIN') {
+      if (user.branchId) {
+        where.branchId = user.branchId
+      }
+    } else if (branchId && branchId !== 'ALL') {
+      where.branchId = branchId
+    }
+
     if (q) {
       const or: any[] = [{ accountNumber: { contains: q } }]
       where.OR = or
@@ -43,7 +54,10 @@ export async function GET(req: Request) {
 
     const accounts = await db.account.findMany({
       where,
-      include: { customer: true },
+      include: {
+        customer: true,
+        branch: { select: { id: true, branchCode: true, name: true } },
+      },
       orderBy: { createdAt: 'desc' },
       take: limit,
     })
@@ -177,6 +191,7 @@ export async function POST(req: Request) {
           customerId: data.customerId,
           productId: data.productId || null,
           businessDateId: activeBDate.id,
+          branchId: customer.branchId || user.branchId || null,
           principal: computed.principal,
           interestRate: data.interestRate,
           interestType: data.interestType,

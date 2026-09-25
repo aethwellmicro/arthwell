@@ -1,11 +1,12 @@
 import { db } from '@/lib/db'
 import { json, withAuth } from '@/lib/api'
 import { num } from '@/lib/calc'
+import { getBranchFilter } from '@/lib/branch'
 
 // Reports endpoint supporting types:
 //   daily, weekly, monthly, sixmonthly, yearly, customer, employee, paymentmode, outstanding, overdue, accountstatus, reconciliation
 export async function GET(req: Request) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { searchParams } = new URL(req.url)
     const type = searchParams.get('type') || 'daily'
     const from = searchParams.get('from')
@@ -16,6 +17,9 @@ export async function GET(req: Request) {
     const paymentMode = searchParams.get('paymentMode') || undefined
     const status = searchParams.get('status') || undefined
     const area = searchParams.get('area') || undefined
+    const requestedBranchId = searchParams.get('branchId') || undefined
+
+    const branchFilter = getBranchFilter(user, requestedBranchId)
 
     const now = new Date()
     let dateFrom: Date | undefined
@@ -51,7 +55,7 @@ export async function GET(req: Request) {
       }
     }
 
-    const where: any = { status: status || 'SUCCESSFUL' }
+    const where: any = { status: status || 'SUCCESSFUL', ...branchFilter }
     if (dateFrom || dateTo) {
       where.collectionDate = {}
       if (dateFrom) where.collectionDate.gte = dateFrom
@@ -129,7 +133,7 @@ export async function GET(req: Request) {
     } else if (type === 'outstanding' || type === 'overdue') {
       // outstanding / overdue from accounts, not collections
       const accounts = await db.account.findMany({
-        where: { status: type === 'overdue' ? { in: ['OVERDUE', 'ACTIVE'] } : undefined },
+        where: { status: type === 'overdue' ? { in: ['OVERDUE', 'ACTIVE'] } : undefined, ...branchFilter },
         include: { customer: { select: { fullName: true, customerId: true, primaryMobile: true, area: true } } },
       })
       const rows: Array<{
@@ -176,7 +180,7 @@ export async function GET(req: Request) {
       summary.count = rows.length
       return json({ summary, items: rows })
     } else if (type === 'accountstatus') {
-      const accounts = await db.account.findMany({ select: { status: true, principal: true, totalPayable: true } })
+      const accounts = await db.account.findMany({ where: { ...branchFilter }, select: { status: true, principal: true, totalPayable: true } })
       const m: Record<string, { count: number; disbursed: number; payable: number }> = {}
       for (const a of accounts) {
         if (!m[a.status]) m[a.status] = { count: 0, disbursed: 0, payable: 0 }

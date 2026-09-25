@@ -55,6 +55,10 @@ interface BusinessDateSummary {
   cashCollections: number
   otherCollections: number
   totalCollections: number
+  pendingCollectionsCount?: number
+  pendingCollectionsAmount?: number
+  rejectedCollectionsCount?: number
+  rejectedCollectionsAmount?: number
   cashInvestments?: number
   totalInvestments?: number
   cashExpenses?: number
@@ -591,6 +595,19 @@ export function EODView() {
                   <span className="font-bold text-primary text-xs">{formatMoney(summary.expectedClosingCash)}</span>
                 </div>
               </div>
+
+              {/* Pending Collections Verification Warning (Section 14 & 15 Requirement) */}
+              {(summary.pendingCollectionsCount || 0) > 0 && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span>Attention: {summary.pendingCollectionsCount} collection(s) totaling {formatMoney(summary.pendingCollectionsAmount || 0)} are pending approval</span>
+                  </div>
+                  <p className="text-[11px] text-amber-800 dark:text-amber-300 pl-5.5">
+                    Pending collections are NOT included in Closing Cash until approved by Back Office. Review and approve or reject them before final Day End closure.
+                  </p>
+                </div>
+              )}
 
               {/* Physical Cash Input */}
               <div className="space-y-2 border-t pt-3">

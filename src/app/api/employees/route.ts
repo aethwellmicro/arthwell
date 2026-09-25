@@ -7,9 +7,24 @@ export async function GET(req: Request) {
   return withAuth(async () => {
     const { searchParams } = new URL(req.url)
     const role = searchParams.get('role') || undefined
+    const branchId = searchParams.get('branchId') || undefined
     const employees = await db.user.findMany({
-      where: role ? { role } : undefined,
-      select: { id: true, email: true, name: true, role: true, employeeCode: true, phone: true, active: true, createdAt: true },
+      where: {
+        ...(role ? { role } : {}),
+        ...(branchId && branchId !== 'ALL' ? { branchId } : {}),
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        employeeCode: true,
+        phone: true,
+        active: true,
+        createdAt: true,
+        branchId: true,
+        branch: { select: { id: true, branchCode: true, name: true } },
+      },
       orderBy: { createdAt: 'asc' },
     })
     // enrich with collection stats
@@ -46,6 +61,7 @@ export async function POST(req: Request) {
     const role = (body.role || 'COLLECTION_EMPLOYEE').toString()
     const employeeCode = (body.employeeCode || '').toString().trim() || null
     const phone = (body.phone || '').toString().trim() || null
+    const branchId = body.branchId ? body.branchId.toString().trim() : (user.branchId || null)
 
     if (!email || !name || !password) return error('Email, name and password are required.', 422)
     if (!['ADMIN', 'BRANCH_MANAGER', 'ACCOUNTANT', 'COLLECTION_EMPLOYEE'].includes(role)) return error('Invalid role.', 422)
@@ -55,10 +71,21 @@ export async function POST(req: Request) {
     if (existing) return error('Email already in use.', 409)
 
     const created = await db.user.create({
-      data: { email, name, passwordHash: hashPassword(password), role, employeeCode, phone },
-      select: { id: true, email: true, name: true, role: true, employeeCode: true, phone: true, active: true, createdAt: true },
+      data: { email, name, passwordHash: hashPassword(password), role, employeeCode, phone, branchId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        employeeCode: true,
+        phone: true,
+        active: true,
+        createdAt: true,
+        branchId: true,
+        branch: { select: { id: true, branchCode: true, name: true } },
+      },
     })
-    await logAudit({ user, action: 'CREATE', entity: 'USER', entityId: created.id, newValue: { email, name, role } })
+    await logAudit({ user, action: 'CREATE', entity: 'USER', entityId: created.id, newValue: { email, name, role, branchId } })
     return json(created, 201)
   })
 }

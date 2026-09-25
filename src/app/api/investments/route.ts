@@ -5,16 +5,27 @@ import { logAudit } from '@/lib/audit'
 import { num, parseCalendarDate } from '@/lib/calc'
 
 export async function GET(req: Request) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { searchParams } = new URL(req.url)
     const type = searchParams.get('type') || 'ALL'
     const status = searchParams.get('status') || 'ALL'
     const q = searchParams.get('q') || ''
     const businessDateStr = searchParams.get('businessDate')
+    const branchId = searchParams.get('branchId') || undefined
 
     let whereClause: any = {}
     if (type !== 'ALL') whereClause.investmentType = type
     if (status !== 'ALL') whereClause.status = status
+
+    // Branch scoping
+    if (user.role !== 'ADMIN') {
+      if (user.branchId) {
+        whereClause.branchId = user.branchId
+      }
+    } else if (branchId && branchId !== 'ALL') {
+      whereClause.branchId = branchId
+    }
+
     if (businessDateStr) {
       const bDate = await db.businessDate.findFirst({
         where: {
@@ -41,6 +52,7 @@ export async function GET(req: Request) {
       include: {
         businessDate: { select: { businessDate: true } },
         createdBy: { select: { id: true, name: true, role: true } },
+        branch: { select: { id: true, branchCode: true, name: true } },
       },
       orderBy: { investmentDate: 'desc' },
       take: 200,
@@ -120,6 +132,7 @@ export async function POST(req: Request) {
         investmentType,
         amount,
         paymentMode,
+        branchId: body.branchId || user.branchId || null,
         investmentDate,
         termMonths,
         interestRate,

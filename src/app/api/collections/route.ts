@@ -5,7 +5,7 @@ import { num } from '@/lib/calc'
 import { getActiveBusinessDate, assertBusinessDateOpen } from '@/lib/business-date'
 
 export async function GET(req: Request) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { searchParams } = new URL(req.url)
     const from = searchParams.get('from')
     const to = searchParams.get('to')
@@ -14,6 +14,7 @@ export async function GET(req: Request) {
     const employeeId = searchParams.get('employeeId') || undefined
     const paymentMode = searchParams.get('paymentMode') || undefined
     const status = searchParams.get('status') || undefined
+    const branchId = searchParams.get('branchId') || undefined
     const limit = parseInt(searchParams.get('limit') || '200')
 
     const where: any = {}
@@ -28,12 +29,22 @@ export async function GET(req: Request) {
     if (paymentMode) where.paymentMode = paymentMode
     if (status) where.status = status
 
+    // Branch scoping
+    if (user.role !== 'ADMIN') {
+      if (user.branchId) {
+        where.branchId = user.branchId
+      }
+    } else if (branchId && branchId !== 'ALL') {
+      where.branchId = branchId
+    }
+
     const collections = await db.collection.findMany({
       where,
       include: {
         customer: { select: { customerId: true, fullName: true, primaryMobile: true, area: true } },
         account: { select: { accountNumber: true } },
         collectedBy: { select: { name: true, employeeCode: true } },
+        branch: { select: { id: true, branchCode: true, name: true } },
         receipt: true,
       },
       orderBy: { collectionDate: 'desc' },
@@ -56,10 +67,34 @@ export async function POST(req: Request) {
     const body = await parseBody(req)
     const customerId = (body.customerId || '').toString()
     const accountId = (body.accountId || '').toString()
-    const amount = parseFloat(body.amount)
+    const rawAmount = parseFloat(body.amount)
+    const emiAmount = body.emiAmount !== undefined && body.emiAmount !== '' ? parseFloat(body.emiAmount) : null
+    const savingsAmount = body.savingsAmount !== undefined && body.savingsAmount !== '' ? parseFloat(body.savingsAmount) : null
+
+    // Determine total amount
+    let amount = rawAmount
+    if (isNaN(amount) || amount <= 0) {
+      if (emiAmount !== null || savingsAmount !== null) {
+        amount = (emiAmount || 0) + (savingsAmount || 0)
+      }
+    }
+
     const paymentMode = (body.paymentMode || '').toString()
     const collectionDateStr = (body.collectionDate || '').toString()
-    const remarks = (body.remarks || '').toString()
+    let remarks = (body.remarks || '').toString().trim()
+
+    // Add structured breakdown to remarks if EMI and/or Savings provided
+    if (emiAmount !== null || savingsAmount !== null) {
+      const parts: string[] = []
+      if (emiAmount !== null && !isNaN(emiAmount)) parts.push(`EMI: ₹${emiAmount.toFixed(2)}`)
+      if (savingsAmount !== null && !isNaN(savingsAmount)) parts.push(`Savings: ₹${savingsAmount.toFixed(2)}`)
+      const breakdownNote = `[${parts.join(' | ')}]`
+      if (!remarks) {
+        remarks = breakdownNote
+      } else if (!remarks.includes('EMI:') && !remarks.includes('Savings:')) {
+        remarks = `${remarks} ${breakdownNote}`
+      }
+    }
 
     if (!customerId) return error('Customer is required.', 422)
     if (!accountId) return error('Account is required.', 422)
@@ -106,9 +141,14 @@ export async function POST(req: Request) {
     }
     await assertBusinessDateOpen(activeBDate.id)
 
-    // generate receipt number & execute transaction atomically
+    // generate receipt number & execute creation atomically
     const prefix = 'RCP'
     const collectionDate = new Date(collectionDateStr)
+
+    // Per Master Specification:
+    // Field Officer collection entries MUST default to PENDING_APPROVAL.
+    // They must NOT immediately affect final cash book or loan installment balances until Back Office approval.
+    const initialStatus = 'PENDING_APPROVAL'
 
     const { collection, receipt } = await db.$transaction(async (tx) => {
       const last = await tx.collection.findFirst({ orderBy: { createdAt: 'desc' } })
@@ -125,14 +165,18 @@ export async function POST(req: Request) {
           customerId,
           accountId,
           businessDateId: activeBDate.id,
+          branchId: account.customer.branchId || user.branchId || null,
           collectionDate,
           amount,
+          allocatedPrincipal: 0,
+          allocatedInterest: 0,
+          allocatedSavings: savingsAmount || 0,
           paymentMode,
           collectedById: user.id,
           previousOutstanding,
           currentOutstanding,
           remarks: remarks || null,
-          status: 'SUCCESSFUL',
+          status: initialStatus,
         },
       })
 
@@ -144,47 +188,6 @@ export async function POST(req: Request) {
           printCount: 0,
         },
       })
-
-      // update installment allocation (FIFO) inside same tx
-      const installments = await tx.installment.findMany({
-        where: { accountId, status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] } },
-        orderBy: { installNo: 'asc' },
-      })
-      let remaining = amount
-      for (const inst of installments) {
-        if (remaining <= 0) break
-        const due = num(inst.amount)
-        const alreadyPaid = num(inst.paidAmount)
-        const needed = Math.max(due - alreadyPaid, 0)
-        if (needed <= 0) continue
-        const pay = Math.min(needed, remaining)
-        const newPaid = alreadyPaid + pay
-        const status = newPaid >= due - 0.01 ? 'PAID' : 'PARTIAL'
-        await tx.installment.update({
-          where: { id: inst.id },
-          data: { paidAmount: newPaid, status, paidDate: collectionDate },
-        })
-        remaining -= pay
-      }
-
-      // notification
-      const message = `Dear ${account.customer.fullName}, we received ${amount.toFixed(2)} via ${paymentMode} on ${collectionDate.toISOString().slice(0, 10)}. Outstanding: ${currentOutstanding.toFixed(2)}. Receipt: ${receiptNumber}. Thank you.`
-      await tx.notification.create({
-        data: {
-          collectionId: newCollection.id,
-          customerId,
-          type: 'PAYMENT_CONFIRMATION',
-          message,
-          recipient: account.customer.primaryMobile,
-          status: 'SENT',
-          userId: user.id,
-        },
-      })
-
-      // update account status if completed
-      if (currentOutstanding <= 0.01) {
-        await tx.account.update({ where: { id: accountId }, data: { status: 'COMPLETED' } })
-      }
 
       return { collection: newCollection, receipt: newReceipt }
     })
@@ -199,6 +202,7 @@ export async function POST(req: Request) {
         accountId,
         amount,
         paymentMode,
+        status: initialStatus,
         currentOutstanding,
         businessDate: activeBDate.businessDate,
       },

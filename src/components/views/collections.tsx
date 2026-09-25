@@ -14,6 +14,10 @@ import {
   CalendarClock,
   UsersRound,
   CheckCircle2,
+  Check,
+  XCircle,
+  ShieldCheck,
+  Clock,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatDateTime, todayInput, STATUS_COLORS, downloadCSV } from '@/lib/format'
 import { useApp, canReverse } from '@/lib/store'
@@ -51,11 +55,18 @@ interface Collection {
   customer: { customerId: string; fullName: string; primaryMobile: string; area?: string | null }
   account: { accountNumber: string }
   amount: number
+  allocatedPrincipal?: number
+  allocatedInterest?: number
+  allocatedSavings?: number
+  otherCharges?: number
   paymentMode: string
   collectedBy: { name: string; employeeCode?: string | null; role: string }
   previousOutstanding: number
   currentOutstanding: number
   status: string
+  approvedAt?: string | null
+  rejectedAt?: string | null
+  rejectionReason?: string | null
   remarks?: string | null
 }
 
@@ -72,12 +83,15 @@ interface AccountOption {
   totalPayable: number
   paidAmount: number
   installmentAmount: number
+  savingsAmount?: number
   status: string
 }
 
 const emptyForm = {
   customerId: '',
   accountId: '',
+  emiAmount: '',
+  savingsAmount: '',
   amount: '',
   paymentMode: 'CASH',
   collectionDate: todayInput(),
@@ -102,7 +116,7 @@ export function CollectionsView() {
   const [to, setTo] = useState('')
   const [employeeId, setEmployeeId] = useState('')
   const [paymentMode, setPaymentMode] = useState('ALL')
-  const [statusFilter, setStatusFilter] = useState('SUCCESSFUL')
+  const [statusFilter, setStatusFilter] = useState('ALL')
   const [employees, setEmployees] = useState<any[]>([])
   const [showNew, setShowNew] = useState(false)
   const [form, setForm] = useState(emptyForm)
@@ -113,7 +127,13 @@ export function CollectionsView() {
   const [viewTarget, setViewTarget] = useState<Collection | null>(null)
   const receiptRef = useRef<HTMLDivElement>(null)
 
-  const [activeTab, setActiveTab] = useState<'history' | 'due'>('history')
+  // Approval Workflow State
+  const [activeTab, setActiveTab] = useState<'pending' | 'history' | 'due'>('pending')
+  const [rejectTarget, setRejectTarget] = useState<Collection | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
+  const [rejecting, setRejecting] = useState(false)
+  const [approvingId, setApprovingId] = useState<string | null>(null)
+
   const [dueDateFilter, setDueDateFilter] = useState(new Date().toISOString().slice(0, 10))
   const [dueEmployeeId, setDueEmployeeId] = useState('ALL')
   const [dueData, setDueData] = useState<{
@@ -181,15 +201,24 @@ export function CollectionsView() {
   }, [customerIdParam, accountIdParam])
 
   async function save() {
-    if (!form.customerId || !form.accountId || !form.amount) {
-      toast.error('Customer, account and amount are required.')
+    const emiVal = parseFloat(form.emiAmount) || 0
+    const savVal = parseFloat(form.savingsAmount) || 0
+    const totAmt = parseFloat(form.amount) || (emiVal + savVal)
+
+    if (!form.customerId || !form.accountId || totAmt <= 0) {
+      toast.error('Customer, account and amount (EMI/Savings) are required.')
       return
     }
+
     setSaving(true)
     try {
+      const payload = {
+        ...form,
+        amount: String(totAmt),
+      }
       const created = await apiFetch<any>('/api/collections', {
         method: 'POST',
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       })
       toast.success(`Collection recorded: ${created.receiptNumber}`)
       setShowNew(false)
@@ -221,6 +250,40 @@ export function CollectionsView() {
     }
   }
 
+  async function handleApprove(c: Collection) {
+    setApprovingId(c.id)
+    try {
+      await apiFetch(`/api/collections/${c.id}/approve`, { method: 'POST' })
+      toast.success(`Collection ${c.receiptNumber} approved successfully.`)
+      load()
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setApprovingId(null)
+    }
+  }
+
+  async function handleReject() {
+    if (!rejectTarget || !rejectReason.trim()) {
+      return toast.error('A mandatory rejection reason is required.')
+    }
+    setRejecting(true)
+    try {
+      await apiFetch(`/api/collections/${rejectTarget.id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: rejectReason.trim() }),
+      })
+      toast.success(`Collection ${rejectTarget.receiptNumber} rejected.`)
+      setRejectTarget(null)
+      setRejectReason('')
+      load()
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setRejecting(false)
+    }
+  }
+
   function openReceiptPrint(c: Collection | any) {
     window.open(`/receipts/${c.id}/print`, '_blank')
   }
@@ -234,21 +297,29 @@ export function CollectionsView() {
 
   function exportCSV() {
     if (!items.length) return toast.info('No collections to export')
-    downloadCSV(`collections-${new Date().toISOString().slice(0, 10)}.csv`, items.map((c) => ({
-      receiptNumber: c.receiptNumber,
-      date: formatDateTime(c.collectionDate),
-      customer: c.customer.fullName,
-      customerId: c.customer.customerId,
-      mobile: c.customer.primaryMobile,
-      account: c.account.accountNumber,
-      amount: c.amount,
-      paymentMode: c.paymentMode,
-      collectedBy: c.collectedBy.name,
-      previousOutstanding: c.previousOutstanding,
-      currentOutstanding: c.currentOutstanding,
-      status: c.status,
-      remarks: c.remarks || '',
-    })))
+    downloadCSV(`collections-${new Date().toISOString().slice(0, 10)}.csv`, items.map((c) => {
+      const emiMatch = c.remarks?.match(/EMI:\s*₹?([\d.]+)/)
+      const savMatch = c.remarks?.match(/Savings:\s*₹?([\d.]+)/)
+      const emi = emiMatch ? parseFloat(emiMatch[1]) : c.amount
+      const savings = savMatch ? parseFloat(savMatch[1]) : 0
+      return {
+        receiptNumber: c.receiptNumber,
+        date: formatDateTime(c.collectionDate),
+        customer: c.customer.fullName,
+        customerId: c.customer.customerId,
+        mobile: c.customer.primaryMobile,
+        account: c.account.accountNumber,
+        totalAmount: c.amount,
+        emiAmount: emi,
+        savingsAmount: savings,
+        paymentMode: c.paymentMode,
+        collectedBy: c.collectedBy.name,
+        previousOutstanding: c.previousOutstanding,
+        currentOutstanding: c.currentOutstanding,
+        status: c.status,
+        remarks: c.remarks || '',
+      }
+    }))
     toast.success('Exported to CSV')
   }
 
@@ -271,15 +342,23 @@ export function CollectionsView() {
     return items
   }, [items, sortKey, sortDir])
 
-  const paginatedItems = sortedItems.slice((page - 1) * pageSize, page * pageSize)
+  const pendingCount = useMemo(() => items.filter((c) => c.status === 'PENDING_APPROVAL').length, [items])
 
   return (
     <div className="space-y-4">
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'history' | 'due')}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'pending' | 'history' | 'due')}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3">
-          <TabsList className="grid grid-cols-2 w-full sm:w-[340px]">
+          <TabsList className="grid grid-cols-3 w-full sm:w-[500px]">
+            <TabsTrigger value="pending" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm">
+              <ShieldCheck className="h-4 w-4" /> Pending Approvals
+              {pendingCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-amber-500 text-white font-bold">
+                  {pendingCount}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="history" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm">
-              <ReceiptIcon className="h-4 w-4" /> Collection History
+              <ReceiptIcon className="h-4 w-4" /> History
             </TabsTrigger>
             <TabsTrigger value="due" className="flex items-center justify-center gap-1.5 text-xs sm:text-sm">
               <CalendarClock className="h-4 w-4" /> Due by Date
@@ -290,6 +369,171 @@ export function CollectionsView() {
             <Plus className="h-4 w-4 mr-1" /> New Collection
           </Button>
         </div>
+
+        {/* Tab 1: Pending Verification & Approval */}
+        <TabsContent value="pending" className="space-y-4 pt-2">
+          {(() => {
+            const pendingList = items.filter((c) => c.status === 'PENDING_APPROVAL')
+            const totalPendingAmt = pendingList.reduce((s, c) => s + c.amount, 0)
+            const canApprove = user?.role === 'ADMIN' || user?.role === 'BRANCH_MANAGER' || user?.role === 'ACCOUNTANT'
+
+            return (
+              <SectionCard
+                title={`Pending Collection Approvals (${pendingList.length})`}
+                action={
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Total Pending:</span>
+                    <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{formatMoney(totalPendingAmt)}</span>
+                  </div>
+                }
+              >
+                {loading ? (
+                  <LoadingRows rows={4} />
+                ) : pendingList.length === 0 ? (
+                  <EmptyState icon={ShieldCheck} message="No collections currently pending approval. All collections have been verified." />
+                ) : (
+                  <>
+                    {/* Mobile cards */}
+                    <div className="md:hidden space-y-3 p-1">
+                      {pendingList.map((c) => (
+                        <div key={c.id} className="rounded-lg border bg-card p-3 space-y-2.5 text-xs shadow-2xs">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="font-semibold text-foreground text-sm">{c.customer.fullName}</p>
+                              <p className="font-mono text-[11px] text-muted-foreground">{c.customer.customerId} · {c.customer.primaryMobile}</p>
+                            </div>
+                            <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/40">
+                              PENDING APPROVAL
+                            </Badge>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2 bg-muted/30 p-2 rounded text-[11px]">
+                            <div>
+                              <span className="text-muted-foreground block text-[10px]">Receipt No</span>
+                              <span className="font-mono font-medium">{c.receiptNumber}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-muted-foreground block text-[10px]">Total Amount</span>
+                              <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">{formatMoney(c.amount)}</span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground block text-[10px]">Loan Account</span>
+                              <span className="font-mono">{c.account.accountNumber}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-muted-foreground block text-[10px]">Collected By</span>
+                              <span>{c.collectedBy.name}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t">
+                            <span>Date: {formatDateTime(c.collectionDate)}</span>
+                            <span>Mode: <strong>{c.paymentMode}</strong></span>
+                          </div>
+
+                          {canApprove && (
+                            <div className="flex items-center gap-2 pt-1 border-t">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 h-8 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                                onClick={() => {
+                                  setRejectTarget(c)
+                                  setRejectReason('')
+                                }}
+                              >
+                                <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="flex-1 h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                disabled={approvingId === c.id}
+                                onClick={() => handleApprove(c)}
+                              >
+                                <Check className="h-3.5 w-3.5 mr-1" />
+                                {approvingId === c.id ? 'Approving...' : 'Approve'}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Desktop table */}
+                    <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-sm zebra-table min-w-[850px]">
+                        <thead className="bg-muted/50 sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Receipt</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Date / Time</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Customer</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Account</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Amount</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Mode</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Field Officer</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Status</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pendingList.map((c) => (
+                            <tr key={c.id} className="border-b hover:bg-muted/40 cursor-pointer" onClick={() => setViewTarget(c)}>
+                              <td className="px-3 py-2.5 font-mono text-xs">{c.receiptNumber}</td>
+                              <td className="px-3 py-2.5 text-xs text-muted-foreground">{formatDateTime(c.collectionDate)}</td>
+                              <td className="px-3 py-2.5">
+                                <p className="font-semibold text-foreground">{c.customer.fullName}</p>
+                                <p className="font-mono text-xs text-muted-foreground">{c.customer.customerId}</p>
+                              </td>
+                              <td className="px-3 py-2.5 font-mono text-xs">{c.account.accountNumber}</td>
+                              <td className="px-3 py-2.5 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                                {formatMoney(c.amount)}
+                              </td>
+                              <td className="px-3 py-2.5"><Badge variant="outline">{c.paymentMode}</Badge></td>
+                              <td className="px-3 py-2.5 text-xs">{c.collectedBy.name}</td>
+                              <td className="px-3 py-2.5">
+                                <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/40">
+                                  PENDING APPROVAL
+                                </Badge>
+                              </td>
+                              <td className="px-3 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                                {canApprove ? (
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                                      onClick={() => {
+                                        setRejectTarget(c)
+                                        setRejectReason('')
+                                      }}
+                                    >
+                                      <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                      disabled={approvingId === c.id}
+                                      onClick={() => handleApprove(c)}
+                                    >
+                                      <Check className="h-3.5 w-3.5 mr-1" />
+                                      {approvingId === c.id ? 'Approving...' : 'Approve'}
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground italic">Awaiting Back Office</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </SectionCard>
+            )
+          })()}
+        </TabsContent>
 
         <TabsContent value="due" className="space-y-4 pt-2">
           {/* Date Selector & Officer Filters */}
@@ -445,10 +689,14 @@ export function CollectionsView() {
                             size="sm"
                             className="w-full h-8 text-xs font-medium mt-1"
                             onClick={() => {
+                              const emiPortion = Math.min(c.emi || 0, c.pending)
+                              const savPortion = Math.max(c.pending - emiPortion, 0) || (c.savings || 0)
                               setForm({
                                 ...emptyForm,
                                 customerId: c.customerId,
                                 accountId: c.accountId,
+                                emiAmount: String(emiPortion),
+                                savingsAmount: String(savPortion),
                                 amount: String(c.pending),
                               })
                               setShowNew(true)
@@ -506,10 +754,14 @@ export function CollectionsView() {
                                   size="sm"
                                   className="h-7 text-xs px-2.5"
                                   onClick={() => {
+                                    const emiPortion = Math.min(c.emi || 0, c.pending)
+                                    const savPortion = Math.max(c.pending - emiPortion, 0) || (c.savings || 0)
                                     setForm({
                                       ...emptyForm,
                                       customerId: c.customerId,
                                       accountId: c.accountId,
+                                      emiAmount: String(emiPortion),
+                                      savingsAmount: String(savPortion),
                                       amount: String(c.pending),
                                     })
                                     setShowNew(true)
@@ -568,7 +820,10 @@ export function CollectionsView() {
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full sm:w-[130px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">All</SelectItem>
+                  <SelectItem value="ALL">All Statuses</SelectItem>
+                  <SelectItem value="PENDING_APPROVAL">Pending Approval</SelectItem>
+                  <SelectItem value="APPROVED">Approved</SelectItem>
+                  <SelectItem value="REJECTED">Rejected</SelectItem>
                   <SelectItem value="SUCCESSFUL">Successful</SelectItem>
                   <SelectItem value="REVERSED">Reversed</SelectItem>
                   <SelectItem value="CANCELLED">Cancelled</SelectItem>
@@ -616,8 +871,21 @@ export function CollectionsView() {
                     <span className="font-mono font-medium text-foreground">{c.receiptNumber}</span>
                   </div>
                   <div className="text-right">
-                    <span className="text-[10px] text-muted-foreground block">Amount</span>
+                    <span className="text-[10px] text-muted-foreground block">Total Amount</span>
                     <span className="font-bold text-base text-emerald-600 dark:text-emerald-400">{formatMoney(c.amount)}</span>
+                    {(() => {
+                      const emiMatch = c.remarks?.match(/EMI:\s*₹?([\d.]+)/)
+                      const savMatch = c.remarks?.match(/Savings:\s*₹?([\d.]+)/)
+                      if (emiMatch || savMatch) {
+                        return (
+                          <div className="text-[10px] text-muted-foreground flex gap-1 justify-end font-medium">
+                            {emiMatch && <span>EMI: {formatMoney(parseFloat(emiMatch[1]))}</span>}
+                            {savMatch && <span className="text-teal-600 dark:text-teal-400">· Sav: {formatMoney(parseFloat(savMatch[1]))}</span>}
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
                   </div>
                 </div>
 
@@ -639,10 +907,33 @@ export function CollectionsView() {
                 <div className="flex items-center justify-between pt-1 border-t text-[11px] text-muted-foreground" onClick={(e) => e.stopPropagation()}>
                   <span>By {c.collectedBy.name}</span>
                   <div className="flex items-center gap-1">
+                    {c.status === 'PENDING_APPROVAL' && (user?.role === 'ADMIN' || user?.role === 'BRANCH_MANAGER' || user?.role === 'ACCOUNTANT') && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700"
+                          onClick={() => {
+                            setRejectTarget(c)
+                            setRejectReason('')
+                          }}
+                        >
+                          <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-7 px-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                          disabled={approvingId === c.id}
+                          onClick={() => handleApprove(c)}
+                        >
+                          <Check className="h-3.5 w-3.5 mr-1" /> Approve
+                        </Button>
+                      </>
+                    )}
                     <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => printReceipt(c)}>
                       <Printer className="h-3.5 w-3.5 mr-1" /> Receipt
                     </Button>
-                    {canReverse(user?.role) && c.status === 'SUCCESSFUL' && (
+                    {canReverse(user?.role) && (c.status === 'SUCCESSFUL' || c.status === 'APPROVED') && (
                       <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-amber-600" onClick={() => setReverseTarget(c)}>
                         <Undo2 className="h-3.5 w-3.5" />
                       </Button>
@@ -680,16 +971,55 @@ export function CollectionsView() {
                       <p className="text-xs text-muted-foreground truncate">{c.customer.customerId}</p>
                     </td>
                     <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">{c.account.accountNumber}</td>
-                    <td className="px-3 py-2.5 text-right font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatMoney(c.amount)}</td>
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                      <p className="font-semibold text-emerald-600 dark:text-emerald-400">{formatMoney(c.amount)}</p>
+                      {(() => {
+                        const emiMatch = c.remarks?.match(/EMI:\s*₹?([\d.]+)/)
+                        const savMatch = c.remarks?.match(/Savings:\s*₹?([\d.]+)/)
+                        if (emiMatch || savMatch) {
+                          return (
+                            <p className="text-[10px] text-muted-foreground font-normal">
+                              {emiMatch && `EMI: ${formatMoney(parseFloat(emiMatch[1]))}`}
+                              {savMatch && ` · Sav: ${formatMoney(parseFloat(savMatch[1]))}`}
+                            </p>
+                          )
+                        }
+                        return null
+                      })()}
+                    </td>
                     <td className="px-3 py-2.5 whitespace-nowrap"><Badge variant="outline">{c.paymentMode}</Badge></td>
                     <td className="px-3 py-2.5 text-xs whitespace-nowrap">{c.collectedBy.name}</td>
                     <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">{formatMoney(c.currentOutstanding)}</td>
                     <td className="px-3 py-2.5 whitespace-nowrap"><Badge className={cn(STATUS_COLORS[c.status])}>{c.status}</Badge></td>
                     <td className="px-3 py-2.5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex justify-end gap-1">
+                      <div className="flex justify-end gap-1 items-center">
+                        {c.status === 'PENDING_APPROVAL' && (user?.role === 'ADMIN' || user?.role === 'BRANCH_MANAGER' || user?.role === 'ACCOUNTANT') && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                              onClick={() => {
+                                setRejectTarget(c)
+                                setRejectReason('')
+                              }}
+                            >
+                              <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                              disabled={approvingId === c.id}
+                              onClick={() => handleApprove(c)}
+                            >
+                              <Check className="h-3.5 w-3.5 mr-1" />
+                              {approvingId === c.id ? 'Approving...' : 'Approve'}
+                            </Button>
+                          </>
+                        )}
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => printReceipt(c)} aria-label="Print receipt"><Printer className="h-3.5 w-3.5" /></Button>
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewTarget(c)} aria-label="View details"><Eye className="h-3.5 w-3.5" /></Button>
-                        {canReverse(user?.role) && c.status === 'SUCCESSFUL' && (
+                        {canReverse(user?.role) && (c.status === 'SUCCESSFUL' || c.status === 'APPROVED') && (
                           <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600" onClick={() => setReverseTarget(c)} aria-label="Reverse transaction"><Undo2 className="h-3.5 w-3.5" /></Button>
                         )}
                       </div>
@@ -809,7 +1139,20 @@ export function CollectionsView() {
               <Info label="Account" value={viewTarget.account.accountNumber} />
               <Info label="Payment Mode" value={viewTarget.paymentMode} />
               <Info label="Collected By" value={`${viewTarget.collectedBy.name}`} />
-              <Info label="Amount" value={formatMoney(viewTarget.amount)} />
+              <Info label="Total Collected" value={formatMoney(viewTarget.amount)} />
+              {(() => {
+                const emiMatch = viewTarget.remarks?.match(/EMI:\s*₹?([\d.]+)/)
+                const savMatch = viewTarget.remarks?.match(/Savings:\s*₹?([\d.]+)/)
+                if (emiMatch || savMatch) {
+                  return (
+                    <>
+                      <Info label="EMI Portion" value={emiMatch ? formatMoney(parseFloat(emiMatch[1])) : formatMoney(viewTarget.amount)} />
+                      <Info label="Savings Portion" value={savMatch ? formatMoney(parseFloat(savMatch[1])) : '₹0.00'} />
+                    </>
+                  )
+                }
+                return null
+              })()}
               <Info label="Prev. Outstanding" value={formatMoney(viewTarget.previousOutstanding)} />
               <Info label="Curr. Outstanding" value={formatMoney(viewTarget.currentOutstanding)} />
               {viewTarget.remarks && <Info label="Remarks" value={viewTarget.remarks} />}
@@ -818,6 +1161,35 @@ export function CollectionsView() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setViewTarget(null)}>Close</Button>
             <Button onClick={() => viewTarget && printReceipt(viewTarget)}><Printer className="h-4 w-4 mr-1" /> Print</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Collection Dialog */}
+      <Dialog open={!!rejectTarget} onOpenChange={(o) => { if (!o) { setRejectTarget(null); setRejectReason('') } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600"><XCircle className="h-5 w-5" /> Reject Collection Entry</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm">
+            <p>You are rejecting collection <span className="font-mono font-semibold">{rejectTarget?.receiptNumber}</span> of {formatMoney(rejectTarget?.amount || 0)} for <span className="font-semibold">{rejectTarget?.customer.fullName}</span>.</p>
+            <p className="text-xs text-muted-foreground">Rejected collections do not affect the Cash Book, closing cash, or loan installments. A mandatory reason is required for audit and Field Officer notification.</p>
+            <div>
+              <Label className="text-xs font-semibold">Mandatory Rejection Reason *</Label>
+              <Textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="e.g. Physical cash not received, customer disputed amount, incorrect account..."
+                className="mt-1 text-xs"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setRejectTarget(null); setRejectReason('') }}>Cancel</Button>
+            <Button variant="destructive" onClick={handleReject} disabled={rejecting || !rejectReason.trim()}>
+              {rejecting ? 'Rejecting...' : 'Confirm Rejection'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -890,12 +1262,14 @@ function NewCollectionForm({ form, setForm }: { form: typeof emptyForm; setForm:
       {selectedAccount && (
         <div className="rounded-lg border bg-muted/30 p-3">
           <p className="text-xs font-semibold text-muted-foreground mb-2">Step 3 · Account Summary</p>
-          <div className="grid grid-cols-3 gap-2 text-sm">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
             <div><p className="text-[10px] text-muted-foreground">Total Payable</p><p className="font-semibold">{formatMoney(selectedAccount.totalPayable)}</p></div>
             <div><p className="text-[10px] text-muted-foreground">Paid</p><p className="font-semibold text-emerald-600 dark:text-emerald-400">{formatMoney(selectedAccount.paidAmount)}</p></div>
             <div><p className="text-[10px] text-muted-foreground">Outstanding</p><p className="font-semibold text-amber-600 dark:text-amber-400">{formatMoney(selectedAccount.outstanding)}</p></div>
-            <div><p className="text-[10px] text-muted-foreground">Installment Amt</p><p className="font-semibold">{formatMoney(selectedAccount.installmentAmount)}</p></div>
-            <div><p className="text-[10px] text-muted-foreground">Status</p><Badge className={cn(STATUS_COLORS[selectedAccount.status])}>{selectedAccount.status}</Badge></div>
+            <div><p className="text-[10px] text-muted-foreground">Regular EMI</p><p className="font-semibold">{formatMoney(selectedAccount.installmentAmount)}</p></div>
+            <div><p className="text-[10px] text-muted-foreground">Savings / Week</p><p className="font-semibold text-teal-600 dark:text-teal-400">{formatMoney(selectedAccount.savingsAmount || 0)}</p></div>
+            <div><p className="text-[10px] text-muted-foreground">Total Weekly Due</p><p className="font-semibold text-primary">{formatMoney((selectedAccount.installmentAmount || 0) + (selectedAccount.savingsAmount || 0))}</p></div>
+            <div className="col-span-2"><p className="text-[10px] text-muted-foreground">Status</p><Badge className={cn(STATUS_COLORS[selectedAccount.status])}>{selectedAccount.status}</Badge></div>
           </div>
         </div>
       )}
@@ -907,14 +1281,8 @@ function NewCollectionForm({ form, setForm }: { form: typeof emptyForm; setForm:
             <Label className="text-xs text-muted-foreground">Collection Date *</Label>
             <Input type="date" value={form.collectionDate} onChange={(e) => setForm({ ...form, collectionDate: e.target.value })} className="mt-1" />
           </div>
+
           <div>
-            <Label className="text-xs text-muted-foreground">Amount Received *</Label>
-            <Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="mt-1" placeholder={selectedAccount ? String(selectedAccount.installmentAmount) : ''} />
-            {amount > 0 && selectedAccount && amount > selectedAccount.outstanding + 0.01 && (
-              <p className="text-xs text-red-600 mt-1">Exceeds outstanding ({formatMoney(selectedAccount.outstanding)})</p>
-            )}
-          </div>
-          <div className="sm:col-span-2">
             <Label className="text-xs text-muted-foreground">Payment Mode</Label>
             <Select value={form.paymentMode} onValueChange={(v) => setForm({ ...form, paymentMode: v })}>
               <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
@@ -926,14 +1294,110 @@ function NewCollectionForm({ form, setForm }: { form: typeof emptyForm; setForm:
               </SelectContent>
             </Select>
           </div>
+
+          {/* Dedicated EMI Amount field */}
+          <div>
+            <div className="flex justify-between items-center">
+              <Label className="text-xs font-medium text-foreground">Loan EMI Received (₹) *</Label>
+              {selectedAccount && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const emiVal = String(Math.min(selectedAccount.installmentAmount, selectedAccount.outstanding))
+                    const savVal = form.savingsAmount || '0'
+                    const tot = (parseFloat(emiVal) || 0) + (parseFloat(savVal) || 0)
+                    setForm({ ...form, emiAmount: emiVal, amount: String(tot) })
+                  }}
+                  className="text-[11px] text-primary hover:underline font-medium"
+                >
+                  Use EMI ({formatMoney(selectedAccount.installmentAmount)})
+                </button>
+              )}
+            </div>
+            <Input
+              type="number"
+              step="any"
+              value={form.emiAmount}
+              onChange={(e) => {
+                const emiVal = e.target.value
+                const emiNum = parseFloat(emiVal) || 0
+                const savNum = parseFloat(form.savingsAmount) || 0
+                setForm({
+                  ...form,
+                  emiAmount: emiVal,
+                  amount: String(emiNum + savNum),
+                })
+              }}
+              className="mt-1"
+              placeholder={selectedAccount ? String(selectedAccount.installmentAmount) : '0'}
+            />
+            {parseFloat(form.emiAmount || '0') > 0 && selectedAccount && parseFloat(form.emiAmount) > selectedAccount.outstanding + 0.01 && (
+              <p className="text-xs text-red-600 mt-1">Exceeds outstanding loan ({formatMoney(selectedAccount.outstanding)})</p>
+            )}
+          </div>
+
+          {/* Dedicated Savings Amount field */}
+          <div>
+            <div className="flex justify-between items-center">
+              <Label className="text-xs font-medium text-foreground">Savings Received (₹)</Label>
+              {selectedAccount && Number(selectedAccount.savingsAmount || 0) > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const savVal = String(selectedAccount.savingsAmount)
+                    const emiVal = form.emiAmount || '0'
+                    const tot = (parseFloat(emiVal) || 0) + (parseFloat(savVal) || 0)
+                    setForm({ ...form, savingsAmount: savVal, amount: String(tot) })
+                  }}
+                  className="text-[11px] text-teal-600 hover:underline font-medium"
+                >
+                  Use Savings ({formatMoney(selectedAccount.savingsAmount || 0)})
+                </button>
+              )}
+            </div>
+            <Input
+              type="number"
+              step="any"
+              value={form.savingsAmount}
+              onChange={(e) => {
+                const savVal = e.target.value
+                const savNum = parseFloat(savVal) || 0
+                const emiNum = parseFloat(form.emiAmount) || 0
+                setForm({
+                  ...form,
+                  savingsAmount: savVal,
+                  amount: String(emiNum + savNum),
+                })
+              }}
+              className="mt-1"
+              placeholder={selectedAccount ? String(selectedAccount.savingsAmount || 0) : '0'}
+            />
+          </div>
+
+          {/* Total Amount Received summary box */}
+          <div className="sm:col-span-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <span className="text-xs font-semibold text-emerald-900 dark:text-emerald-200 uppercase tracking-wide">Total Amount Collected</span>
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                EMI: ₹{form.emiAmount || '0'} + Savings: ₹{form.savingsAmount || '0'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
+                {formatMoney(amount)}
+              </span>
+            </div>
+          </div>
+
           <div className="sm:col-span-2">
             <Label className="text-xs text-muted-foreground">Remarks</Label>
-            <Textarea value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} rows={2} className="mt-1" />
+            <Textarea value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} rows={2} className="mt-1" placeholder="Optional notes, receipt memo..." />
           </div>
+
           {selectedAccount && amount > 0 && (
             <div className="sm:col-span-2 rounded-md bg-primary/10 p-2 text-sm flex justify-between">
               <span className="text-muted-foreground">New Outstanding will be:</span>
-              <span className="font-bold text-primary">{formatMoney(Math.max(selectedAccount.outstanding - amount, 0))}</span>
+              <span className="font-bold text-primary">{formatMoney(Math.max(selectedAccount.outstanding - (parseFloat(form.emiAmount) || amount), 0))}</span>
             </div>
           )}
         </div>

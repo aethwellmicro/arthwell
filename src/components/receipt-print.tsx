@@ -12,6 +12,8 @@ export interface ReceiptData {
   accountNumber?: string
   collectionDate: string
   amount: number
+  emiAmount?: number
+  savingsAmount?: number
   paymentMode: string
   collectedBy?: string
   previousOutstanding: number
@@ -21,6 +23,16 @@ export interface ReceiptData {
 
 export const ReceiptPrint = forwardRef<HTMLDivElement, { data: ReceiptData; className?: string }>(
   function ReceiptPrint({ data, className }, ref) {
+    // Parse EMI and Savings if explicitly provided or extract from remarks [EMI: ₹X | Savings: ₹Y]
+    let emi = data.emiAmount
+    let savings = data.savingsAmount
+    if (emi === undefined && savings === undefined && data.remarks) {
+      const emiMatch = data.remarks.match(/EMI:\s*₹?([\d.]+)/)
+      const savMatch = data.remarks.match(/Savings:\s*₹?([\d.]+)/)
+      if (emiMatch) emi = parseFloat(emiMatch[1])
+      if (savMatch) savings = parseFloat(savMatch[1])
+    }
+
     return (
       <div
         ref={ref}
@@ -61,9 +73,24 @@ export const ReceiptPrint = forwardRef<HTMLDivElement, { data: ReceiptData; clas
         {/* Amount Box */}
         <div className="border-t-2 border-dashed border-gray-300 pt-3 mb-3 bg-gray-50/70 p-2.5 rounded">
           <div className="flex justify-between items-center text-sm sm:text-base">
-            <span className="font-semibold text-gray-800">Amount Received</span>
+            <span className="font-semibold text-gray-800">Total Received</span>
             <span className="font-bold text-base sm:text-lg text-emerald-700">{formatMoney(data.amount)}</span>
           </div>
+
+          {/* Breakdown if EMI or Savings present */}
+          {(emi !== undefined || savings !== undefined) && (
+            <div className="bg-white/80 border border-gray-200 rounded p-2 my-2 space-y-1 text-xs">
+              <div className="flex justify-between text-gray-700">
+                <span>• Loan EMI Received:</span>
+                <span className="font-semibold">{formatMoney(emi ?? data.amount)}</span>
+              </div>
+              <div className="flex justify-between text-emerald-800">
+                <span>• Compulsory Savings:</span>
+                <span className="font-semibold">{formatMoney(savings ?? 0)}</span>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-between text-xs sm:text-sm text-gray-600 mt-1.5 pt-1.5 border-t border-gray-200">
             <span>Previous Outstanding</span>
             <span>{formatMoney(data.previousOutstanding)}</span>

@@ -3,16 +3,20 @@ import { json, error, withAuth, parseBody } from '@/lib/api'
 import { getActiveBusinessDate } from '@/lib/business-date'
 import { logAudit } from '@/lib/audit'
 import { num, parseCalendarDate } from '@/lib/calc'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(req: Request) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { searchParams } = new URL(req.url)
     const type = searchParams.get('type') || 'ALL'
     const status = searchParams.get('status') || 'ALL'
     const q = searchParams.get('q') || ''
     const businessDateStr = searchParams.get('businessDate')
+    const requestedBranchId = searchParams.get('branchId')
 
-    let whereClause: any = {}
+    const branchFilter = getBranchFilter(user, requestedBranchId)
+
+    let whereClause: any = { ...branchFilter }
     if (type !== 'ALL') whereClause.expenseType = type
     if (status !== 'ALL') whereClause.status = status
     if (businessDateStr) {
@@ -117,6 +121,7 @@ export async function POST(req: Request) {
         remarks,
         status: 'CONFIRMED',
         createdById: user.id,
+        branchId: user.branchId ?? null,
       },
       include: {
         businessDate: { select: { businessDate: true } },

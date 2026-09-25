@@ -11,6 +11,12 @@ export interface SessionUser {
   role: Role
   employeeCode?: string | null
   phone?: string | null
+  branchId?: string | null
+  branch?: {
+    id: string
+    branchCode: string
+    name: string
+  } | null
 }
 
 interface AppState {

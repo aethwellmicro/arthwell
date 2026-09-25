@@ -187,43 +187,46 @@ async function runWorkflowTests() {
     }
     const expectedAccNo = `ACC-${String(nextAccNum).padStart(4, '0')}`
 
-    const disbursementResult = await db.$transaction(async (tx) => {
-      // 1. Verify customer status is approved
-      const cust = await tx.customer.findUniqueOrThrow({ where: { id: testCustomer.id } })
-      if (cust.status !== 'APPROVED' && cust.status !== 'ACTIVE') {
-        throw new Error(`Customer must be approved by the Branch Manager before disbursement. Current: ${cust.status}`)
-      }
+    const disbursementResult = await db.$transaction(
+      async (tx) => {
+        // 1. Verify customer status is approved
+        const cust = await tx.customer.findUniqueOrThrow({ where: { id: testCustomer.id } })
+        if (cust.status !== 'APPROVED' && cust.status !== 'ACTIVE') {
+          throw new Error(`Customer must be approved by the Branch Manager before disbursement. Current: ${cust.status}`)
+        }
 
-      // 2. Create account
-      const acc = await tx.account.create({
-        data: {
-          accountNumber: expectedAccNo,
-          customerId: cust.id,
-          principal: 20000,
-          interestRate: 12.5,
-          interestType: 'FLAT',
-          interestPeriod: 'FLAT_PERIOD',
-          tenure: 25,
-          installmentFreq: 'WEEKLY',
-          installmentAmount: 900,
-          totalInterest: 2500,
-          totalPayable: 22500,
-          status: 'ACTIVE',
-          startDate: new Date(),
-          firstDueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000),
-          maturityDate: new Date(Date.now() + 175 * 24 * 3600 * 1000),
-          createdById: adminUser.id,
-        },
-      })
+        // 2. Create account
+        const acc = await tx.account.create({
+          data: {
+            accountNumber: expectedAccNo,
+            customerId: cust.id,
+            principal: 20000,
+            interestRate: 12.5,
+            interestType: 'FLAT',
+            interestPeriod: 'FLAT_PERIOD',
+            tenure: 25,
+            installmentFreq: 'WEEKLY',
+            installmentAmount: 900,
+            totalInterest: 2500,
+            totalPayable: 22500,
+            status: 'ACTIVE',
+            startDate: new Date(),
+            firstDueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+            maturityDate: new Date(Date.now() + 175 * 24 * 3600 * 1000),
+            createdById: adminUser.id,
+          },
+        })
 
-      // 3. Atomically update customer to DISBURSED
-      const updatedCust = await tx.customer.update({
-        where: { id: cust.id },
-        data: { status: 'DISBURSED' },
-      })
+        // 3. Atomically update customer to DISBURSED
+        const updatedCust = await tx.customer.update({
+          where: { id: cust.id },
+          data: { status: 'DISBURSED' },
+        })
 
-      return { account: acc, customer: updatedCust }
-    })
+        return { account: acc, customer: updatedCust }
+      },
+      { timeout: 25000, maxWait: 15000 }
+    )
     testAccountId = disbursementResult.account.id
     console.log(`✓ Loan Disbursed atomically! Account: ${disbursementResult.account.accountNumber}`)
     console.log(`✓ Customer Status transitioned to: ${disbursementResult.customer.status} (DISBURSED)`)

@@ -19,6 +19,8 @@ model User {
   employeeCode  String?  @unique
   phone         String?
   active        Boolean  @default(true)
+  branchId      String?
+  branch        Branch?  @relation(fields: [branchId], references: [id])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -29,6 +31,8 @@ model User {
   approvedCustomers Customer[] @relation("ApprovedBy")
   rejectedCustomers Customer[] @relation("RejectedBy")
   cancelledCustomers Customer[] @relation("CancelledBy")
+  approvedCollections Collection[] @relation("CollectionApprovedBy")
+  rejectedCollections Collection[] @relation("CollectionRejectedBy")
   auditLogs     AuditLog[]
   notifications Notification[]
   sessions      Session[]
@@ -41,6 +45,43 @@ model User {
   bankDeposits          BankDeposit[]  @relation("CreatedBy")
   investments           Investment[]   @relation("CreatedBy")
   expenses              Expense[]      @relation("CreatedBy")
+  managedBranches       Branch[]       @relation("BranchManager")
+  createdBranches       Branch[]       @relation("CreatedBranches")
+}
+
+model Branch {
+  id          String   @id @default(cuid())
+  branchCode  String   @unique // e.g. BR-0001 or PUNE-01
+  name        String   @unique // e.g. Pune Central, Nagpur Branch
+  city        String?
+  state       String?  @default("Maharashtra")
+  address     String?
+  pincode     String?
+  phone       String?
+  email       String?
+  status      String   @default("ACTIVE") // ACTIVE, INACTIVE
+  
+  managerId   String?
+  manager     User?    @relation("BranchManager", fields: [managerId], references: [id])
+  
+  createdById String?
+  createdBy   User?    @relation("CreatedBranches", fields: [createdById], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  groups      Group[]
+  customers   Customer[]
+  accounts    Account[]
+  collections Collection[]
+  investments Investment[]
+  expenses    Expense[]
+  bankDeposits BankDeposit[]
+  businessDates BusinessDate[]
+
+  @@index([status])
+  @@index([branchCode])
 }
 
 model Session {
@@ -57,6 +98,8 @@ model Group {
   groupId     String   @unique // GRP-0001
   name        String
   branch      String   @default("Main Branch")
+  branchId    String?
+  branchRel   Branch?  @relation(fields: [branchId], references: [id])
   description String?
   status      String   @default("ACTIVE") // ACTIVE, INACTIVE, CLOSED
   createdAt   DateTime @default(now())
@@ -68,6 +111,7 @@ model Group {
 
   @@index([status])
   @@index([branch])
+  @@index([branchId])
 }
 
 model LoanProduct {
@@ -112,6 +156,8 @@ model Customer {
   idNumber        String?
   amount          Float    @default(0) // Loan/credit amount requested at registration
   branch          String   @default("Main Branch")
+  branchId        String?
+  branchRel       Branch?  @relation(fields: [branchId], references: [id])
   status          String   @default("PENDING_VERIFICATION") // PENDING_VERIFICATION, APPROVED, REJECTED, CANCELLED, READY_FOR_DISBURSEMENT, DISBURSED, ACTIVE, CLOSED, BLOCKED
 
   groupId         String?
@@ -142,6 +188,7 @@ model Customer {
   @@index([groupId])
   @@index([status])
   @@index([branch])
+  @@index([branchId])
 }
 
 model BusinessDate {
@@ -149,6 +196,9 @@ model BusinessDate {
   businessDate          DateTime @unique // e.g. 2026-09-23 00:00:00
   status                String   @default("OPEN") // OPEN, RECONCILIATION_PENDING, CLOSED, REOPENED
   
+  branchId              String?
+  branch                Branch?  @relation(fields: [branchId], references: [id])
+
   openedAt              DateTime @default(now())
   openedById            String
   openedBy              User     @relation("OpenedBy", fields: [openedById], references: [id])
@@ -185,6 +235,7 @@ model BusinessDate {
 
   @@index([status])
   @@index([businessDate])
+  @@index([branchId])
 }
 
 model BankDeposit {
@@ -192,6 +243,9 @@ model BankDeposit {
   depositNumber   String       @unique // DEP-0001
   businessDateId  String
   businessDate    BusinessDate @relation(fields: [businessDateId], references: [id])
+
+  branchId        String?
+  branch          Branch?      @relation(fields: [branchId], references: [id])
 
   bankAccount     String       // e.g. HDFC Bank - 50200012345678
   amount          Decimal
@@ -206,6 +260,7 @@ model BankDeposit {
 
   @@index([businessDateId])
   @@index([depositDate])
+  @@index([branchId])
 }
 
 model Account {
@@ -213,6 +268,9 @@ model Account {
   accountNumber     String   @unique // LN-0001
   customerId        String
   customer          Customer @relation(fields: [customerId], references: [id])
+
+  branchId          String?
+  branch            Branch?  @relation(fields: [branchId], references: [id])
 
   productId         String?
   product           LoanProduct? @relation(fields: [productId], references: [id])
@@ -250,6 +308,7 @@ model Account {
   @@index([customerId])
   @@index([productId])
   @@index([businessDateId])
+  @@index([branchId])
 }
 
 model Installment {
@@ -283,6 +342,9 @@ model Collection {
   accountId           String
   account             Account  @relation(fields: [accountId], references: [id])
 
+  branchId            String?
+  branch              Branch?  @relation(fields: [branchId], references: [id])
+
   businessDateId      String?
   businessDate        BusinessDate? @relation(fields: [businessDateId], references: [id])
 
@@ -296,8 +358,20 @@ model Collection {
   currentOutstanding  Decimal  
   allocatedPrincipal  Decimal  @default(0)
   allocatedInterest   Decimal  @default(0)
+  allocatedSavings    Decimal  @default(0)
+  otherCharges        Decimal  @default(0)
   remarks             String?
-  status              String   @default("SUCCESSFUL") // SUCCESSFUL, REVERSED, CANCELLED
+  status              String   @default("PENDING_APPROVAL") // PENDING_APPROVAL, APPROVED, REJECTED, CANCELLED, SUCCESSFUL, REVERSED
+  
+  approvedById        String?
+  approvedBy          User?    @relation("CollectionApprovedBy", fields: [approvedById], references: [id])
+  approvedAt          DateTime?
+
+  rejectedById        String?
+  rejectedBy          User?    @relation("CollectionRejectedBy", fields: [rejectedById], references: [id])
+  rejectedAt          DateTime?
+  rejectionReason     String?
+
   reversalReason      String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
@@ -309,6 +383,7 @@ model Collection {
   @@index([accountId])
   @@index([businessDateId])
   @@index([collectionDate])
+  @@index([branchId])
 }
 
 model Receipt {
@@ -369,6 +444,9 @@ model Investment {
   businessDateId  String
   businessDate    BusinessDate @relation(fields: [businessDateId], references: [id])
 
+  branchId        String?
+  branch          Branch?      @relation(fields: [branchId], references: [id])
+
   investorName    String       // Name of investor, director, or institution
   investorPhone   String?
   investmentType  String       // DIRECTOR_MEMBER, INVESTOR_DEPOSIT, CAPITAL_INVESTMENT, INSTITUTIONAL, OTHER
@@ -392,6 +470,7 @@ model Investment {
   @@index([investmentDate])
   @@index([investmentType])
   @@index([status])
+  @@index([branchId])
 }
 
 model Expense {
@@ -399,6 +478,9 @@ model Expense {
   expenseNumber   String       @unique // EXP-0001
   businessDateId  String
   businessDate    BusinessDate @relation(fields: [businessDateId], references: [id])
+
+  branchId        String?
+  branch          Branch?      @relation(fields: [branchId], references: [id])
 
   expenseType     String       // INVESTMENT_INTEREST, OFFICE_EXPENSE, EMPLOYEE_SALARY, TRAVELING, STATIONERY_ADMIN, UTILITIES, RENT, OTHER
   particulars     String       // Description / bill / voucher detail
@@ -419,5 +501,6 @@ model Expense {
   @@index([expenseDate])
   @@index([expenseType])
   @@index([status])
+  @@index([branchId])
 }
 

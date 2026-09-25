@@ -130,6 +130,7 @@ export const STATUS_COLORS: Record<string, string> = {
   REVERSED: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
   CANCELLED: 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
   PENDING: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  PENDING_APPROVAL: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/40',
   PENDING_VERIFICATION: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/40',
   APPROVED: 'bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-300/40',
   READY_FOR_DISBURSEMENT: 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300/40',

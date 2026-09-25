@@ -27,6 +27,7 @@ import {
   CalendarClock,
   PiggyBank,
   ReceiptIndianRupee,
+  GitBranch,
 } from 'lucide-react'
 import { useApp, canManageUsers, canManageSettings } from '@/lib/store'
 import { apiFetch, formatMoneyCompact, ROLE_LABELS, ROLE_COLORS } from '@/lib/format'
@@ -77,6 +78,7 @@ const NAV: NavItem[] = [
   { href: '/eod', label: 'Day End / EOD', icon: CalendarClock },
   { href: '/receipts', label: 'Receipts', icon: ReceiptText },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
+  { href: '/branches', label: 'Branch Management', icon: GitBranch, restricted: true },
   { href: '/employees', label: 'Employees', icon: UserCog, restricted: true },
   { href: '/audit', label: 'Audit Logs', icon: ScrollText },
   { href: '/notifications', label: 'Notifications', icon: Bell },
@@ -95,6 +97,7 @@ const TITLES: Record<string, string> = {
   '/eod': 'Day End / EOD Reconciliation',
   '/receipts': 'Receipt Management',
   '/reports': 'Reports & Analytics',
+  '/branches': 'Branch Management',
   '/employees': 'Employee Management',
   '/audit': 'Audit Logs',
   '/notifications': 'Notifications',

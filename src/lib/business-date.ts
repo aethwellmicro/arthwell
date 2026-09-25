@@ -23,6 +23,10 @@ export interface BusinessDateWithTotals {
   cashCollections: number
   otherCollections: number
   totalCollections: number
+  pendingCollectionsCount: number
+  pendingCollectionsAmount: number
+  rejectedCollectionsCount: number
+  rejectedCollectionsAmount: number
   cashDisbursements: number
   totalDisbursements: number
   bankDeposits: number
@@ -56,7 +60,7 @@ export async function getActiveBusinessDate(user?: SessionUser, tx?: any): Promi
       orderBy: { businessDate: 'desc' },
     })
 
-    const initialDate = lastClosed ? addPeriod(parseCalendarDate(lastClosed.businessDate), 'DAILY') : parseCalendarDate(new Date())
+    const initialDate = lastClosed ? addPeriod(parseCalendarDate(lastClosed.businessDate), 'DAILY') : parseCalendarDate('2026-07-25')
     const initialOpening = lastClosed ? Number(lastClosed.closingCash) : 0
     const fallbackUserId = user?.id || (await client.user.findFirst({ where: { role: 'ADMIN' } }))?.id || ''
 
@@ -100,7 +104,7 @@ export async function getBusinessDateSummary(businessDateId: string, tx?: any): 
     include: {
       openedBy: { select: { id: true, name: true } },
       closedBy: { select: { id: true, name: true } },
-      collections: { where: { status: 'SUCCESSFUL' }, select: { amount: true, paymentMode: true } },
+      collections: { select: { amount: true, paymentMode: true, status: true } },
       accounts: { where: { status: { not: 'CANCELLED' } }, select: { principal: true } },
       bankDeposits: { select: { amount: true } },
       investments: { where: { status: { not: 'CANCELLED' } }, select: { amount: true, paymentMode: true } },
@@ -114,15 +118,28 @@ export async function getBusinessDateSummary(businessDateId: string, tx?: any): 
 
   const openingCash = num(bDate.openingCash)
 
-  // Collections breakdown
+  // Collections breakdown - ONLY APPROVED or legacy SUCCESSFUL count towards cash flow!
   let cashCollections: Money = 0
   let otherCollections: Money = 0
+  let pendingCollectionsCount = 0
+  let pendingCollectionsAmount: Money = 0
+  let rejectedCollectionsCount = 0
+  let rejectedCollectionsAmount: Money = 0
+
   for (const c of bDate.collections) {
     const amt = num(c.amount)
-    if (c.paymentMode === 'CASH') {
-      cashCollections = addMoney(cashCollections, amt)
-    } else {
-      otherCollections = addMoney(otherCollections, amt)
+    if (c.status === 'APPROVED' || c.status === 'SUCCESSFUL') {
+      if (c.paymentMode === 'CASH') {
+        cashCollections = addMoney(cashCollections, amt)
+      } else {
+        otherCollections = addMoney(otherCollections, amt)
+      }
+    } else if (c.status === 'PENDING_APPROVAL') {
+      pendingCollectionsCount++
+      pendingCollectionsAmount = addMoney(pendingCollectionsAmount, amt)
+    } else if (c.status === 'REJECTED') {
+      rejectedCollectionsCount++
+      rejectedCollectionsAmount = addMoney(rejectedCollectionsAmount, amt)
     }
   }
   const totalCollections = addMoney(cashCollections, otherCollections)
@@ -295,9 +312,11 @@ export async function closeActiveBusinessDate({
     const bDate = await tx.businessDate.findUnique({
       where: { id: businessDateId },
       include: {
-        collections: { where: { status: 'SUCCESSFUL' }, select: { amount: true, paymentMode: true } },
+        collections: { select: { amount: true, paymentMode: true, status: true } },
         accounts: { select: { principal: true } },
         bankDeposits: { select: { amount: true } },
+        investments: { where: { status: { not: 'CANCELLED' } }, select: { amount: true, paymentMode: true } },
+        expenses: { where: { status: { not: 'CANCELLED' } }, select: { amount: true, paymentMode: true } },
       },
     })
 
@@ -307,8 +326,13 @@ export async function closeActiveBusinessDate({
     // Calculate exact closing cash
     const openingCash = num(bDate.openingCash)
     let cashCollections = 0
+    let pendingCount = 0
     for (const c of bDate.collections) {
-      if (c.paymentMode === 'CASH') cashCollections = addMoney(cashCollections, num(c.amount))
+      if (c.status === 'APPROVED' || c.status === 'SUCCESSFUL') {
+        if (c.paymentMode === 'CASH') cashCollections = addMoney(cashCollections, num(c.amount))
+      } else if (c.status === 'PENDING_APPROVAL') {
+        pendingCount++
+      }
     }
     let cashDisbursements = 0
     for (const a of bDate.accounts) {
@@ -319,7 +343,19 @@ export async function closeActiveBusinessDate({
       bankDeposits = addMoney(bankDeposits, num(d.amount))
     }
 
-    const expectedClosingCash = Math.max(0, subMoney(subMoney(addMoney(openingCash, cashCollections), cashDisbursements), bankDeposits))
+    let cashInvestments = 0
+    for (const inv of bDate.investments) {
+      if (inv.paymentMode === 'CASH') cashInvestments = addMoney(cashInvestments, num(inv.amount))
+    }
+
+    let cashExpenses = 0
+    for (const exp of bDate.expenses) {
+      if (exp.paymentMode === 'CASH') cashExpenses = addMoney(cashExpenses, num(exp.amount))
+    }
+
+    const totalInflow = addMoney(addMoney(openingCash, cashCollections), cashInvestments)
+    const totalOutflow = addMoney(addMoney(cashDisbursements, cashExpenses), bankDeposits)
+    const expectedClosingCash = Math.max(0, subMoney(totalInflow, totalOutflow))
     const enteredActualCash = toMoney(actualCashInHand)
     const difference = subMoney(enteredActualCash, expectedClosingCash)
 

@@ -59,6 +59,7 @@ export function TransactionsView() {
   const [q, setQ] = useState('')
   const [typeFilter, setTypeFilter] = useState('ALL')
   const [bDateFilter, setBDateFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'APPROVED' | 'PENDING_APPROVAL' | 'ALL'>('APPROVED')
 
   // New Deposit modal state
   const [showDepositModal, setShowDepositModal] = useState(false)
@@ -77,6 +78,7 @@ export function TransactionsView() {
       const params = new URLSearchParams()
       if (typeFilter !== 'ALL') params.set('type', typeFilter)
       if (bDateFilter) params.set('businessDate', bDateFilter)
+      if (statusFilter !== 'ALL') params.set('status', statusFilter)
       params.set('limit', '300')
       const data = await apiFetch<{ items: TransactionItem[] }>(`/api/transactions?${params}`)
       let filtered = data.items
@@ -198,6 +200,18 @@ export function TransactionsView() {
               <SelectItem value="EXPENSE">Expenses (Debit -)</SelectItem>
               <SelectItem value="DISBURSEMENT">Disbursements (Debit -)</SelectItem>
               <SelectItem value="BANK_DEPOSIT">Bank Deposits (Debit -)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="w-[calc(50%-5px)] sm:w-[150px]">
+          <Label className="text-xs text-muted-foreground">Cash Book Status</Label>
+          <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="APPROVED">Final (Approved Cash)</SelectItem>
+              <SelectItem value="PENDING_APPROVAL">Pending Verification</SelectItem>
+              <SelectItem value="ALL">All Transactions</SelectItem>
             </SelectContent>
           </Select>
         </div>

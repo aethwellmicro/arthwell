@@ -36,6 +36,7 @@ type ReportType =
   | 'daily' | 'weekly' | 'monthly' | 'sixmonthly' | 'yearly'
   | 'customer' | 'employee' | 'paymentmode'
   | 'outstanding' | 'overdue' | 'accountstatus' | 'reconciliation'
+  | 'trial-balance' | 'profit-loss' | 'balance-sheet' | 'bank-reconciliation'
 
 const REPORTS: { key: ReportType; label: string; icon: any; group: string }[] = [
   { key: 'daily', label: 'Daily', icon: Calendar, group: 'Period' },
@@ -48,6 +49,10 @@ const REPORTS: { key: ReportType; label: string; icon: any; group: string }[] = 
   { key: 'paymentmode', label: 'Payment Mode', icon: CreditCard, group: 'Group' },
   { key: 'outstanding', label: 'Outstanding', icon: Landmark, group: 'Balance' },
   { key: 'overdue', label: 'Overdue', icon: AlertTriangle, group: 'Balance' },
+  { key: 'trial-balance', label: 'Trial Balance', icon: Scale, group: 'Accounting' },
+  { key: 'profit-loss', label: 'Profit & Loss', icon: BarChart3, group: 'Accounting' },
+  { key: 'balance-sheet', label: 'Balance Sheet', icon: Landmark, group: 'Accounting' },
+  { key: 'bank-reconciliation', label: 'Bank Reconciliation', icon: Landmark, group: 'Accounting' },
   { key: 'accountstatus', label: 'Account Status', icon: BarChart3, group: 'Status' },
   { key: 'reconciliation', label: 'Reconciliation', icon: Scale, group: 'Status' },
 ]
@@ -71,15 +76,20 @@ export function ReportsView() {
   const load = async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams({ type })
-      if (from) params.set('from', from)
-      if (to) params.set('to', to + 'T23:59:59')
-      if (employeeId) params.set('employeeId', employeeId)
-      if (paymentMode !== 'ALL') params.set('paymentMode', paymentMode)
-      if (statusFilter !== 'ALL') params.set('status', statusFilter)
-      if (area) params.set('area', area)
-      const d = await apiFetch<any>(`/api/reports?${params}`)
-      setData(d)
+      if (type === 'trial-balance' || type === 'profit-loss' || type === 'balance-sheet' || type === 'bank-reconciliation') {
+        const d = await apiFetch<any>(`/api/reports/accounting?report=${type}`)
+        setData(d)
+      } else {
+        const params = new URLSearchParams({ type })
+        if (from) params.set('from', from)
+        if (to) params.set('to', to + 'T23:59:59')
+        if (employeeId) params.set('employeeId', employeeId)
+        if (paymentMode !== 'ALL') params.set('paymentMode', paymentMode)
+        if (statusFilter !== 'ALL') params.set('status', statusFilter)
+        if (area) params.set('area', area)
+        const d = await apiFetch<any>(`/api/reports?${params}`)
+        setData(d)
+      }
     } catch (e: any) {
       toast.error(e.message)
     } finally {
@@ -256,7 +266,118 @@ export function ReportsView() {
       <SectionCard title={report.label + ' Report'} description={data?.summary ? `From ${formatDate(data.summary.dateFrom)} to ${formatDate(data.summary.dateTo)}` : undefined}>
         {loading ? (
           <LoadingRows rows={6} />
-        ) : !data || !data.items || data.items.length === 0 ? (
+        ) : !data ? (
+          <EmptyState message="No records found for the selected report / filters." icon={BarChart3} />
+        ) : type === 'trial-balance' ? (
+          <div className="max-h-[55vh] overflow-y-auto scroll-area overflow-x-auto">
+            <table className="w-full text-sm zebra-table min-w-[650px]">
+              <thead className="bg-muted/50 sticky top-0">
+                <tr className="text-left text-xs text-muted-foreground">
+                  <th className="px-3 py-2 font-medium">Account Code</th>
+                  <th className="px-3 py-2 font-medium">Account Description</th>
+                  <th className="px-3 py-2 font-medium text-right">Debit (₹)</th>
+                  <th className="px-3 py-2 font-medium text-right">Credit (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data.items || []).map((it: any, i: number) => (
+                  <tr key={i} className="border-b last:border-0 hover:bg-muted/40">
+                    <td className="px-3 py-2 font-mono text-xs">{it.code}</td>
+                    <td className="px-3 py-2 font-medium">{it.account}</td>
+                    <td className="px-3 py-2 text-right font-mono">{it.debit > 0 ? formatMoney(it.debit) : '—'}</td>
+                    <td className="px-3 py-2 text-right font-mono">{it.credit > 0 ? formatMoney(it.credit) : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-muted/40 font-bold sticky bottom-0">
+                <tr>
+                  <td colSpan={2} className="px-3 py-2 text-right">Total:</td>
+                  <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400 font-mono">{formatMoney(data.totalDebit || 0)}</td>
+                  <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400 font-mono">{formatMoney(data.totalCredit || 0)}</td>
+                </tr>
+                <tr>
+                  <td colSpan={2} className="px-3 py-1.5 text-right text-xs text-muted-foreground">Reconciliation Status:</td>
+                  <td colSpan={2} className="px-3 py-1.5 text-right font-mono text-xs">
+                    {data.reconciled ? (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold">✓ BALANCED (Total Debit = Total Credit)</span>
+                    ) : (
+                      <span className="text-amber-600 font-semibold">Variance: {formatMoney(data.difference || 0)}</span>
+                    )}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        ) : type === 'profit-loss' ? (
+          <div className="space-y-4 p-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-lg border p-4 bg-muted/20 space-y-2">
+                <h4 className="text-sm font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wide border-b pb-1">Operating &amp; Financial Income</h4>
+                <div className="flex justify-between text-xs py-1"><span>Interest Income from Loans:</span><span className="font-mono font-medium">{formatMoney(data.income?.interestIncome || 0)}</span></div>
+                <div className="flex justify-between text-xs py-1"><span>Processing Fees:</span><span className="font-mono font-medium">{formatMoney(data.income?.processingFees || 0)}</span></div>
+                <div className="flex justify-between text-xs py-1"><span>Insurance Premium / Other:</span><span className="font-mono font-medium">{formatMoney(data.income?.insuranceIncome || 0)}</span></div>
+                <div className="flex justify-between text-sm font-bold pt-2 border-t text-emerald-600"><span>Total Income:</span><span className="font-mono">{formatMoney(data.income?.totalIncome || 0)}</span></div>
+              </div>
+              <div className="rounded-lg border p-4 bg-muted/20 space-y-2">
+                <h4 className="text-sm font-bold text-rose-700 dark:text-rose-300 uppercase tracking-wide border-b pb-1">Operating &amp; Financial Expenses</h4>
+                <div className="flex justify-between text-xs py-1"><span>Operating &amp; Administrative:</span><span className="font-mono font-medium">{formatMoney(data.expenses?.operatingExpenses || 0)}</span></div>
+                <div className="flex justify-between text-xs py-1"><span>Interest &amp; Capital Cost:</span><span className="font-mono font-medium">{formatMoney(data.expenses?.interestExpense || 0)}</span></div>
+                <div className="flex justify-between text-xs py-1"><span>Other Expenses:</span><span className="font-mono font-medium">{formatMoney(data.expenses?.otherExpenses || 0)}</span></div>
+                <div className="flex justify-between text-sm font-bold pt-2 border-t text-rose-600"><span>Total Expenses:</span><span className="font-mono">{formatMoney(data.expenses?.totalExpenses || 0)}</span></div>
+              </div>
+            </div>
+            <div className="rounded-lg border bg-primary/5 p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-foreground">Net Profit / (Loss)</p>
+                <p className="text-xs text-muted-foreground">Total Income minus Operating &amp; Financial Expenses</p>
+              </div>
+              <p className={cn('text-xl font-bold font-mono', (data.netProfit || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600')}>
+                {formatMoney(data.netProfit || 0)}
+              </p>
+            </div>
+          </div>
+        ) : type === 'balance-sheet' ? (
+          <div className="space-y-4 p-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-lg border p-4 bg-muted/20 space-y-2">
+                <h4 className="text-sm font-bold text-primary uppercase tracking-wide border-b pb-1">Assets</h4>
+                <div className="flex justify-between text-xs py-1"><span>Cash in Hand (Vault):</span><span className="font-mono font-medium">{formatMoney(data.assets?.cashInHand || 0)}</span></div>
+                <div className="flex justify-between text-xs py-1"><span>Bank Accounts:</span><span className="font-mono font-medium">{formatMoney(data.assets?.bankAccounts || 0)}</span></div>
+                <div className="flex justify-between text-xs py-1"><span>Loan Receivables:</span><span className="font-mono font-medium">{formatMoney(data.assets?.loanReceivables || 0)}</span></div>
+                <div className="flex justify-between text-sm font-bold pt-2 border-t text-primary"><span>Total Assets:</span><span className="font-mono">{formatMoney(data.assets?.totalAssets || 0)}</span></div>
+              </div>
+              <div className="rounded-lg border p-4 bg-muted/20 space-y-2">
+                <h4 className="text-sm font-bold text-primary uppercase tracking-wide border-b pb-1">Liabilities &amp; Equity</h4>
+                <div className="flex justify-between text-xs py-1"><span>Customer Compulsory Savings:</span><span className="font-mono font-medium">{formatMoney(data.liabilities?.customerSavings || 0)}</span></div>
+                <div className="flex justify-between text-xs py-1"><span>Invested Capital:</span><span className="font-mono font-medium">{formatMoney(data.equity?.investedCapital || 0)}</span></div>
+                <div className="flex justify-between text-xs py-1"><span>Retained Earnings / Current Profit:</span><span className="font-mono font-medium">{formatMoney(data.equity?.retainedEarnings || 0)}</span></div>
+                <div className="flex justify-between text-sm font-bold pt-2 border-t text-primary"><span>Total Liabilities &amp; Equity:</span><span className="font-mono">{formatMoney(data.totalLiabilitiesAndEquity || 0)}</span></div>
+              </div>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-3 flex items-center justify-between text-xs">
+              <span className="font-medium text-muted-foreground">Balance Sheet Reconciliation:</span>
+              <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                {data.reconciled ? '✓ BALANCED (Total Assets = Liabilities + Equity)' : `Variance: ${formatMoney(data.variance || 0)}`}
+              </span>
+            </div>
+          </div>
+        ) : type === 'bank-reconciliation' ? (
+          <div className="max-w-xl mx-auto space-y-3 p-2">
+            <div className="rounded-lg border bg-muted/20 p-4 space-y-2.5 text-xs">
+              <div className="flex justify-between py-1"><span>1. Bank Balance as per Books:</span><span className="font-mono font-bold">{formatMoney(data.bookBalance || 0)}</span></div>
+              <div className="flex justify-between py-1 text-muted-foreground"><span>2. Add: Deposits in Transit:</span><span className="font-mono">{formatMoney(data.depositsInTransit || 0)}</span></div>
+              <div className="flex justify-between py-1 text-muted-foreground"><span>3. Less: Outstanding Cheques / Transfers:</span><span className="font-mono">{formatMoney(data.outstandingCheques || 0)}</span></div>
+              <div className="flex justify-between py-1 text-muted-foreground"><span>4. Less: Bank Charges not entered:</span><span className="font-mono">{formatMoney(data.bankCharges || 0)}</span></div>
+              <div className="flex justify-between py-2 border-t text-sm font-bold text-primary"><span>Reconciled Bank Balance:</span><span className="font-mono">{formatMoney(data.reconciledBalance || 0)}</span></div>
+              <div className="flex justify-between py-1.5 border-t text-xs">
+                <span>Reconciliation Difference:</span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                  {data.difference === 0 ? '₹0.00 (RECONCILED)' : formatMoney(data.difference)}
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : !data.items || data.items.length === 0 ? (
           <EmptyState message="No records found for the selected report / filters." icon={BarChart3} />
         ) : isGrouped && data.grouped ? (
           <div className="max-h-[55vh] overflow-y-auto scroll-area overflow-x-auto">

@@ -23,13 +23,14 @@ const customerSchema = z.object({
 })
 
 export async function GET(req: Request) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { searchParams } = new URL(req.url)
     const q = (searchParams.get('q') || '').trim()
     const status = searchParams.get('status') || undefined
     const area = searchParams.get('area') || undefined
     const groupId = searchParams.get('groupId') || undefined
     const branch = searchParams.get('branch') || undefined
+    const branchId = searchParams.get('branchId') || undefined
     const limit = parseInt(searchParams.get('limit') || '100')
     const offset = parseInt(searchParams.get('offset') || '0')
 
@@ -49,11 +50,21 @@ export async function GET(req: Request) {
     if (groupId && groupId !== 'ALL') where.groupId = groupId
     if (branch && branch !== 'ALL') where.branch = branch
 
+    // Enforce branch-wise access control
+    if (user.role !== 'ADMIN') {
+      if (user.branchId) {
+        where.branchId = user.branchId
+      }
+    } else if (branchId && branchId !== 'ALL') {
+      where.branchId = branchId
+    }
+
     const [items, total] = await Promise.all([
       db.customer.findMany({
         where,
         include: {
           group: { select: { id: true, groupId: true, name: true, branch: true } },
+          branchRel: { select: { id: true, branchCode: true, name: true } },
           _count: { select: { accounts: true, collections: true } },
           createdBy: { select: { id: true, name: true, role: true } },
           approvedBy: { select: { id: true, name: true } },
@@ -164,6 +175,7 @@ export async function POST(req: Request) {
           idNumber: data.idNumber || null,
           amount: data.amount,
           branch,
+          branchId: (group as any).branchId || user.branchId || null,
           groupId: group.id,
           status: initialStatus,
           approvedById: initialStatus === 'APPROVED' ? user.id : null,
