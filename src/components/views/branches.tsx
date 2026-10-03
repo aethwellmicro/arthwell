@@ -18,6 +18,8 @@ import {
   ShieldCheck,
   CheckCircle2,
   XCircle,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatMoneyCompact, formatDate } from '@/lib/format'
 import { useApp } from '@/lib/store'
@@ -242,9 +244,26 @@ export function BranchesView() {
   const [saving, setSaving] = useState(false)
   const [editTarget, setEditTarget] = useState<Branch | null>(null)
   const [editForm, setEditForm] = useState<any>({})
+  const [deleteTarget, setDeleteTarget] = useState<Branch | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Employees list for manager selection
   const [employees, setEmployees] = useState<Employee[]>([])
+
+  async function handleDeleteBranch() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await apiFetch(`/api/branches/${deleteTarget.id}`, { method: 'DELETE' })
+      toast.success(`Branch ${deleteTarget.name} deleted successfully.`)
+      setDeleteTarget(null)
+      load()
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to delete branch')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const load = async () => {
     setLoading(true)
@@ -486,6 +505,16 @@ export function BranchesView() {
                       <Button
                         size="icon"
                         variant="ghost"
+                        className="h-7 w-7 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                        onClick={() => setDeleteTarget(branch)}
+                        title="Delete branch"
+                        aria-label="Delete branch"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
                         className="h-7 w-7"
                         onClick={() => setExpandedId(expanded ? null : branch.id)}
                         aria-label={expanded ? 'Collapse' : 'Expand'}
@@ -639,6 +668,58 @@ export function BranchesView() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancel</Button>
             <Button onClick={saveEdit}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Branch Confirmation Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <Trash2 className="h-5 w-5" /> Delete Branch
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm text-foreground">
+            <p>
+              Are you sure you want to delete branch <strong className="font-semibold text-rose-600">{deleteTarget?.name}</strong> ({deleteTarget?.branchCode})?
+            </p>
+            {deleteTarget && (
+              <div className="bg-muted/50 p-3 rounded-md space-y-1.5 text-xs font-mono">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">City:</span>
+                  <span className="text-foreground">{deleteTarget.city || '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Linked Users:</span>
+                  <span className="text-foreground">{deleteTarget._count.users}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Linked Customers:</span>
+                  <span className="text-foreground">{deleteTarget._count.customers}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Linked Accounts:</span>
+                  <span className="text-foreground">{deleteTarget._count.accounts}</span>
+                </div>
+              </div>
+            )}
+            <div className="bg-rose-50 dark:bg-rose-950/30 p-2.5 rounded border border-rose-200 dark:border-rose-900 text-xs text-rose-900 dark:text-rose-200">
+              <p className="font-semibold flex items-center gap-1 mb-0.5">
+                <AlertTriangle className="h-3.5 w-3.5" /> Deletion Guard:
+              </p>
+              <p>
+                Branches with active customers, accounts, or collections cannot be deleted. You must reassign or close all records first.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteBranch} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete Branch'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

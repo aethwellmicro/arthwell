@@ -135,7 +135,7 @@ export async function POST(req: Request) {
     })
     if (recent) return error('A duplicate collection entry was detected. Please wait or check the list.', 409)
 
-    const activeBDate = await getActiveBusinessDate(user)
+    const activeBDate = await getActiveBusinessDate(user, undefined, collectionDateStr || undefined)
     if (!activeBDate) {
       return error('No active business date found. Please initialize a business date first.', 422)
     }

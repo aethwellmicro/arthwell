@@ -18,6 +18,7 @@ import {
   XCircle,
   ShieldCheck,
   Clock,
+  Trash2,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatDateTime, todayInput, STATUS_COLORS, downloadCSV } from '@/lib/format'
 import { useApp, canReverse } from '@/lib/store'
@@ -111,6 +112,7 @@ export function CollectionsView() {
   const [pageSize, setPageSize] = useState(25)
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc' | null>(null)
+  const paginatedItems = items.slice((page - 1) * pageSize, page * pageSize)
   const [loading, setLoading] = useState(true)
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -124,6 +126,8 @@ export function CollectionsView() {
   const [receipt, setReceipt] = useState<any>(null)
   const [reverseTarget, setReverseTarget] = useState<Collection | null>(null)
   const [reverseReason, setReverseReason] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<Collection | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [viewTarget, setViewTarget] = useState<Collection | null>(null)
   const receiptRef = useRef<HTMLDivElement>(null)
 
@@ -243,10 +247,24 @@ export function CollectionsView() {
       })
       toast.success('Transaction reversed')
       setReverseTarget(null)
-      setReverseReason('')
       load()
     } catch (e: any) {
       toast.error(e.message)
+    }
+  }
+
+  async function handleDeleteCollection() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await apiFetch(`/api/collections/${deleteTarget.id}`, { method: 'DELETE' })
+      toast.success(`Collection ${deleteTarget.receiptNumber} deleted.`)
+      setDeleteTarget(null)
+      load()
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -453,6 +471,17 @@ export function CollectionsView() {
                                 <Check className="h-3.5 w-3.5 mr-1" />
                                 {approvingId === c.id ? 'Approving...' : 'Approve'}
                               </Button>
+                              {(user?.role === 'ADMIN' || user?.role === 'BRANCH_MANAGER') && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                                  onClick={() => setDeleteTarget(c)}
+                                  title="Delete Entry"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -518,9 +547,35 @@ export function CollectionsView() {
                                       <Check className="h-3.5 w-3.5 mr-1" />
                                       {approvingId === c.id ? 'Approving...' : 'Approve'}
                                     </Button>
+                                    {(user?.role === 'ADMIN' || user?.role === 'BRANCH_MANAGER') && (
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                                        onClick={() => setDeleteTarget(c)}
+                                        title="Delete Entry"
+                                        aria-label="Delete entry"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    )}
                                   </div>
                                 ) : (
-                                  <span className="text-xs text-muted-foreground italic">Awaiting Back Office</span>
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <span className="text-xs text-muted-foreground italic">Awaiting Back Office</span>
+                                    {(user?.role === 'ADMIN' || user?.role === 'BRANCH_MANAGER') && (
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                                        onClick={() => setDeleteTarget(c)}
+                                        title="Delete Entry"
+                                        aria-label="Delete entry"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    )}
+                                  </div>
                                 )}
                               </td>
                             </tr>
@@ -934,8 +989,13 @@ export function CollectionsView() {
                       <Printer className="h-3.5 w-3.5 mr-1" /> Receipt
                     </Button>
                     {canReverse(user?.role) && (c.status === 'SUCCESSFUL' || c.status === 'APPROVED') && (
-                      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-amber-600" onClick={() => setReverseTarget(c)}>
+                      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-amber-600" onClick={() => setReverseTarget(c)} title="Reverse Transaction">
                         <Undo2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {(user?.role === 'ADMIN' || user?.role === 'BRANCH_MANAGER') && (
+                      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50" onClick={() => setDeleteTarget(c)} title="Delete Entry">
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     )}
                   </div>
@@ -1021,6 +1081,9 @@ export function CollectionsView() {
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setViewTarget(c)} aria-label="View details"><Eye className="h-3.5 w-3.5" /></Button>
                         {canReverse(user?.role) && (c.status === 'SUCCESSFUL' || c.status === 'APPROVED') && (
                           <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600" onClick={() => setReverseTarget(c)} aria-label="Reverse transaction"><Undo2 className="h-3.5 w-3.5" /></Button>
+                        )}
+                        {(user?.role === 'ADMIN' || user?.role === 'BRANCH_MANAGER') && (
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-rose-600 hover:text-rose-700 hover:bg-rose-50" onClick={() => setDeleteTarget(c)} aria-label="Delete entry" title="Delete Entry"><Trash2 className="h-3.5 w-3.5" /></Button>
                         )}
                       </div>
                     </td>
@@ -1189,6 +1252,37 @@ export function CollectionsView() {
             <Button variant="outline" onClick={() => { setRejectTarget(null); setRejectReason('') }}>Cancel</Button>
             <Button variant="destructive" onClick={handleReject} disabled={rejecting || !rejectReason.trim()}>
               {rejecting ? 'Rejecting...' : 'Confirm Rejection'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Collection Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null) }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <Trash2 className="h-5 w-5" /> Delete Collection Entry
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm">
+            <p>
+              Are you sure you want to permanently delete receipt{' '}
+              <span className="font-mono font-semibold">{deleteTarget?.receiptNumber}</span> for{' '}
+              <span className="font-semibold">{formatMoney(deleteTarget?.amount || 0)}</span> (
+              {deleteTarget?.customer.fullName})?
+            </p>
+            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-xs text-amber-900 dark:text-amber-200">
+              <Clock className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+              <span>
+                If this transaction was already approved or successful, deleting it will restore the customer’s loan outstanding balance and de-allocate paid installments automatically.
+              </span>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeleteCollection} disabled={deleting}>
+              {deleting ? 'Deleting...' : 'Delete Permanently'}
             </Button>
           </DialogFooter>
         </DialogContent>

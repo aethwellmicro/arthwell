@@ -39,10 +39,72 @@ export interface BusinessDateWithTotals {
 
 /**
  * Returns the currently active (OPEN, REOPENED or RECONCILIATION_PENDING) business date.
+ * If a targetDate is provided, matches that specific date or automatically initializes it.
  * If none exists, automatically initializes today's date (or user requested) as the first business date.
  */
-export async function getActiveBusinessDate(user?: SessionUser, tx?: any): Promise<any> {
+export async function getActiveBusinessDate(user?: SessionUser, tx?: any, targetDate?: string | Date | null): Promise<any> {
   const client = tx || db
+
+  // 1. If targetDate is provided (e.g. backdated transaction for 2026-07-27)
+  if (targetDate) {
+    const d = typeof targetDate === 'string' ? new Date(targetDate) : targetDate
+    if (!isNaN(d.getTime())) {
+      const dateStr = d.toISOString().slice(0, 10)
+      const dayStart = new Date(dateStr + 'T00:00:00.000Z')
+      const dayEnd = new Date(dateStr + 'T23:59:59.999Z')
+
+      // Look for OPEN/REOPENED date in that day window
+      let matched = await client.businessDate.findFirst({
+        where: {
+          businessDate: { gte: dayStart, lte: dayEnd },
+          status: { in: ['OPEN', 'REOPENED', 'RECONCILIATION_PENDING'] },
+        },
+        include: {
+          openedBy: { select: { id: true, name: true, role: true } },
+          closedBy: { select: { id: true, name: true } },
+          reopenedBy: { select: { id: true, name: true } },
+        },
+        orderBy: { businessDate: 'asc' },
+      })
+
+      if (matched) return matched
+
+      // If existing but closed, still return it so the caller can handle or reopen
+      const closed = await client.businessDate.findFirst({
+        where: {
+          businessDate: { gte: dayStart, lte: dayEnd },
+        },
+        include: {
+          openedBy: { select: { id: true, name: true, role: true } },
+          closedBy: { select: { id: true, name: true } },
+          reopenedBy: { select: { id: true, name: true } },
+        },
+      })
+      if (closed) return closed
+
+      // If no business date exists for this date, create it automatically as OPEN
+      const fallbackUserId = user?.id || (await client.user.findFirst({ where: { role: 'ADMIN' } }))?.id || ''
+      if (fallbackUserId) {
+        const exactDate = parseCalendarDate(dateStr)
+        matched = await client.businessDate.create({
+          data: {
+            businessDate: exactDate,
+            status: 'OPEN',
+            openedById: fallbackUserId,
+            openingCash: 0,
+            closingCash: 0,
+            reconciliationStatus: 'PENDING',
+          },
+          include: {
+            openedBy: { select: { id: true, name: true, role: true } },
+            closedBy: { select: { id: true, name: true } },
+          },
+        })
+        return matched
+      }
+    }
+  }
+
   let active = await client.businessDate.findFirst({
     where: { status: { in: ['OPEN', 'REOPENED', 'RECONCILIATION_PENDING'] } },
     include: {
@@ -50,7 +112,7 @@ export async function getActiveBusinessDate(user?: SessionUser, tx?: any): Promi
       closedBy: { select: { id: true, name: true } },
       reopenedBy: { select: { id: true, name: true } },
     },
-    orderBy: { businessDate: 'desc' },
+    orderBy: { businessDate: 'asc' },
   })
 
   if (!active) {
@@ -203,6 +265,10 @@ export async function getBusinessDateSummary(businessDateId: string, tx?: any): 
     cashCollections,
     otherCollections,
     totalCollections,
+    pendingCollectionsCount,
+    pendingCollectionsAmount,
+    rejectedCollectionsCount,
+    rejectedCollectionsAmount,
     cashDisbursements,
     totalDisbursements,
     bankDeposits,
@@ -248,19 +314,8 @@ export async function reopenBusinessDate({
   return await db.$transaction(async (tx) => {
     const b = await tx.businessDate.findUnique({ where: { id: businessDateId } })
     if (!b) throw new Error('Business date not found.')
-    if (b.status !== 'CLOSED') {
-      throw new Error(`Business date is in status "${b.status}". Only CLOSED dates can be reopened.`)
-    }
-
-    // Check if any later date has transactions that would cause inconsistent accounting
-    const laterActive = await tx.businessDate.findFirst({
-      where: {
-        businessDate: { gt: b.businessDate },
-        status: { in: ['OPEN', 'REOPENED'] },
-      },
-    })
-    if (laterActive) {
-      throw new Error(`Cannot reopen date ${b.businessDate.toISOString().slice(0, 10)} while a later business date (${laterActive.businessDate.toISOString().slice(0, 10)}) is currently open. Complete or close it first.`)
+    if (b.status === 'OPEN' || b.status === 'REOPENED') {
+      return b
     }
 
     const reopened = await tx.businessDate.update({
@@ -308,7 +363,7 @@ export async function closeActiveBusinessDate({
   differenceReason?: string
   notes?: string
 }): Promise<{ closedDate: any; nextDate: any }> {
-  return await db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     const bDate = await tx.businessDate.findUnique({
       where: { id: businessDateId },
       include: {
@@ -411,7 +466,13 @@ export async function closeActiveBusinessDate({
       })
     }
 
-    // 3. Log Audit entries
+    return { closedDate, nextDate, expectedClosingCash, enteredActualCash, difference }
+  }, { timeout: 15000, maxWait: 10000 })
+
+  const { closedDate, nextDate, expectedClosingCash, enteredActualCash, difference } = result
+
+  // 3. Log Audit entries outside transaction to avoid connection pool contention
+  if (user) {
     await logAudit({
       user,
       action: 'EOD_CLOSED',
@@ -438,7 +499,7 @@ export async function closeActiveBusinessDate({
         openingCash: enteredActualCash,
       },
     })
+  }
 
-    return { closedDate, nextDate }
-  })
+  return { closedDate, nextDate }
 }

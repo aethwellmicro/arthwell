@@ -17,6 +17,7 @@ import {
   RotateCcw,
   FileText,
   Printer,
+  Trash2,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatDateTime, formatDate, downloadCSV } from '@/lib/format'
 import { useApp } from '@/lib/store'
@@ -124,14 +125,26 @@ export function EODView() {
     eodReviewed: false,
   })
 
-  const load = useCallback(async () => {
+  // Date selector for independent date processing
+  const [selectedDate, setSelectedDate] = useState<string>('')
+  const [openDates, setOpenDates] = useState<{ id: string; businessDate: string; status: string }[]>([])
+
+  const load = useCallback(async (targetDate?: string) => {
     setLoading(true)
     try {
+      const q = targetDate ? `?date=${targetDate}` : ''
       const [cur, hist] = await Promise.all([
-        apiFetch<{ active: any; summary: BusinessDateSummary | null }>('/api/business-date/eod'),
+        apiFetch<{ active: any; summary: BusinessDateSummary | null; openDates?: any[] }>(`/api/business-date/eod${q}`),
         apiFetch<{ items: EODHistoryItem[] }>('/api/business-date/eod?history=true'),
       ])
       setData(cur)
+      if (cur.openDates && cur.openDates.length > 0) {
+        setOpenDates(cur.openDates)
+        if (!targetDate && cur.active) {
+          const dtStr = cur.active.businessDate ? (typeof cur.active.businessDate === 'string' ? cur.active.businessDate.slice(0, 10) : new Date(cur.active.businessDate).toISOString().slice(0, 10)) : ''
+          setSelectedDate(dtStr)
+        }
+      }
       setHistory(hist.items || [])
     } catch (e: any) {
       toast.error(e.message)
@@ -172,6 +185,7 @@ export function EODView() {
       const res = await apiFetch<any>('/api/business-date/eod', {
         method: 'POST',
         body: JSON.stringify({
+          businessDateId: summary.id,
           actualCashInHand: enteredCashNum,
           differenceReason: differenceReason.trim() || undefined,
           notes: eodNotes.trim() || undefined,
@@ -218,17 +232,30 @@ export function EODView() {
   }
 
   async function handleReopenDay() {
-    if (!reopenTargetDate && !reopenTargetId) return toast.error('Business date to reopen is required.')
     if (!reopenReason.trim()) return toast.error('Mandatory reason for reopening must be provided.')
+
+    // Find matching ID from target ID, history, or active summary
+    let matchedId = reopenTargetId
+    if (!matchedId && reopenTargetDate) {
+      const found = history.find((h) => h.businessDate === reopenTargetDate)
+      if (found) matchedId = found.id
+      else if (summary?.businessDate === reopenTargetDate) matchedId = summary.id
+    }
+    // If still no ID or date, check if history has any closed dates or summary
+    if (!matchedId && !reopenTargetDate) {
+      if (history.length > 0) {
+        matchedId = history[0].id
+      } else if (summary?.status === 'CLOSED') {
+        matchedId = summary.id
+      }
+    }
+
+    if (!matchedId && !reopenTargetDate) {
+      return toast.error('Please select or specify a business date to reopen.')
+    }
+
     setReopening(true)
     try {
-      // Find matching ID from history if target ID wasn't directly passed
-      let matchedId = reopenTargetId
-      if (!matchedId && reopenTargetDate) {
-        const found = history.find((h) => h.businessDate === reopenTargetDate)
-        if (found) matchedId = found.id
-      }
-
       const res = await apiFetch<any>('/api/business-date/reopen', {
         method: 'POST',
         body: JSON.stringify({
@@ -237,7 +264,7 @@ export function EODView() {
           reason: reopenReason.trim(),
         }),
       })
-      toast.success(res.message || `Business date ${reopenTargetDate} reopened successfully.`)
+      toast.success(res.message || `Business date reopened successfully.`)
       setShowReopenModal(false)
       setReopenTargetDate('')
       setReopenTargetId('')
@@ -276,13 +303,35 @@ export function EODView() {
                 </Badge>
               )}
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              Active Business Date:{' '}
-              <span className="font-mono font-semibold text-foreground">
-                {summary ? summary.businessDate : 'Not Initialized'}
-              </span>{' '}
-              · Opened by {summary?.openedBy?.name || 'System'}
-            </p>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <span className="text-xs text-muted-foreground">Active Business Date:</span>
+              {openDates.length > 0 ? (
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={selectedDate || summary?.businessDate || ''}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setSelectedDate(val)
+                      load(val)
+                    }}
+                    className="bg-card text-foreground font-mono font-bold text-xs border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+                    aria-label="Select open business date"
+                  >
+                    {openDates.map((d) => (
+                      <option key={d.id} value={d.businessDate}>
+                        {d.businessDate} ({d.status})
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[11px] text-muted-foreground">({openDates.length} dates open)</span>
+                </div>
+              ) : (
+                <span className="font-mono font-semibold text-foreground">
+                  {summary ? summary.businessDate : 'Not Initialized'}
+                </span>
+              )}
+              <span className="text-xs text-muted-foreground">· Opened by {summary?.openedBy?.name || 'System'}</span>
+            </div>
           </div>
         </div>
 
@@ -290,7 +339,7 @@ export function EODView() {
           <Button variant="outline" size="sm" onClick={() => openEodReport()} className="flex-1 sm:flex-initial">
             <FileText className="h-3.5 w-3.5 mr-1.5" /> Daily EOD Report
           </Button>
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="flex-1 sm:flex-initial">
+          <Button variant="outline" size="sm" onClick={() => load()} disabled={loading} className="flex-1 sm:flex-initial">
             <RefreshCw className={cn('h-3.5 w-3.5 mr-1.5', loading && 'animate-spin')} /> Refresh
           </Button>
           {user?.role === 'ADMIN' && (
@@ -298,7 +347,16 @@ export function EODView() {
               variant="outline"
               size="sm"
               onClick={() => {
-                setReopenTargetDate(summary?.businessDate || '')
+                const targetDate = summary?.businessDate || ''
+                setReopenTargetDate(targetDate)
+                // If summary itself is closed or matching an item in history, set targetId
+                const matchingHistory = history.find((h) => h.businessDate === targetDate)
+                const fallbackId = matchingHistory?.id || (summary?.status === 'CLOSED' ? summary.id : history[0]?.id || '')
+                setReopenTargetId(fallbackId)
+                if (fallbackId && !targetDate) {
+                  const item = history.find((h) => h.id === fallbackId)
+                  if (item) setReopenTargetDate(item.businessDate)
+                }
                 setShowReopenModal(true)
               }}
               className="flex-1 sm:flex-initial text-amber-600 hover:text-amber-700 border-amber-300"
@@ -988,6 +1046,7 @@ export function EODView() {
                           <th className="px-3 py-1.5 font-medium">Bank Account</th>
                           <th className="px-3 py-1.5 font-medium">Reference</th>
                           <th className="px-3 py-1.5 font-medium text-right">Amount</th>
+                          {user?.role === 'ADMIN' && <th className="px-3 py-1.5 font-medium text-right">Action</th>}
                         </tr>
                       </thead>
                       <tbody>
@@ -996,6 +1055,29 @@ export function EODView() {
                             <td className="px-3 py-1.5 font-medium">{d.bankAccount}</td>
                             <td className="px-3 py-1.5 font-mono">{d.referenceNumber || '—'}</td>
                             <td className="px-3 py-1.5 text-right font-bold text-blue-600">{formatMoney(d.amount)}</td>
+                            {user?.role === 'ADMIN' && (
+                              <td className="px-3 py-1.5 text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
+                                  title="Delete Bank Deposit"
+                                  onClick={async () => {
+                                    if (!confirm(`Are you sure you want to delete bank deposit for ${d.bankAccount} (${formatMoney(d.amount)})?`)) return
+                                    try {
+                                      await apiFetch(`/api/bank-deposits/${d.id}`, { method: 'DELETE' })
+                                      toast.success('Bank deposit deleted successfully')
+                                      openEodReport(reportData.report.businessDate)
+                                      load()
+                                    } catch (err: any) {
+                                      toast.error(err.message || 'Failed to delete bank deposit')
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </td>
+                            )}
                           </tr>
                         ))}
                       </tbody>

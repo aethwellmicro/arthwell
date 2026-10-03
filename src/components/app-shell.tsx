@@ -80,7 +80,7 @@ const NAV: NavItem[] = [
   { href: '/reports', label: 'Reports', icon: BarChart3 },
   { href: '/branches', label: 'Branch Management', icon: GitBranch, restricted: true },
   { href: '/employees', label: 'Employees', icon: UserCog, restricted: true },
-  { href: '/audit', label: 'Audit Logs', icon: ScrollText },
+  { href: '/audit', label: 'Audit & Reports', icon: ScrollText },
   { href: '/notifications', label: 'Notifications', icon: Bell },
   { href: '/settings', label: 'Settings', icon: SettingsIcon, restricted: true },
 ]
@@ -99,7 +99,7 @@ const TITLES: Record<string, string> = {
   '/reports': 'Reports & Analytics',
   '/branches': 'Branch Management',
   '/employees': 'Employee Management',
-  '/audit': 'Audit Logs',
+  '/audit': 'Audit & Financial Reports',
   '/notifications': 'Notifications',
   '/settings': 'System Settings',
 }
@@ -141,20 +141,39 @@ function NotificationBadge({ active }: { active: boolean }) {
 }
 
 function SidebarQuickStats() {
-  const [stats, setStats] = useState<{ todayCollected: number; overdueCount: number } | null>(null)
+  const { dashboardCache } = useApp()
+  const [stats, setStats] = useState<{ todayCollected: number; overdueCount: number } | null>(
+    dashboardCache.data?.stats
+      ? { todayCollected: dashboardCache.data.stats.todayCollected, overdueCount: dashboardCache.data.stats.overdueAccountCount }
+      : null
+  )
+
+  useEffect(() => {
+    if (dashboardCache.data?.stats) {
+      setStats({
+        todayCollected: dashboardCache.data.stats.todayCollected,
+        overdueCount: dashboardCache.data.stats.overdueAccountCount,
+      })
+    }
+  }, [dashboardCache.data])
 
   useEffect(() => {
     let cancel = false
     async function load() {
+      if (dashboardCache.lastFetched && Date.now() - dashboardCache.lastFetched < 60000) {
+        return
+      }
       try {
         const d = await apiFetch<{ stats: { todayCollected: number; overdueAccountCount: number } }>('/api/dashboard')
         if (!cancel) setStats({ todayCollected: d.stats.todayCollected, overdueCount: d.stats.overdueAccountCount })
       } catch {}
     }
-    load()
-    const interval = setInterval(load, 60000) // refresh every minute
+    if (!dashboardCache.data) {
+      load()
+    }
+    const interval = setInterval(load, 60000)
     return () => { cancel = true; clearInterval(interval) }
-  }, [])
+  }, [dashboardCache.lastFetched, dashboardCache.data])
 
   if (!stats) return null
 

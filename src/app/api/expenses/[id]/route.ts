@@ -70,3 +70,42 @@ export async function PATCH(
     })
   })
 }
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return withAuth(async (user) => {
+    const { id } = await params
+    const item = await db.expense.findUnique({
+      where: { id },
+      include: { businessDate: true },
+    })
+    if (!item) return error('Expense not found.', 404)
+
+    if (user.role !== 'ADMIN' && user.role !== 'BRANCH_MANAGER') {
+      return error('Unauthorized to delete expense entries.', 403)
+    }
+
+    if (item.businessDate.status === 'CLOSED' && user.role !== 'ADMIN') {
+      return error('Cannot delete an expense from a closed business date. Contact Administrator.', 422)
+    }
+
+    await db.expense.delete({ where: { id } })
+
+    await logAudit({
+      user,
+      action: 'EXPENSE_DELETED',
+      entity: 'EXPENSE',
+      entityId: id,
+      oldValue: {
+        expenseNumber: item.expenseNumber,
+        amount: num(item.amount),
+        expenseType: item.expenseType,
+        particulars: item.particulars,
+      },
+    })
+
+    return json({ success: true, message: 'Expense deleted successfully.' })
+  })
+}

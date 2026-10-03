@@ -2,14 +2,27 @@ import { db } from '@/lib/db'
 import { json, withAuth, startOfDay, endOfDay, startOfWeek, startOfMonth, addMonths } from '@/lib/api'
 import { num } from '@/lib/calc'
 
-export async function GET() {
+let serverDashboardCache: { data: any; expiry: number } | null = null
+const SERVER_CACHE_TTL = 3000 // 3 seconds burst cache
+
+export async function GET(req: Request) {
   return withAuth(async () => {
+    const url = new URL(req.url)
+    const bypassCache = url.searchParams.get('refresh') === '1'
+
+    const nowTime = Date.now()
+    if (!bypassCache && serverDashboardCache && nowTime < serverDashboardCache.expiry) {
+      return json(serverDashboardCache.data)
+    }
+
     const now = new Date()
     const todayStart = startOfDay(now)
     const todayEnd = endOfDay(now)
     const weekStart = startOfWeek(now)
     const monthStart = startOfMonth(now)
     const sixMonthsAgo = addMonths(now, -6)
+    const sevenDaysLater = new Date(now)
+    sevenDaysLater.setDate(sevenDaysLater.getDate() + 7)
 
     const [
       totalCustomers,
@@ -26,6 +39,10 @@ export async function GET() {
       monthCollections,
       sixMonthCollections,
       pendingApprovalList,
+      employees,
+      overdueInstallments,
+      dueToday,
+      upcomingInstallments,
     ] = await Promise.all([
       db.customer.count(),
       db.customer.count({ where: { status: { in: ['ACTIVE', 'APPROVED', 'DISBURSED'] } } }),
@@ -49,6 +66,22 @@ export async function GET() {
         orderBy: { createdAt: 'desc' },
         take: 10,
       }),
+      db.user.findMany({ select: { id: true, name: true, role: true } }),
+      db.installment.findMany({
+        where: { dueDate: { lt: now }, status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] } },
+        include: { account: { include: { customer: { select: { fullName: true, customerId: true, primaryMobile: true } } } } },
+      }),
+      db.installment.findMany({
+        where: { dueDate: { lte: todayEnd }, status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] } },
+        select: { amount: true, paidAmount: true },
+      }),
+      db.installment.findMany({
+        where: {
+          dueDate: { gt: todayEnd, lte: sevenDaysLater },
+          status: { in: ['PENDING', 'PARTIAL'] },
+        },
+        select: { amount: true, paidAmount: true, dueDate: true },
+      }),
     ])
 
     const totalDisbursed = accounts.reduce((s, a) => s + num(a.principal), 0)
@@ -66,17 +99,11 @@ export async function GET() {
     // by employee
     const byEmployeeRaw: Record<string, number> = {}
     for (const c of allCollections) byEmployeeRaw[c.collectedById] = (byEmployeeRaw[c.collectedById] || 0) + num(c.amount)
-    const employees = await db.user.findMany({ select: { id: true, name: true, role: true } })
     const byEmployee = employees
       .map((e) => ({ name: e.name, role: e.role, amount: byEmployeeRaw[e.id] || 0 }))
       .filter((e) => e.amount > 0)
       .sort((a, b) => b.amount - a.amount)
 
-    // overdue accounts: installments past due
-    const overdueInstallments = await db.installment.findMany({
-      where: { dueDate: { lt: now }, status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] } },
-      include: { account: { include: { customer: { select: { fullName: true, customerId: true, primaryMobile: true } } } } },
-    })
     const overdueAccountsMap = new Map<string, { accountNumber: string; customer: string; customerId: string; mobile: string; overdueAmount: number; oldestDueDate: Date; maxOverdueDays: number }>()
     for (const inst of overdueInstallments) {
       const due = num(inst.amount) - num(inst.paidAmount)
@@ -118,23 +145,10 @@ export async function GET() {
     }
 
     // today's due (sum of installments due today or earlier that are unpaid)
-    const dueToday = await db.installment.findMany({
-      where: { dueDate: { lte: todayEnd }, status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] } },
-      select: { amount: true, paidAmount: true },
-    })
     const todayDueAmount = dueToday.reduce((s, i) => s + (num(i.amount) - num(i.paidAmount)), 0)
     const todayPending = Math.max(todayDueAmount - todayCollectedAmount, 0)
 
     // projected collections for next 7 days (upcoming due installments)
-    const sevenDaysLater = new Date(now)
-    sevenDaysLater.setDate(sevenDaysLater.getDate() + 7)
-    const upcomingInstallments = await db.installment.findMany({
-      where: {
-        dueDate: { gt: todayEnd, lte: sevenDaysLater },
-        status: { in: ['PENDING', 'PARTIAL'] },
-      },
-      select: { amount: true, paidAmount: true, dueDate: true },
-    })
     const projectedCollections = upcomingInstallments.reduce((s, i) => s + (num(i.amount) - num(i.paidAmount)), 0)
     // daily breakdown for next 7 days
     const projectedDaily: { date: string; amount: number }[] = []
@@ -167,7 +181,7 @@ export async function GET() {
       return acc
     }, {} as Record<string, number>)
 
-    return json({
+    const result = {
       stats: {
         totalCustomers,
         activeCustomers,
@@ -221,6 +235,13 @@ export async function GET() {
       statusBreakdown,
       agingBuckets,
       projectedDaily,
-    })
+    }
+
+    serverDashboardCache = {
+      data: result,
+      expiry: Date.now() + SERVER_CACHE_TTL,
+    }
+
+    return json(result)
   })
 }

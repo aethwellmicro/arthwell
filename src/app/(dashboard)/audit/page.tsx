@@ -1,5 +1,5 @@
-import { AuditLogsView } from '@/components/views/audit-logs'
+import { AuditReportsView } from '@/components/views/audit-reports'
 
 export default function AuditLogsPage() {
-  return <AuditLogsView />
+  return <AuditReportsView />
 }

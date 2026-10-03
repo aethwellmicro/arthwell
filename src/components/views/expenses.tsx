@@ -96,6 +96,25 @@ export function ExpensesView() {
 
   // View Modal State
   const [viewTarget, setViewTarget] = useState<ExpenseItem | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<ExpenseItem | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'BRANCH_MANAGER'
+
+  async function handleDeleteExpense() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await apiFetch(`/api/expenses/${deleteTarget.id}`, { method: 'DELETE' })
+      toast.success(`Expense ${deleteTarget.expenseNumber} deleted successfully.`)
+      if (viewTarget?.id === deleteTarget.id) setViewTarget(null)
+      setDeleteTarget(null)
+      load()
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to delete expense')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -353,14 +372,27 @@ export function ExpensesView() {
 
                   <div className="flex items-center justify-between pt-1 border-t text-[11px] text-muted-foreground">
                     <span>By {e.createdBy.name} · Voucher: {e.voucherNumber || '—'}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 px-2 text-xs"
-                      onClick={() => setViewTarget(e)}
-                    >
-                      <Eye className="h-3.5 w-3.5 mr-1" /> View Details
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setViewTarget(e)}
+                      >
+                        <Eye className="h-3.5 w-3.5 mr-1" /> View Details
+                      </Button>
+                      {isManagerOrAdmin && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                          onClick={() => setDeleteTarget(e)}
+                          title="Delete expense"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -420,14 +452,27 @@ export function ExpensesView() {
                         {e.createdBy.name}
                       </td>
                       <td className="px-3 py-2 text-right">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 px-1.5 text-[11px]"
-                          onClick={() => setViewTarget(e)}
-                        >
-                          <Eye className="h-3 w-3 mr-1" /> View
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-1.5 text-[11px]"
+                            onClick={() => setViewTarget(e)}
+                          >
+                            <Eye className="h-3 w-3 mr-1" /> View
+                          </Button>
+                          {isManagerOrAdmin && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                              onClick={() => setDeleteTarget(e)}
+                              title="Delete expense"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -641,9 +686,70 @@ export function ExpensesView() {
             </div>
           )}
 
-          <DialogFooter className="border-t pt-3">
+          <DialogFooter className="border-t pt-3 flex flex-row items-center justify-between">
+            {isManagerOrAdmin && viewTarget ? (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteTarget(viewTarget)}
+              >
+                <Trash2 className="h-4 w-4 mr-1" /> Delete Expense
+              </Button>
+            ) : <div />}
             <Button variant="outline" onClick={() => setViewTarget(null)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Expense Confirmation Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <Trash2 className="h-5 w-5" /> Delete Expense Voucher
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm text-foreground">
+            <p>
+              Are you sure you want to permanently delete expense voucher <strong className="font-mono text-rose-600">{deleteTarget?.expenseNumber}</strong>?
+            </p>
+            {deleteTarget && (
+              <div className="bg-muted/50 p-3 rounded-md space-y-1.5 text-xs font-mono">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Particulars:</span>
+                  <span className="font-semibold text-foreground truncate max-w-[200px]">{deleteTarget.particulars}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount:</span>
+                  <span className="text-rose-600 font-bold">{formatMoney(deleteTarget.amount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Date:</span>
+                  <span className="text-foreground">{formatDate(deleteTarget.expenseDate)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Payment Mode:</span>
+                  <span className="text-foreground">{deleteTarget.paymentMode}</span>
+                </div>
+              </div>
+            )}
+            <div className="bg-rose-50 dark:bg-rose-950/30 p-2.5 rounded border border-rose-200 dark:border-rose-900 text-xs text-rose-900 dark:text-rose-200">
+              <p className="font-semibold flex items-center gap-1 mb-0.5">
+                <AlertTriangle className="h-3.5 w-3.5" /> Note:
+              </p>
+              <p>
+                Deleting this record will remove the expenditure outflow from the system and restore cash-in-hand balance.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteExpense} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete Expense'}
             </Button>
           </DialogFooter>
         </DialogContent>

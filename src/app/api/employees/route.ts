@@ -61,10 +61,20 @@ export async function POST(req: Request) {
     const role = (body.role || 'COLLECTION_EMPLOYEE').toString()
     const employeeCode = (body.employeeCode || '').toString().trim() || null
     const phone = (body.phone || '').toString().trim() || null
-    const branchId = body.branchId ? body.branchId.toString().trim() : (user.branchId || null)
+    
+    // Admin can specify any branch or null; Branch Manager assigns to their branch
+    let branchId: string | null = null
+    if (user.role === ROLE_ADMIN) {
+      branchId = body.branchId && body.branchId !== 'NONE' ? body.branchId.toString().trim() : (user.branchId || null)
+    } else {
+      branchId = user.branchId || null
+    }
 
     if (!email || !name || !password) return error('Email, name and password are required.', 422)
     if (!['ADMIN', 'BRANCH_MANAGER', 'ACCOUNTANT', 'COLLECTION_EMPLOYEE'].includes(role)) return error('Invalid role.', 422)
+    if (user.role === ROLE_BRANCH_MANAGER && role === ROLE_ADMIN) {
+      return error('Branch managers cannot create Administrator accounts.', 403)
+    }
     if (password.length < 6) return error('Password must be at least 6 characters.', 422)
 
     const existing = await db.user.findUnique({ where: { email } })

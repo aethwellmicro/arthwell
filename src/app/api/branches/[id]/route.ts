@@ -1,4 +1,4 @@
-﻿import { db } from '@/lib/db'
+import { db } from '@/lib/db'
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { ROLE_ADMIN } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
@@ -117,5 +117,71 @@ export async function PATCH(
     })
 
     return json({ branch: updated })
+  })
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return withAuth(async (user) => {
+    if (user.role !== ROLE_ADMIN) {
+      return error('Only an Administrator can delete branches.', 403)
+    }
+
+    const { id } = await params
+    const branch = await db.branch.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            users: true,
+            groups: true,
+            customers: true,
+            accounts: true,
+            collections: true,
+            investments: true,
+            expenses: true,
+            bankDeposits: true,
+          },
+        },
+      },
+    })
+
+    if (!branch) return error('Branch not found.', 404)
+
+    const totalBranches = await db.branch.count()
+    if (totalBranches <= 1) {
+      return error('Cannot delete the last remaining branch.', 422)
+    }
+
+    const linkedCount =
+      branch._count.users +
+      branch._count.groups +
+      branch._count.customers +
+      branch._count.accounts +
+      branch._count.collections +
+      branch._count.investments +
+      branch._count.expenses +
+      branch._count.bankDeposits
+
+    if (linkedCount > 0) {
+      return error(
+        `Cannot delete branch "${branch.name}" because it has active linked records (${branch._count.customers} customers, ${branch._count.users} employees, ${branch._count.accounts} accounts). Reassign records or set status to INACTIVE.`,
+        422
+      )
+    }
+
+    await db.branch.delete({ where: { id } })
+
+    await logAudit({
+      user,
+      action: 'BRANCH_DELETED',
+      entity: 'BRANCH',
+      entityId: id,
+      oldValue: branch,
+    })
+
+    return json({ success: true, message: 'Branch deleted successfully.' })
   })
 }

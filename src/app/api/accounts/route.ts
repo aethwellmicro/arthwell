@@ -158,7 +158,7 @@ export async function POST(req: Request) {
       return error(`Customer is in "${customer.status}" status and is not eligible for disbursement.`, 422)
     }
 
-    const activeBDate = await getActiveBusinessDate(user)
+    const activeBDate = await getActiveBusinessDate(user, undefined, data.startDate || undefined)
     if (!activeBDate) {
       return error('No active business date found. Please initialize a business date first.', 422)
     }

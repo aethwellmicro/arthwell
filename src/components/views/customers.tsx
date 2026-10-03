@@ -213,6 +213,8 @@ export function CustomersView({ customerId }: { customerId?: string }) {
 
   const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'BRANCH_MANAGER'
 
@@ -437,6 +439,31 @@ export function CustomersView({ customerId }: { customerId?: string }) {
     }
   }
 
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return
+    setBulkDeleting(true)
+    let successCount = 0
+    let failCount = 0
+    for (const id of Array.from(selectedIds)) {
+      try {
+        await apiFetch(`/api/customers/${id}`, { method: 'DELETE' })
+        successCount++
+      } catch {
+        failCount++
+      }
+    }
+    setBulkDeleting(false)
+    setShowBulkDeleteModal(false)
+    setSelectedIds(new Set())
+    load()
+    if (successCount > 0) {
+      toast.success(`Successfully deleted ${successCount} customer(s).`)
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to delete ${failCount} customer(s).`)
+    }
+  }
+
   function handleOpenEdit(customerToEdit: Customer) {
     setSelected(customerToEdit)
   }
@@ -596,6 +623,15 @@ export function CustomersView({ customerId }: { customerId?: string }) {
             >
               <Phone className="h-3.5 w-3.5 mr-1" /> Copy Mobiles
             </Button>
+            {user?.role === 'ADMIN' && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowBulkDeleteModal(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete Selected ({selectedIds.size})
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -731,7 +767,7 @@ export function CustomersView({ customerId }: { customerId?: string }) {
                       <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
                     </Button>
 
-                    {(!c._count?.accounts || c._count.accounts === 0) && (
+                    {(user?.role === 'ADMIN' || !c._count?.accounts || c._count.accounts === 0) && (
                       <Button
                         size="sm"
                         variant="ghost"
@@ -923,7 +959,7 @@ export function CustomersView({ customerId }: { customerId?: string }) {
                                 </DropdownMenuItem>
                               )}
 
-                              {(!c._count?.accounts || c._count.accounts === 0) && (
+                              {(user?.role === 'ADMIN' || !c._count?.accounts || c._count.accounts === 0) && (
                                 <DropdownMenuItem onClick={() => setDeleteTarget(c)} className="text-rose-600">
                                   <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete Customer
                                 </DropdownMenuItem>
@@ -1208,12 +1244,21 @@ export function CustomersView({ customerId }: { customerId?: string }) {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900">
-              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-900 dark:text-amber-200">
-                Hard delete is ONLY permitted if this customer has 0 loans, 0 collections, and no financial records.
-              </p>
-            </div>
+            {deleteTarget && ((deleteTarget._count?.accounts ?? 0) > 0 || (deleteTarget._count?.collections ?? 0) > 0) ? (
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900">
+                <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-rose-900 dark:text-rose-200">
+                  <strong>Warning:</strong> This customer has associated loan accounts and/or collection records. Permanently deleting this customer will remove their profile and cascade-delete all linked loans, installments, and receipts.
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900">
+                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-900 dark:text-amber-200">
+                  This action cannot be undone. The customer profile will be permanently removed.
+                </p>
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">
               Are you sure you want to permanently delete <strong>{deleteTarget?.fullName}</strong> ({deleteTarget?.customerId})?
             </p>
@@ -1222,6 +1267,34 @@ export function CustomersView({ customerId }: { customerId?: string }) {
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
               {deleting ? 'Deleting…' : 'Delete Permanently'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Customers Modal */}
+      <Dialog open={showBulkDeleteModal} onOpenChange={(open) => !open && setShowBulkDeleteModal(false)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <Trash2 className="h-5 w-5" /> Delete Selected Customers
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900">
+              <AlertTriangle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+              <p className="text-xs text-rose-900 dark:text-rose-200">
+                <strong>Attention:</strong> You are about to permanently delete <strong>{selectedIds.size}</strong> customer(s). All associated loans, installments, and receipts for these customers will also be permanently removed.
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Are you sure you want to proceed with deleting these {selectedIds.size} customer accounts? This action cannot be reversed.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBulkDeleteModal(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleBulkDelete} disabled={bulkDeleting}>
+              {bulkDeleting ? 'Deleting Selected…' : `Delete ${selectedIds.size} Customers`}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1245,6 +1318,7 @@ export function CustomersView({ customerId }: { customerId?: string }) {
             <CustomerDetail
               customer={selected}
               groups={groups}
+              user={user}
               isManagerOrAdmin={isManagerOrAdmin}
               onCollect={() => { router.push(`/collections?customer=${selected.id}`); setSelected(null) }}
               onUpdated={(c) => setSelected(c)}
@@ -1273,6 +1347,7 @@ function Field({ label, children, full }: { label: string; children: React.React
 function CustomerDetail({
   customer,
   groups,
+  user,
   isManagerOrAdmin,
   onCollect,
   onUpdated,
@@ -1284,6 +1359,7 @@ function CustomerDetail({
 }: {
   customer: Customer
   groups: GroupOption[]
+  user: any
   isManagerOrAdmin: boolean
   onCollect: () => void
   onUpdated: (c: Customer) => void
@@ -1315,6 +1391,38 @@ function CustomerDetail({
 
   const [sharingStatement, setSharingStatement] = useState(false)
   const [statementLink, setStatementLink] = useState('')
+  const [deletePaymentTarget, setDeletePaymentTarget] = useState<Payment | null>(null)
+  const [deletingPayment, setDeletingPayment] = useState(false)
+
+  const reloadData = useCallback(async () => {
+    try {
+      const [accRes, payRes, fullCust] = await Promise.all([
+        apiFetch<{ items: Account[] }>(`/api/customers/${customer.id}/accounts`),
+        apiFetch<{ items: Payment[] }>(`/api/customers/${customer.id}/payments`),
+        apiFetch<Customer>(`/api/customers/${customer.id}`),
+      ])
+      setAccounts(accRes.items)
+      setPayments(payRes.items)
+      onUpdated(fullCust)
+    } catch {
+      // ignore
+    }
+  }, [customer.id, onUpdated])
+
+  async function handleDeletePayment() {
+    if (!deletePaymentTarget) return
+    setDeletingPayment(true)
+    try {
+      await apiFetch(`/api/collections/${deletePaymentTarget.id}`, { method: 'DELETE' })
+      toast.success(`Payment entry #${deletePaymentTarget.receiptNumber} deleted. Balances restored.`)
+      setDeletePaymentTarget(null)
+      await reloadData()
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to delete payment entry')
+    } finally {
+      setDeletingPayment(false)
+    }
+  }
 
   function printStatement() {
     setTimeout(() => window.print(), 200)
@@ -1507,7 +1615,7 @@ function CustomerDetail({
           {(customer.status === 'DISBURSED' || customer.status === 'ACTIVE') && (
             <Button size="sm" onClick={onCollect}><HandCoins className="h-3.5 w-3.5 mr-1" /> Collect</Button>
           )}
-          {accounts.length === 0 && customer.status !== 'DISBURSED' && onDelete && (
+          {(user?.role === 'ADMIN' || (accounts.length === 0 && customer.status !== 'DISBURSED')) && onDelete && (
             <Button size="sm" variant="outline" className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-300" onClick={onDelete} title="Delete Customer">
               <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
             </Button>
@@ -1597,11 +1705,12 @@ function CustomerDetail({
                     <th className="px-3 py-2 font-medium whitespace-nowrap">Collector</th>
                     <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Balance After</th>
                     <th className="px-3 py-2 font-medium whitespace-nowrap">Status</th>
+                    {isManagerOrAdmin && <th className="px-3 py-2 font-medium text-right whitespace-nowrap">Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {payments.map((p) => (
-                    <tr key={p.id} className="border-b last:border-0">
+                    <tr key={p.id} className="border-b last:border-0 hover:bg-muted/30">
                       <td className="px-3 py-2 whitespace-nowrap">{formatDate(p.collectionDate)}</td>
                       <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{p.receiptNumber}</td>
                       <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">{p.accountNumber}</td>
@@ -1610,6 +1719,19 @@ function CustomerDetail({
                       <td className="px-3 py-2 text-xs whitespace-nowrap">{p.collectedBy}</td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">{formatMoney(p.balanceAfter)}</td>
                       <td className="px-3 py-2 whitespace-nowrap"><Badge className={cn(STATUS_COLORS[p.status])}>{p.status}</Badge></td>
+                      {isManagerOrAdmin && (
+                        <td className="px-3 py-2 text-right whitespace-nowrap">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                            title="Delete this entry"
+                            onClick={() => setDeletePaymentTarget(p)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -1688,6 +1810,59 @@ function CustomerDetail({
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEdit(false)}>Cancel</Button>
             <Button onClick={saveEdit} disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Single Payment Entry Dialog */}
+      <Dialog open={!!deletePaymentTarget} onOpenChange={(open) => !open && setDeletePaymentTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <Trash2 className="h-5 w-5" /> Delete Payment Entry
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm text-foreground">
+            <p>
+              Are you sure you want to permanently delete receipt{' '}
+              <strong className="font-mono text-rose-600">#{deletePaymentTarget?.receiptNumber}</strong>?
+            </p>
+            {deletePaymentTarget && (
+              <div className="bg-muted/50 p-3 rounded-md space-y-1.5 text-xs font-mono">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount:</span>
+                  <span className="font-bold text-foreground">{formatMoney(deletePaymentTarget.amount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Account:</span>
+                  <span className="text-foreground">{deletePaymentTarget.accountNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Mode:</span>
+                  <span className="text-foreground">{deletePaymentTarget.paymentMode}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Date:</span>
+                  <span className="text-foreground">{formatDate(deletePaymentTarget.collectionDate)}</span>
+                </div>
+              </div>
+            )}
+            <div className="bg-amber-50 dark:bg-amber-950/30 p-2.5 rounded border border-amber-200 dark:border-amber-900 text-xs text-amber-900 dark:text-amber-200">
+              <p className="font-semibold flex items-center gap-1 mb-0.5">
+                <AlertTriangle className="h-3.5 w-3.5" /> Reversal Warning:
+              </p>
+              <p>
+                Deleting this entry will automatically revert all installment allocations (FIFO) and restore the customer’s outstanding loan balance.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeletePaymentTarget(null)} disabled={deletingPayment}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeletePayment} disabled={deletingPayment}>
+              {deletingPayment ? 'Deleting…' : 'Delete Entry'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -5,14 +5,31 @@ import { ROLE_ADMIN, ROLE_BRANCH_MANAGER } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { parseCalendarDate } from '@/lib/calc'
 
-export async function GET() {
+export async function GET(req: Request) {
   return withAuth(async (user) => {
-    const active = await getActiveBusinessDate(user)
+    const url = new URL(req.url)
+    const dateParam = url.searchParams.get('date')
+    const active = await getActiveBusinessDate(user, undefined, dateParam)
     if (!active) {
-      return json({ active: null, summary: null })
+      return json({ active: null, summary: null, openDates: [] })
     }
     const summary = await getBusinessDateSummary(active.id)
-    return json({ active, summary })
+
+    const openDates = await db.businessDate.findMany({
+      where: { status: { in: ['OPEN', 'REOPENED', 'RECONCILIATION_PENDING'] } },
+      orderBy: { businessDate: 'asc' },
+      select: { id: true, businessDate: true, status: true },
+    })
+
+    return json({
+      active,
+      summary,
+      openDates: openDates.map((d) => ({
+        id: d.id,
+        businessDate: d.businessDate.toISOString().slice(0, 10),
+        status: d.status,
+      })),
+    })
   })
 }
 
@@ -33,46 +50,64 @@ export async function POST(req: Request) {
     })
 
     if (existingOpen) {
-      // If updating opening cash for the existing open date
-      const updated = await db.businessDate.update({
-        where: { id: existingOpen.id },
-        data: {
-          openingCash,
-          closingCash: openingCash,
-        },
-      })
-      await logAudit({
-        user,
-        action: 'BUSINESS_DATE_UPDATED',
-        entity: 'BUSINESS_DATE',
-        entityId: updated.id,
-        newValue: { openingCash },
-      })
-      const summary = await getBusinessDateSummary(updated.id)
-      return json({ active: updated, summary })
+      // If the caller requested the same date or didn't specify a date, update opening cash
+      const sameDate = body.businessDate ? existingOpen.businessDate.toISOString().slice(0, 10) === requestedDate.toISOString().slice(0, 10) : true
+      if (sameDate) {
+        const updated = await db.businessDate.update({
+          where: { id: existingOpen.id },
+          data: {
+            openingCash,
+            closingCash: openingCash,
+          },
+        })
+        await logAudit({
+          user,
+          action: 'BUSINESS_DATE_UPDATED',
+          entity: 'BUSINESS_DATE',
+          entityId: updated.id,
+          newValue: { openingCash },
+        })
+        const summary = await getBusinessDateSummary(updated.id)
+        return json({ active: updated, summary })
+      }
     }
 
-    // Otherwise create initial business date
-    const created = await db.businessDate.create({
-      data: {
-        businessDate: requestedDate,
-        status: 'OPEN',
-        openedById: user.id,
-        openingCash,
-        closingCash: openingCash,
-        reconciliationStatus: 'PENDING',
-      },
-    })
+    // Check if record for requestedDate already exists
+    const existingDate = await db.businessDate.findUnique({ where: { businessDate: requestedDate } })
+    let targetRecord: any
+    if (existingDate) {
+      targetRecord = await db.businessDate.update({
+        where: { id: existingDate.id },
+        data: {
+          status: 'OPEN',
+          openedById: user.id,
+          openingCash,
+          closingCash: openingCash,
+          reconciliationStatus: 'PENDING',
+        },
+      })
+    } else {
+      targetRecord = await db.businessDate.create({
+        data: {
+          businessDate: requestedDate,
+          status: 'OPEN',
+          openedById: user.id,
+          openingCash,
+          closingCash: openingCash,
+          reconciliationStatus: 'PENDING',
+        },
+      })
+    }
 
     await logAudit({
       user,
       action: 'BUSINESS_DATE_OPENED',
       entity: 'BUSINESS_DATE',
-      entityId: created.id,
-      newValue: { businessDate: created.businessDate, openingCash },
+      entityId: targetRecord.id,
+      newValue: { businessDate: targetRecord.businessDate, openingCash },
     })
 
-    const summary = await getBusinessDateSummary(created.id)
-    return json({ active: created, summary }, 201)
+    const summary = await getBusinessDateSummary(targetRecord.id)
+    return json({ active: targetRecord, summary }, 201)
   })
 }

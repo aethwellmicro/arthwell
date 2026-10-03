@@ -19,6 +19,8 @@ import {
   Phone,
   Eye,
   Edit,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatDate, formatDateTime, downloadCSV } from '@/lib/format'
 import { useApp } from '@/lib/store'
@@ -97,13 +99,33 @@ export function InvestmentsView() {
     remarks: '',
   })
 
-  // View / Edit Modal State
+  // View / Edit / Delete Modal State
   const [viewTarget, setViewTarget] = useState<InvestmentItem | null>(null)
   const [editTarget, setEditTarget] = useState<InvestmentItem | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<InvestmentItem | null>(null)
   const [updating, setUpdating] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [interestToAdd, setInterestToAdd] = useState('')
   const [updateStatus, setUpdateStatus] = useState('')
   const [updateRemarks, setUpdateRemarks] = useState('')
+  const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'BRANCH_MANAGER'
+
+  async function handleDeleteInvestment() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await apiFetch(`/api/investments/${deleteTarget.id}`, { method: 'DELETE' })
+      toast.success(`Investment ${deleteTarget.investmentNumber} deleted successfully.`)
+      if (viewTarget?.id === deleteTarget.id) setViewTarget(null)
+      if (editTarget?.id === deleteTarget.id) setEditTarget(null)
+      setDeleteTarget(null)
+      load()
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to delete investment')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -448,6 +470,17 @@ export function InvestmentsView() {
                       >
                         <Edit className="h-3.5 w-3.5 mr-1" /> Manage
                       </Button>
+                      {isManagerOrAdmin && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                          onClick={() => setDeleteTarget(i)}
+                          title="Delete investment"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -544,6 +577,17 @@ export function InvestmentsView() {
                           >
                             <Edit className="h-3 w-3" />
                           </Button>
+                          {isManagerOrAdmin && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-6 w-6 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                              onClick={() => setDeleteTarget(i)}
+                              title="Delete investment"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -783,9 +827,70 @@ export function InvestmentsView() {
             </div>
           )}
 
-          <DialogFooter className="border-t pt-3">
+          <DialogFooter className="border-t pt-3 flex flex-row items-center justify-between">
+            {isManagerOrAdmin && viewTarget ? (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeleteTarget(viewTarget)}
+              >
+                <Trash2 className="h-4 w-4 mr-1" /> Delete Investment
+              </Button>
+            ) : <div />}
             <Button variant="outline" onClick={() => setViewTarget(null)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Investment Confirmation Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <Trash2 className="h-5 w-5" /> Delete Investment
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm text-foreground">
+            <p>
+              Are you sure you want to permanently delete investment record <strong className="font-mono text-rose-600">{deleteTarget?.investmentNumber}</strong> for <strong className="text-foreground">{deleteTarget?.investorName}</strong>?
+            </p>
+            {deleteTarget && (
+              <div className="bg-muted/50 p-3 rounded-md space-y-1.5 text-xs font-mono">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount:</span>
+                  <span className="text-emerald-600 font-bold">{formatMoney(deleteTarget.amount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Type:</span>
+                  <span className="text-foreground">{INVESTMENT_TYPES[deleteTarget.investmentType] || deleteTarget.investmentType}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Date:</span>
+                  <span className="text-foreground">{formatDate(deleteTarget.investmentDate)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Interest Paid:</span>
+                  <span className="text-teal-600 font-bold">{formatMoney(deleteTarget.interestPaid)}</span>
+                </div>
+              </div>
+            )}
+            <div className="bg-rose-50 dark:bg-rose-950/30 p-2.5 rounded border border-rose-200 dark:border-rose-900 text-xs text-rose-900 dark:text-rose-200">
+              <p className="font-semibold flex items-center gap-1 mb-0.5">
+                <AlertTriangle className="h-3.5 w-3.5" /> Note:
+              </p>
+              <p>
+                Deleting this record removes the capital inflow record from the system and updates cash balance.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteInvestment} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete Investment'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -17,7 +17,7 @@ export async function GET(req: Request) {
           _count: { select: { collections: true, accounts: true, bankDeposits: true } },
         },
         orderBy: { businessDate: 'desc' },
-        take: 30,
+        take: 100,
       })
       return json({
         items: records.map((r) => ({
@@ -31,10 +31,26 @@ export async function GET(req: Request) {
       })
     }
 
-    const active = await getActiveBusinessDate(user)
-    if (!active) return json({ active: null, summary: null })
+    const dateParam = searchParams.get('date')
+    const active = await getActiveBusinessDate(user, undefined, dateParam)
+    if (!active) return json({ active: null, summary: null, openDates: [] })
     const summary = await getBusinessDateSummary(active.id)
-    return json({ active, summary })
+
+    const openDates = await db.businessDate.findMany({
+      where: { status: { in: ['OPEN', 'REOPENED', 'RECONCILIATION_PENDING'] } },
+      orderBy: { businessDate: 'asc' },
+      select: { id: true, businessDate: true, status: true },
+    })
+
+    return json({
+      active,
+      summary,
+      openDates: openDates.map((d) => ({
+        id: d.id,
+        businessDate: d.businessDate.toISOString().slice(0, 10),
+        status: d.status,
+      })),
+    })
   })
 }
 
@@ -54,7 +70,16 @@ export async function POST(req: Request) {
       return error('Actual physical cash counted is required and must be non-negative.', 422)
     }
 
-    const active = await getActiveBusinessDate(user)
+    const targetBusinessDateId = body.businessDateId
+    let active: any
+    if (targetBusinessDateId) {
+      active = await db.businessDate.findUnique({ where: { id: targetBusinessDateId } })
+    } else if (body.businessDate) {
+      active = await getActiveBusinessDate(user, undefined, body.businessDate)
+    } else {
+      active = await getActiveBusinessDate(user)
+    }
+
     if (!active) {
       return error('No active business date found to close.', 404)
     }

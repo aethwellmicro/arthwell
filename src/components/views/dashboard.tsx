@@ -99,36 +99,94 @@ const STATUS_PIE_COLORS = ['#10b981', '#0891b2', '#f59e0b', '#64748b', '#ef4444'
 
 export function DashboardView() {
   const router = useRouter()
-  const { user } = useApp()
+  const { user, dashboardCache, setDashboardCache } = useApp()
   const setView = (view: string) => router.push(`/${view}`)
-  const [data, setData] = useState<Dashboard | null>(null)
-  const [loading, setLoading] = useState(true)
+
+  // Instant restore from Zustand cache - ZERO loading state if returning to tab!
+  const hasCachedData = !!dashboardCache.data
+  const [data, setData] = useState<Dashboard | null>(dashboardCache.data)
+  const [loading, setLoading] = useState(!hasCachedData)
   const [refreshing, setRefreshing] = useState(false)
   const [trendMonths, setTrendMonths] = useState(6)
-  const [recentActivity, setRecentActivity] = useState<any[]>([])
+  const [recentActivity, setRecentActivity] = useState<any[]>(dashboardCache.activity || [])
   const [agingFilter, setAgingFilter] = useState<string | null>(null)
 
+  // Hot Reloading / Live Auto-Refresh state
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState<number>(30) // 30s default
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(
+    dashboardCache.lastFetched ? new Date(dashboardCache.lastFetched) : null
+  )
+
   const loadDashboard = async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true)
-    else setLoading(true)
+    // If we already have data in view or cache, never blank out the screen with skeletons
+    if (isRefresh || data || dashboardCache.data) {
+      setRefreshing(true)
+    } else {
+      setLoading(true)
+    }
+
     try {
-      const d = await apiFetch<Dashboard>('/api/dashboard')
+      const [d, logs] = await Promise.all([
+        apiFetch<Dashboard>(`/api/dashboard${isRefresh ? '?refresh=1' : ''}`),
+        apiFetch<{ items: any[] }>('/api/audit-logs?limit=6').catch(() => ({ items: [] })),
+      ])
       setData(d)
-      // Fetch recent activity (latest 6 audit logs)
-      try {
-        const logs = await apiFetch<{ items: any[] }>('/api/audit-logs?limit=6')
-        setRecentActivity(logs.items)
-      } catch {}
+      const acts = logs.items || []
+      setRecentActivity(acts)
+      setDashboardCache(d, acts)
+      setLastUpdated(new Date())
     } catch (e: any) {
+      if (!data && !dashboardCache.data) {
+        toast.error('Could not load dashboard data')
+      }
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
   }
 
+  // On mount or tab switch:
   useEffect(() => {
-    loadDashboard()
+    const now = Date.now()
+    const lastFetched = dashboardCache.lastFetched || 0
+    const age = now - lastFetched
+
+    if (!dashboardCache.data) {
+      // First initial load: show skeleton loader
+      loadDashboard(false)
+    } else if (age > 20000) {
+      // Returning to tab with data > 20s old:
+      // Keep existing data visible, do a silent background revalidation
+      loadDashboard(true)
+    }
   }, [])
+
+  // Hot Reloading: Auto-Refresh timer
+  useEffect(() => {
+    if (!autoRefreshInterval || autoRefreshInterval <= 0) return
+
+    const timer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        loadDashboard(true)
+      }
+    }, autoRefreshInterval * 1000)
+
+    return () => clearInterval(timer)
+  }, [autoRefreshInterval])
+
+  // Window / Tab Focus Refetch (Hot Reload on window refocus)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const lastFetched = dashboardCache.lastFetched || 0
+        if (Date.now() - lastFetched > 30000) {
+          loadDashboard(true)
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [dashboardCache.lastFetched])
 
   async function sendReminder(account: { customer: string; customerId: string; mobile: string; overdueAmount: number; accountNumber: string }) {
     try {
@@ -169,20 +227,84 @@ export function DashboardView() {
 
   return (
     <div className="space-y-6">
-      {/* Quick actions */}
-      <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={() => setView('customers')}>
-          <Users className="h-4 w-4 mr-2" /> New Customer
-        </Button>
-        <Button variant="secondary" onClick={() => router.push('/collections')}>
-          <HandCoins className="h-4 w-4 mr-2" /> New Collection
-        </Button>
-        <Button variant="outline" onClick={() => setView('reports')}>
-          View Reports <ArrowRight className="h-4 w-4 ml-2" />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={() => loadDashboard(true)} disabled={refreshing} aria-label="Refresh dashboard" className="ml-auto">
-          <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
-        </Button>
+      {/* Quick actions & Live Auto-Refresh Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-card border rounded-xl p-3 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => setView('customers')} size="sm">
+            <Users className="h-4 w-4 mr-2" /> New Customer
+          </Button>
+          <Button variant="secondary" onClick={() => router.push('/collections')} size="sm">
+            <HandCoins className="h-4 w-4 mr-2" /> New Collection
+          </Button>
+          <Button variant="outline" onClick={() => setView('reports')} size="sm">
+            View Reports <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+        </div>
+
+        {/* Hot Reloading & Live Status Controls */}
+        <div className="flex items-center gap-2.5 ml-auto">
+          {/* Live Pulsing Indicator & Interval Selector */}
+          <div className="flex items-center gap-1.5 bg-muted/60 px-2.5 py-1 rounded-lg border text-xs text-muted-foreground">
+            {autoRefreshInterval > 0 ? (
+              <span className="flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                Live
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 font-medium text-muted-foreground">
+                <span className="inline-flex rounded-full h-2 w-2 bg-slate-400"></span>
+                Paused
+              </span>
+            )}
+            <span className="text-muted-foreground/40">|</span>
+            <span className="text-[11px]">Auto:</span>
+            <select
+              value={autoRefreshInterval}
+              onChange={(e) => {
+                const val = Number(e.target.value)
+                setAutoRefreshInterval(val)
+                if (val > 0) {
+                  toast.success(`Live auto-reload set to ${val}s`)
+                } else {
+                  toast.info('Live auto-reload paused')
+                }
+              }}
+              className="bg-transparent border-none text-xs font-semibold text-foreground focus:outline-none cursor-pointer pr-1"
+              aria-label="Auto-refresh interval"
+            >
+              <option value={15}>15s</option>
+              <option value={30}>30s</option>
+              <option value={60}>60s</option>
+              <option value={0}>Off</option>
+            </select>
+          </div>
+
+          {/* Last updated indicator */}
+          {lastUpdated && (
+            <span className="hidden md:inline-block text-[11px] text-muted-foreground">
+              Updated {formatRelativeTime(lastUpdated)}
+            </span>
+          )}
+
+          {/* Manual Refresh / Hot Reload Trigger */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              loadDashboard(true)
+              toast.info('Refreshing dashboard data...')
+            }}
+            disabled={refreshing}
+            className="gap-1.5 text-xs h-8"
+            title="Hot reload / Refresh now"
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin text-primary')} />
+            <span className="hidden sm:inline">{refreshing ? 'Updating...' : 'Reload'}</span>
+          </Button>
+        </div>
       </div>
 
       {/* My performance banner (for collection employees / managers) */}

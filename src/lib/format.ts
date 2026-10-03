@@ -78,23 +78,46 @@ export const formatRelativeTime = (d: string | Date | undefined | null): string 
   return formatDate(d)
 }
 
+const inFlightGetRequests = new Map<string, Promise<any>>()
+
 export async function apiFetch<T = any>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
-    ...init,
-  })
-  const text = await res.text()
-  let data: any = null
-  try {
-    data = text ? JSON.parse(text) : null
-  } catch {
-    data = text
+  const method = (init?.method || 'GET').toUpperCase()
+
+  // Deduplicate concurrent in-flight GET requests
+  if (method === 'GET' && !init?.cache && inFlightGetRequests.has(url)) {
+    return inFlightGetRequests.get(url)! as Promise<T>
   }
-  if (!res.ok) {
-    throw new Error((data && data.error) || `Request failed (${res.status})`)
+
+  const requestPromise = (async () => {
+    try {
+      const res = await fetch(url, {
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+        ...init,
+      })
+      const text = await res.text()
+      let data: any = null
+      try {
+        data = text ? JSON.parse(text) : null
+      } catch {
+        data = text
+      }
+      if (!res.ok) {
+        throw new Error((data && data.error) || `Request failed (${res.status})`)
+      }
+      return data as T
+    } finally {
+      if (method === 'GET') {
+        inFlightGetRequests.delete(url)
+      }
+    }
+  })()
+
+  if (method === 'GET' && !init?.cache) {
+    inFlightGetRequests.set(url, requestPromise)
   }
-  return data as T
+
+  return requestPromise
 }
 
 export function downloadCSV(filename: string, rows: Record<string, any>[]) {

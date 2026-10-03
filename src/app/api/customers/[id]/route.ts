@@ -1,4 +1,4 @@
-﻿import { db } from '@/lib/db'
+import { db } from '@/lib/db'
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
 import { ROLE_ADMIN, ROLE_BRANCH_MANAGER } from '@/lib/auth'
@@ -121,24 +121,82 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
     })
     if (!existing) return error('Customer not found.', 404)
 
-    // Hard delete rule: ONLY allowed if 0 accounts and 0 collections exist
-    if (existing._count.accounts > 0 || existing._count.collections > 0) {
-      return error('Customer cannot be deleted because financial records are associated with this customer. Use Cancel instead.', 422)
-    }
-
-    // Authorization check: Admin, Branch Manager, or creator
+    // Only Administrator and Branch Manager can delete customers
     if (user.role !== ROLE_ADMIN && user.role !== ROLE_BRANCH_MANAGER && user.id !== existing.createdById) {
       return error('Unauthorized to delete this customer.', 403)
     }
 
-    await db.customer.delete({ where: { id } })
+    const hasFinancialRecords = existing._count.accounts > 0 || existing._count.collections > 0
+
+    // Non-admin can only delete if customer has 0 loans and 0 collections
+    if (user.role !== ROLE_ADMIN && hasFinancialRecords) {
+      return error('Customer cannot be deleted because financial records are associated with this customer. Only an Administrator can perform full customer deletion.', 422)
+    }
+
+    // Branch manager branch check
+    if (user.role === ROLE_BRANCH_MANAGER && user.branchId && existing.branchId && existing.branchId !== user.branchId) {
+      return error('Not authorized to delete customers belonging to another branch.', 403)
+    }
+
+    // Perform deletion
+    if (hasFinancialRecords) {
+      // Full administrative deletion with cascading clean-up
+      await db.$transaction(async (tx) => {
+        // 1. Delete notifications related to collections of this customer or directly to this customer
+        await tx.notification.deleteMany({
+          where: {
+            OR: [
+              { customerId: id },
+              { collection: { customerId: id } },
+            ],
+          },
+        })
+
+        // 2. Delete receipts associated with collections of this customer
+        await tx.receipt.deleteMany({
+          where: {
+            collection: { customerId: id },
+          },
+        })
+
+        // 3. Delete collections
+        await tx.collection.deleteMany({
+          where: { customerId: id },
+        })
+
+        // 4. Delete installments for all accounts of this customer
+        await tx.installment.deleteMany({
+          where: {
+            account: { customerId: id },
+          },
+        })
+
+        // 5. Delete accounts
+        await tx.account.deleteMany({
+          where: { customerId: id },
+        })
+
+        // 6. Delete customer record
+        await tx.customer.delete({
+          where: { id },
+        })
+      })
+    } else {
+      // Safe direct delete for customer with 0 accounts/collections
+      await db.customer.delete({ where: { id } })
+    }
 
     await logAudit({
       user,
       action: 'CUSTOMER_DELETED',
       entity: 'CUSTOMER',
       entityId: id,
-      oldValue: { customerId: existing.customerId, fullName: existing.fullName, primaryMobile: existing.primaryMobile },
+      oldValue: {
+        customerId: existing.customerId,
+        fullName: existing.fullName,
+        primaryMobile: existing.primaryMobile,
+        hadFinancialRecords: hasFinancialRecords,
+      },
     })
 
     return json({ success: true, message: 'Customer deleted successfully.' })

@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     }
     const data = parsed.data
 
-    const activeBDate = await getActiveBusinessDate(user)
+    const activeBDate = await getActiveBusinessDate(user, undefined, data.depositDate || undefined)
     if (!activeBDate) {
       return error('No active business date found. Please initialize a business date first.', 422)
     }

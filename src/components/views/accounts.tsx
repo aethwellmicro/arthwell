@@ -19,6 +19,7 @@ import {
   FileSpreadsheet,
   Download,
   Printer,
+  Trash2,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatMoneyCompact, formatDate, STATUS_COLORS, downloadCSV } from '@/lib/format'
 import { useApp } from '@/lib/store'
@@ -132,8 +133,9 @@ const emptyForm = {
 import { useRouter } from 'next/navigation'
 
 export function AccountsView({ accountId }: { accountId?: string }) {
-  const { searchQuery, setSearchQuery } = useApp()
+  const { user, searchQuery, setSearchQuery } = useApp()
   const router = useRouter()
+  const isManagerOrAdmin = user?.role === 'ADMIN' || user?.role === 'BRANCH_MANAGER'
   const [items, setItems] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
@@ -143,6 +145,26 @@ export function AccountsView({ accountId }: { accountId?: string }) {
   const [form, setForm] = useState(emptyForm)
   const [saving, setSaving] = useState(false)
   const [selected, setSelected] = useState<Account | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Account | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDeleteAccount() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await apiFetch(`/api/accounts/${deleteTarget.id}`, { method: 'DELETE' })
+      toast.success(`Account ${deleteTarget.accountNumber} deleted successfully.`)
+      if (selected?.id === deleteTarget.id) {
+        setSelected(null)
+      }
+      setDeleteTarget(null)
+      load()
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to delete account')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const [schedule, setSchedule] = useState<any[]>([])
 
@@ -407,13 +429,26 @@ export function AccountsView({ accountId }: { accountId?: string }) {
 
                   <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-2 gap-2" onClick={(e) => e.stopPropagation()}>
                     <span>Next Due: <strong className="text-foreground">{a.nextDueDate ? formatDate(a.nextDueDate) : '—'}</strong></span>
-                    <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => router.push(`/collections?customer=${a.customer.customerId}&account=${a.id}`)}>
-                      <HandCoins className="h-3 w-3 mr-1" /> Collect
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => router.push(`/collections?customer=${a.customer.customerId}&account=${a.id}`)}>
+                        <HandCoins className="h-3 w-3 mr-1" /> Collect
+                      </Button>
+                      {isManagerOrAdmin && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                          onClick={() => setDeleteTarget(a)}
+                          title="Delete Account"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
-            </div>
+                </div>
 
             {/* Desktop Table (>= md) */}
             <div className="hidden md:block max-h-[60vh] overflow-y-auto scroll-area overflow-x-auto">
@@ -479,6 +514,14 @@ export function AccountsView({ accountId }: { accountId?: string }) {
                             <DropdownMenuItem onClick={() => router.push(`/accounts/${a.id}`)}><Eye className="h-3.5 w-3.5 mr-2" /> View Details</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => router.push(`/collections?customer=${a.customer.customerId}&account=${a.id}`)}><HandCoins className="h-3.5 w-3.5 mr-2" /> New Collection</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => router.push(`/customers/${a.customer.customerId}`)}><Landmark className="h-3.5 w-3.5 mr-2" /> View Customer</DropdownMenuItem>
+                            {isManagerOrAdmin && (
+                              <DropdownMenuItem
+                                onClick={() => setDeleteTarget(a)}
+                                className="text-rose-600 focus:text-rose-600 focus:bg-rose-50 dark:focus:bg-rose-950/30"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete Account
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </td>
@@ -490,6 +533,60 @@ export function AccountsView({ accountId }: { accountId?: string }) {
           </>
         )}
       </SectionCard>
+
+      {/* Delete Account Confirmation Dialog */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <Trash2 className="h-5 w-5" /> Delete Loan Account
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm text-foreground">
+            <p>
+              Are you sure you want to delete loan account{' '}
+              <strong className="font-mono text-rose-600">{deleteTarget?.accountNumber}</strong> for customer{' '}
+              <strong>{deleteTarget?.customer.fullName}</strong>?
+            </p>
+            {deleteTarget && (
+              <div className="bg-muted/50 p-3 rounded-md space-y-1.5 text-xs font-mono">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Principal:</span>
+                  <span className="font-bold text-foreground">{formatMoney(deleteTarget.principal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total Payable:</span>
+                  <span className="text-foreground">{formatMoney(deleteTarget.totalPayable)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Paid Amount:</span>
+                  <span className="text-emerald-600 font-bold">{formatMoney(deleteTarget.paidAmount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Outstanding:</span>
+                  <span className="text-amber-600 font-bold">{formatMoney(deleteTarget.outstanding)}</span>
+                </div>
+              </div>
+            )}
+            <div className="bg-rose-50 dark:bg-rose-950/30 p-2.5 rounded border border-rose-200 dark:border-rose-900 text-xs text-rose-900 dark:text-rose-200">
+              <p className="font-semibold flex items-center gap-1 mb-0.5">
+                <AlertTriangle className="h-3.5 w-3.5" /> Irreversible Action:
+              </p>
+              <p>
+                This will delete the account and its installment repayment schedule.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteAccount} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Delete Account'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* New account dialog */}
       <Dialog open={showNew} onOpenChange={setShowNew}>
@@ -508,12 +605,22 @@ export function AccountsView({ accountId }: { accountId?: string }) {
       {/* Account detail drawer */}
       <Drawer open={!!selected} onOpenChange={(o) => { if (!o) { setSelected(null); router.push('/accounts') } }}>
         <DrawerContent className="max-h-[92vh]">
-          <DrawerHeader className="border-b">
+          <DrawerHeader className="border-b flex flex-row items-center justify-between">
             <DrawerTitle className="flex items-center gap-2">
               <Landmark className="h-5 w-5 text-primary" />
               {selected?.accountNumber}
               {selected && <Badge className={cn(STATUS_COLORS[selected.status])}>{selected.status}</Badge>}
             </DrawerTitle>
+            {isManagerOrAdmin && selected && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-300 mr-8"
+                onClick={() => setDeleteTarget(selected)}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+              </Button>
+            )}
           </DrawerHeader>
           {selected && (
             <AccountDetailBody

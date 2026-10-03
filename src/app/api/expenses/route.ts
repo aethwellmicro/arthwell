@@ -98,7 +98,7 @@ export async function POST(req: Request) {
     }
 
     // Determine active business date
-    const activeBDate = await getActiveBusinessDate(user)
+    const activeBDate = await getActiveBusinessDate(user, undefined, expenseDate || undefined)
     if (!activeBDate) {
       return error('No active business date is open. Please establish a business date first.', 422)
     }

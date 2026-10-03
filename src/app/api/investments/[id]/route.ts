@@ -83,3 +83,42 @@ export async function PATCH(
     })
   })
 }
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return withAuth(async (user) => {
+    const { id } = await params
+    const item = await db.investment.findUnique({
+      where: { id },
+      include: { businessDate: true },
+    })
+    if (!item) return error('Investment not found.', 404)
+
+    if (user.role !== 'ADMIN' && user.role !== 'BRANCH_MANAGER') {
+      return error('Unauthorized to delete investment entries.', 403)
+    }
+
+    if (item.businessDate.status === 'CLOSED' && user.role !== 'ADMIN') {
+      return error('Cannot delete an investment from a closed business date. Contact Administrator.', 422)
+    }
+
+    await db.investment.delete({ where: { id } })
+
+    await logAudit({
+      user,
+      action: 'INVESTMENT_DELETED',
+      entity: 'INVESTMENT',
+      entityId: id,
+      oldValue: {
+        investmentNumber: item.investmentNumber,
+        amount: num(item.amount),
+        investorName: item.investorName,
+        investmentType: item.investmentType,
+      },
+    })
+
+    return json({ success: true, message: 'Investment deleted successfully.' })
+  })
+}
