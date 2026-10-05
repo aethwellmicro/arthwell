@@ -423,6 +423,19 @@ export function EODView() {
                 </p>
               </div>
 
+              {/* 3.5. Fees Collected (+) */}
+              <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
+                <p className="text-[11px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                  <ArrowDownRight className="h-3.5 w-3.5" /> + Fees
+                </p>
+                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                  {formatMoney(summary.feesCollected || 0)}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Processing/Insurance
+                </p>
+              </div>
+
               {/* 4. Disbursements (-) */}
               <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
                 <p className="text-[11px] uppercase tracking-wide text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1">
@@ -459,11 +472,11 @@ export function EODView() {
               </div>
 
               {/* 7. Expected Closing Cash (=) */}
-              <div className="rounded-lg border border-primary/40 bg-primary/5 p-3.5 shadow-2xs sm:col-span-2 md:col-span-3 lg:col-span-1">
-                <p className="text-[11px] uppercase tracking-wide text-primary font-bold flex items-center gap-1">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30 p-3.5 shadow-2xs sm:col-span-2 md:col-span-3 lg:col-span-1">
+                <p className="text-[11px] uppercase tracking-wide text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1">
                   <CheckCircle2 className="h-3.5 w-3.5" /> = Expected Cash
                 </p>
-                <p className="text-xl font-bold text-primary mt-1">
+                <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400 mt-1">
                   {formatMoney(summary.expectedClosingCash)}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Must balance physical count</p>
@@ -645,8 +658,16 @@ export function EODView() {
                   <span className="font-bold text-indigo-600">{formatMoney(summary.cashInvestments || 0)}</span>
                 </div>
                 <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase">+ Fees</span>
+                  <span className="font-bold text-emerald-600">{formatMoney(summary.feesCollected || 0)}</span>
+                </div>
+                <div>
                   <span className="text-muted-foreground block text-[10px] uppercase">- Expenses</span>
                   <span className="font-bold text-amber-600">{formatMoney(summary.cashExpenses || 0)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase">- Disbursements</span>
+                  <span className="font-bold text-rose-600">{formatMoney(summary.cashDisbursements)}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-[10px] uppercase">= Expected Cash</span>
@@ -911,7 +932,11 @@ export function EODView() {
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-[10px] uppercase font-semibold">+ Investments</span>
-                  <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{formatMoney(reportData.report.cashReconciliation.cashInvestments || 0)}</span>
+                  <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{formatMoney(reportData.report.cashReconciliation.totalInvestments || 0)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">+ Fees</span>
+                  <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatMoney(reportData.report.cashReconciliation.feesCollected || 0)}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-[10px] uppercase font-semibold">- Disbursements</span>

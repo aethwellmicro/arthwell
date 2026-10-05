@@ -12,6 +12,7 @@ import {
   Landmark,
   Plus,
   Calendar,
+  Trash2,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatDateTime, formatDate, downloadCSV } from '@/lib/format'
 import { Button } from '@/components/ui/button'
@@ -71,6 +72,7 @@ export function TransactionsView() {
     notes: '',
   })
   const [savingDeposit, setSavingDeposit] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -129,6 +131,36 @@ export function TransactionsView() {
       toast.error(e.message)
     } finally {
       setSavingDeposit(false)
+    }
+  }
+
+  async function handleDelete(t: TransactionItem) {
+    if (t.type === 'CHARGE_RECOVERY') {
+      return toast.error('Cannot delete recovered charges directly. Please delete the associated loan disbursement instead.')
+    }
+    
+    if (!window.confirm(`Are you sure you want to delete this ${t.type.toLowerCase()} transaction? This action cannot be undone.`)) return
+    
+    setDeletingId(t.id)
+    try {
+      let endpoint = ''
+      switch (t.type) {
+        case 'COLLECTION': endpoint = `/api/collections/${t.id}`; break;
+        case 'DISBURSEMENT': endpoint = `/api/accounts/${t.id}`; break;
+        case 'EXPENSE': endpoint = `/api/expenses/${t.id}`; break;
+        case 'INVESTMENT': endpoint = `/api/investments/${t.id}`; break;
+        case 'BANK_DEPOSIT': endpoint = `/api/bank-deposits/${t.id}`; break;
+      }
+      
+      if (endpoint) {
+        await apiFetch(endpoint, { method: 'DELETE' })
+        toast.success('Transaction deleted successfully.')
+        load()
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to delete transaction.')
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -379,6 +411,17 @@ export function TransactionsView() {
                           <span className="text-muted-foreground italic truncate max-w-[220px]">{t.remarks}</span>
                         </div>
                       )}
+                      <div className="flex justify-end pt-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 h-7 px-2"
+                          onClick={() => handleDelete(t)}
+                          disabled={deletingId === t.id}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 )
@@ -401,6 +444,7 @@ export function TransactionsView() {
                     <th className="px-3 py-2.5 font-medium whitespace-nowrap">Mode</th>
                     <th className="px-3 py-2.5 font-medium whitespace-nowrap">Staff / Channel</th>
                     <th className="px-3 py-2.5 font-medium whitespace-nowrap">Status</th>
+                    <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -467,6 +511,18 @@ export function TransactionsView() {
                           <Badge className="text-[10px] bg-slate-100 text-slate-800 border-slate-200">
                             {t.status}
                           </Badge>
+                        </td>
+                        <td className="px-3 py-2 text-right whitespace-nowrap">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-7 w-7 text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                            onClick={() => handleDelete(t)}
+                            disabled={deletingId === t.id}
+                            title="Delete Transaction"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </td>
                       </tr>
                     )

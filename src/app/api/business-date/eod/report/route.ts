@@ -113,6 +113,7 @@ export async function GET(req: Request) {
         totalCollections: summary.cashCollections,
         otherCollections: summary.otherCollections,
         totalInvestments: summary.cashInvestments,
+        feesCollected: summary.feesCollected,
         totalDisbursements: summary.cashDisbursements,
         totalExpenses: summary.cashExpenses,
         bankDeposits: summary.bankDeposits,
