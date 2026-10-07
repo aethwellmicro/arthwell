@@ -149,6 +149,7 @@ export async function getActiveBusinessDate(user?: SessionUser, tx?: any, target
           businessDate: initialDate,
           status: 'OPEN',
           openedById: fallbackUserId,
+          branchId: user?.branchId || null,
           openingCash: initialOpening,
           closingCash: initialOpening,
           reconciliationStatus: 'PENDING',
@@ -269,12 +270,12 @@ export async function getBusinessDateSummary(businessDateId: string, tx?: any): 
 
   return {
     id: bDate.id,
-    businessDate: bDate.businessDate.toISOString().slice(0, 10),
+    businessDate: bDate.businessDate ? bDate.businessDate.toISOString().slice(0, 10) : '',
     status: bDate.status as any,
-    openedAt: bDate.openedAt.toISOString(),
-    openedBy: bDate.openedBy,
+    openedAt: bDate.openedAt ? bDate.openedAt.toISOString() : new Date().toISOString(),
+    openedBy: bDate.openedBy || { id: bDate.openedById || '', name: 'System' },
     closedAt: bDate.closedAt ? bDate.closedAt.toISOString() : null,
-    closedBy: bDate.closedBy,
+    closedBy: bDate.closedBy || null,
     openingCash,
     closingCash: num(bDate.closingCash) || expectedClosingCash,
     actualCashInHand: num(bDate.actualCashInHand),
@@ -470,9 +471,12 @@ export async function closeActiveBusinessDate({
     // 2. Open next business date automatically
     const nextCalendarDate = addPeriod(parseCalendarDate(bDate.businessDate), 'DAILY')
     
-    // Check if next date already exists
+    // Check if next date already exists for this branch (handling null branchId safely)
     let nextDate = await tx.businessDate.findFirst({
-      where: { businessDate: nextCalendarDate, branchId: bDate.branchId },
+      where: {
+        businessDate: nextCalendarDate,
+        branchId: bDate.branchId ?? null,
+      },
     })
     if (nextDate) {
       nextDate = await tx.businessDate.update({

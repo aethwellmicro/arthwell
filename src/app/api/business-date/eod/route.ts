@@ -6,52 +6,76 @@ import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(req: Request) {
   return withAuth(async (user) => {
-    const { searchParams } = new URL(req.url)
-    const history = searchParams.get('history') === 'true'
+    try {
+      const { searchParams } = new URL(req.url)
+      const history = searchParams.get('history') === 'true'
 
-    if (history) {
-      const records = await db.businessDate.findMany({
-        where: { status: 'CLOSED', ...getBranchFilter(user) },
-        include: {
-          openedBy: { select: { name: true } },
-          closedBy: { select: { name: true } },
-          _count: { select: { collections: true, accounts: true, bankDeposits: true } },
-        },
-        orderBy: { businessDate: 'desc' },
-        take: 100,
-      })
+      if (history) {
+        const records = await db.businessDate.findMany({
+          where: { status: 'CLOSED', ...getBranchFilter(user) },
+          include: {
+            openedBy: { select: { name: true } },
+            closedBy: { select: { name: true } },
+            _count: { select: { collections: true, accounts: true, bankDeposits: true } },
+          },
+          orderBy: { businessDate: 'desc' },
+          take: 100,
+        })
+        return json({
+          items: records.map((r) => ({
+            ...r,
+            businessDate: r.businessDate ? r.businessDate.toISOString().slice(0, 10) : '',
+            openingCash: Number(r.openingCash || 0),
+            closingCash: Number(r.closingCash || 0),
+            actualCashInHand: Number(r.actualCashInHand || 0),
+            cashDifference: Number(r.cashDifference || 0),
+          })),
+        })
+      }
+
+      const dateParam = searchParams.get('date')
+      let active: any = null
+      try {
+        active = await getActiveBusinessDate(user, undefined, dateParam)
+      } catch (err: any) {
+        console.error('Error fetching active business date:', err)
+      }
+
+      if (!active) {
+        return json({ active: null, summary: null, openDates: [] })
+      }
+
+      let summary: any = null
+      try {
+        summary = await getBusinessDateSummary(active.id)
+      } catch (err: any) {
+        console.error('Error calculating business date summary:', err)
+      }
+
+      let openDates: any[] = []
+      try {
+        openDates = await db.businessDate.findMany({
+          where: { status: { in: ['OPEN', 'REOPENED', 'RECONCILIATION_PENDING'] }, ...getBranchFilter(user) },
+          orderBy: { businessDate: 'asc' },
+          select: { id: true, businessDate: true, status: true },
+        })
+      } catch (err: any) {
+        console.error('Error fetching open dates:', err)
+      }
+
       return json({
-        items: records.map((r) => ({
-          ...r,
-          businessDate: r.businessDate.toISOString().slice(0, 10),
-          openingCash: Number(r.openingCash),
-          closingCash: Number(r.closingCash),
-          actualCashInHand: Number(r.actualCashInHand),
-          cashDifference: Number(r.cashDifference),
+        active,
+        summary,
+        openDates: openDates.map((d) => ({
+          id: d.id,
+          businessDate: d.businessDate ? d.businessDate.toISOString().slice(0, 10) : '',
+          status: d.status,
         })),
       })
+    } catch (err: any) {
+      console.error('EOD GET handler fatal error:', err)
+      return error(err.message || 'Failed to load EOD information.', 500)
     }
-
-    const dateParam = searchParams.get('date')
-    const active = await getActiveBusinessDate(user, undefined, dateParam)
-    if (!active) return json({ active: null, summary: null, openDates: [] })
-    const summary = await getBusinessDateSummary(active.id)
-
-    const openDates = await db.businessDate.findMany({
-      where: { status: { in: ['OPEN', 'REOPENED', 'RECONCILIATION_PENDING'] }, ...getBranchFilter(user) },
-      orderBy: { businessDate: 'asc' },
-      select: { id: true, businessDate: true, status: true },
-    })
-
-    return json({
-      active,
-      summary,
-      openDates: openDates.map((d) => ({
-        id: d.id,
-        businessDate: d.businessDate.toISOString().slice(0, 10),
-        status: d.status,
-      })),
-    })
   })
 }
 
