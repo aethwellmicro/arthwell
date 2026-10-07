@@ -1,14 +1,21 @@
 import { db } from '@/lib/db'
 import { json, withAuth, parseBody } from '@/lib/api'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(req: Request) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status') || undefined
     const type = searchParams.get('type') || undefined
     const limit = parseInt(searchParams.get('limit') || '100')
     const notifications = await db.notification.findMany({
-      where: { AND: [status ? { status } : {}, type ? { type } : {}] },
+      where: {
+        AND: [
+          status ? { status } : {},
+          type ? { type } : {},
+          user.role === 'ADMIN' ? {} : { user: { is: getBranchFilter(user) } },
+        ],
+      },
       include: { collection: { select: { receiptNumber: true, amount: true } } },
       orderBy: { createdAt: 'desc' },
       take: limit,
@@ -25,6 +32,13 @@ export async function POST(req: Request) {
     const recipient = (body.recipient || '').toString()
     const customerId = body.customerId || null
     if (!type || !message || !recipient) return json({ error: 'type, message, recipient required' }, 422)
+    if (customerId && user.role !== 'ADMIN') {
+      const customer = await db.customer.findFirst({
+        where: { id: String(customerId), ...getBranchFilter(user) },
+        select: { id: true },
+      })
+      if (!customer) return json({ error: 'Customer not found.' }, 404)
+    }
     const n = await db.notification.create({
       data: { type, message, recipient, customerId, status: 'SENT', userId: user.id },
     })

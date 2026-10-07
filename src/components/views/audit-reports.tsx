@@ -473,7 +473,7 @@ function CashBookSection() {
 
       {/* Summary cards */}
       {data && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard label="Opening Balance" value={formatMoney(data.openingBalance || 0)} icon={Wallet} />
           <StatCard label="Total Cash Receipts (Dr)" value={formatMoney(data.totalDebits || 0)} icon={TrendingUp} tone="success" />
           <StatCard label="Total Cash Payments (Cr)" value={formatMoney(data.totalCredits || 0)} icon={TrendingDown} tone="warning" />

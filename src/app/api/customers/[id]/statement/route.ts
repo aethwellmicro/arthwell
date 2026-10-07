@@ -3,12 +3,13 @@ import { json, error, withAuth } from '@/lib/api'
 import { num } from '@/lib/calc'
 import { logAudit } from '@/lib/audit'
 import crypto from 'crypto'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { id } = await ctx.params
-    const customer = await db.customer.findUnique({
-      where: { id },
+    const customer = await db.customer.findFirst({
+      where: { id, ...getBranchFilter(user) },
       include: {
         group: true,
         createdBy: { select: { id: true, name: true, employeeCode: true } },

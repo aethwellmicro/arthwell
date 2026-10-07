@@ -1,17 +1,18 @@
 ﻿import { db } from '@/lib/db'
 import { json, error, withAuth } from '@/lib/api'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { id } = await ctx.params
-    const group = await db.group.findUnique({
-      where: { id },
+    const group = await db.group.findFirst({
+      where: { id, ...getBranchFilter(user) },
       select: { id: true, groupId: true, name: true, branch: true },
     })
     if (!group) return error('Group not found.', 404)
 
     const customers = await db.customer.findMany({
-      where: { groupId: id },
+      where: { groupId: id, ...getBranchFilter(user) },
       include: {
         createdBy: { select: { id: true, name: true } },
         accounts: { select: { id: true, accountNumber: true, status: true, totalPayable: true } },

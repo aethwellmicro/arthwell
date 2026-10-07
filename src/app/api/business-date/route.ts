@@ -4,6 +4,7 @@ import { getActiveBusinessDate, getBusinessDateSummary } from '@/lib/business-da
 import { ROLE_ADMIN, ROLE_BRANCH_MANAGER } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { parseCalendarDate } from '@/lib/calc'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(req: Request) {
   return withAuth(async (user) => {
@@ -16,7 +17,7 @@ export async function GET(req: Request) {
     const summary = await getBusinessDateSummary(active.id)
 
     const openDates = await db.businessDate.findMany({
-      where: { status: { in: ['OPEN', 'REOPENED', 'RECONCILIATION_PENDING'] } },
+      where: { status: { in: ['OPEN', 'REOPENED', 'RECONCILIATION_PENDING'] }, ...getBranchFilter(user) },
       orderBy: { businessDate: 'asc' },
       select: { id: true, businessDate: true, status: true },
     })
@@ -42,11 +43,23 @@ export async function POST(req: Request) {
 
     const body = await parseBody(req)
     const requestedDate = body.businessDate ? parseCalendarDate(body.businessDate) : parseCalendarDate(new Date())
-    const openingCash = body.openingCash !== undefined ? parseFloat(body.openingCash) : 0
+    const branchFilter = getBranchFilter(user)
+    const previousClosedDate = await db.businessDate.findFirst({
+      where: {
+        businessDate: { lt: requestedDate },
+        status: 'CLOSED',
+        ...branchFilter,
+      },
+      orderBy: { businessDate: 'desc' },
+      select: { closingCash: true },
+    })
+    const openingCash = body.openingCash !== undefined
+      ? parseFloat(body.openingCash)
+      : Number(previousClosedDate?.closingCash || 0)
 
     // Check if an OPEN date already exists
     const existingOpen = await db.businessDate.findFirst({
-      where: { status: { in: ['OPEN', 'RECONCILIATION_PENDING'] } },
+      where: { status: { in: ['OPEN', 'RECONCILIATION_PENDING'] }, ...branchFilter },
     })
 
     if (existingOpen) {
@@ -73,7 +86,9 @@ export async function POST(req: Request) {
     }
 
     // Check if record for requestedDate already exists
-    const existingDate = await db.businessDate.findUnique({ where: { businessDate: requestedDate } })
+    const existingDate = await db.businessDate.findFirst({
+      where: { businessDate: requestedDate, ...branchFilter },
+    })
     let targetRecord: any
     if (existingDate) {
       targetRecord = await db.businessDate.update({
@@ -92,6 +107,7 @@ export async function POST(req: Request) {
           businessDate: requestedDate,
           status: 'OPEN',
           openedById: user.id,
+          branchId: user.branchId || null,
           openingCash,
           closingCash: openingCash,
           reconciliationStatus: 'PENDING',

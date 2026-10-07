@@ -2,6 +2,7 @@
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
 import { ROLE_ADMIN, ROLE_BRANCH_MANAGER } from '@/lib/auth'
+import { getBranchFilter } from '@/lib/branch'
 import { z } from 'zod'
 
 const updateGroupSchema = z.object({
@@ -12,10 +13,10 @@ const updateGroupSchema = z.object({
 })
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { id } = await ctx.params
-    const group = await db.group.findUnique({
-      where: { id },
+    const group = await db.group.findFirst({
+      where: { id, ...getBranchFilter(user) },
       include: {
         createdBy: { select: { id: true, name: true, role: true, email: true } },
         customers: {
@@ -42,12 +43,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       return error(result.error.issues[0].message, 422)
     }
 
-    const existing = await db.group.findUnique({ where: { id } })
+    const existing = await db.group.findFirst({ where: { id, ...getBranchFilter(user) } })
     if (!existing) return error('Group not found.', 404)
 
     const data: any = {}
     if (result.data.name) data.name = result.data.name.trim()
-    if (result.data.branch) data.branch = result.data.branch.trim()
+    if (result.data.branch && user.role === ROLE_ADMIN) data.branch = result.data.branch.trim()
     if (result.data.description !== undefined) data.description = result.data.description?.trim() || null
     if (result.data.status) data.status = result.data.status
 
@@ -90,8 +91,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   return withAuth(async (user) => {
     const { id } = await ctx.params
-    const existing = await db.group.findUnique({
-      where: { id },
+    const existing = await db.group.findFirst({
+      where: { id, ...getBranchFilter(user) },
       include: { _count: { select: { customers: true } } },
     })
     if (!existing) return error('Group not found.', 404)

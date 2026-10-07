@@ -142,6 +142,7 @@ export async function GET(req: Request) {
 
     // Disbursements = DEBIT (cash paid out)
     for (const d of disbursements) {
+      const recoveredCharges = num(d.processingFee) + num(d.insurancePremium)
       entries.push({
         date: d.startDate.toISOString().slice(0, 10),
         particulars: `${d.customer.fullName} (${d.customer.customerId})`,
@@ -151,6 +152,17 @@ export async function GET(req: Request) {
         credit: num(d.principal),
         type: 'DISBURSEMENT',
       })
+      if (recoveredCharges > 0) {
+        entries.push({
+          date: d.startDate.toISOString().slice(0, 10),
+          particulars: `${d.customer.fullName} (${d.customer.customerId})`,
+          voucherNo: `CHG-${d.accountNumber.slice(-4)}`,
+          narration: `Recovered processing fee and insurance — ₹${recoveredCharges.toFixed(2)}`,
+          debit: recoveredCharges,
+          credit: 0,
+          type: 'CHARGE_RECOVERY',
+        })
+      }
     }
 
     // Expenses = DEBIT (cash paid out)
@@ -189,6 +201,7 @@ export async function GET(req: Request) {
         where: {
           businessDate: { lt: dateFrom },
           status: 'CLOSED',
+          ...branchFilter,
         },
         orderBy: { businessDate: 'desc' },
       })
@@ -198,6 +211,7 @@ export async function GET(req: Request) {
     } else {
       // Use first business date opening cash
       const firstDate = await db.businessDate.findFirst({
+        where: { ...branchFilter },
         orderBy: { businessDate: 'asc' },
       })
       if (firstDate) {

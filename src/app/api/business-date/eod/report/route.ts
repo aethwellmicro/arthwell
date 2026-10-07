@@ -2,26 +2,28 @@ import { db } from '@/lib/db'
 import { json, error, withAuth } from '@/lib/api'
 import { getBusinessDateSummary } from '@/lib/business-date'
 import { parseCalendarDate, num } from '@/lib/calc'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(req: Request) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { searchParams } = new URL(req.url)
     const dateStr = searchParams.get('date')
+    const branchFilter = getBranchFilter(user)
 
     let bDate: any = null
     if (dateStr) {
       const parsed = parseCalendarDate(dateStr)
-      bDate = await db.businessDate.findUnique({
-        where: { businessDate: parsed },
+      bDate = await db.businessDate.findFirst({
+        where: { businessDate: parsed, ...branchFilter },
       })
     } else {
       bDate = await db.businessDate.findFirst({
-        where: { status: { in: ['OPEN', 'REOPENED', 'RECONCILIATION_PENDING'] } },
+        where: { status: { in: ['OPEN', 'REOPENED', 'RECONCILIATION_PENDING'] }, ...branchFilter },
         orderBy: { businessDate: 'desc' },
       })
       if (!bDate) {
         bDate = await db.businessDate.findFirst({
-          where: { status: 'CLOSED' },
+          where: { status: 'CLOSED', ...branchFilter },
           orderBy: { businessDate: 'desc' },
         })
       }

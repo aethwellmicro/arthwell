@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
 import { z } from 'zod'
+import { getBranchFilter } from '@/lib/branch'
 
 const groupSchema = z.object({
   name: z.string().min(1, 'Group name is required').max(100),
@@ -31,14 +32,7 @@ export async function GET(req: Request) {
     if (status && status !== 'ALL') where.status = status
     if (branch && branch !== 'ALL') where.branch = branch
 
-    // Enforce branch-wise access
-    if (user.role !== 'ADMIN') {
-      if (user.branchId) {
-        where.branchId = user.branchId
-      }
-    } else if (branchId && branchId !== 'ALL') {
-      where.branchId = branchId
-    }
+    Object.assign(where, getBranchFilter(user, branchId))
 
     const [items, total] = await Promise.all([
       db.group.findMany({
@@ -69,7 +63,7 @@ export async function POST(req: Request) {
     const data = result.data
 
     const trimmedName = data.name.trim()
-    const branch = (data.branch || 'Main Branch').trim()
+    const branch = (user.role === 'ADMIN' ? data.branch : user.branch?.name || data.branch || 'Main Branch').trim()
 
     // Duplicate check within the branch
     const existing = await db.group.findFirst({
@@ -98,7 +92,7 @@ export async function POST(req: Request) {
           groupId,
           name: trimmedName,
           branch,
-          branchId: (body as any).branchId || user.branchId || null,
+          branchId: user.role === 'ADMIN' ? (body as any).branchId || user.branchId || null : user.branchId || null,
           description: data.description?.trim() || null,
           status: data.status,
           createdById: user.id,

@@ -67,6 +67,7 @@ interface BusinessDateSummary {
   cashDisbursements: number
   totalDisbursements: number
   bankDeposits: number
+  feesCollected: number
   expectedClosingCash: number
 }
 

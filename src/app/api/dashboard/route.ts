@@ -1,17 +1,21 @@
 import { db } from '@/lib/db'
 import { json, withAuth, startOfDay, endOfDay, startOfWeek, startOfMonth, addMonths } from '@/lib/api'
 import { num } from '@/lib/calc'
+import { getBranchFilter } from '@/lib/branch'
 
-let serverDashboardCache: { data: any; expiry: number } | null = null
+let serverDashboardCache: { scopeKey: string; data: any; expiry: number } | null = null
 const SERVER_CACHE_TTL = 3000 // 3 seconds burst cache
 
 export async function GET(req: Request) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const url = new URL(req.url)
     const bypassCache = url.searchParams.get('refresh') === '1'
+    const branchFilter = getBranchFilter(user)
+    const installmentBranchFilter = user.role === 'ADMIN' ? {} : { account: { is: branchFilter } }
+    const scopeKey = user.role === 'ADMIN' ? 'ADMIN' : `${user.role}:${user.branchId || 'UNASSIGNED'}`
 
     const nowTime = Date.now()
-    if (!bypassCache && serverDashboardCache && nowTime < serverDashboardCache.expiry) {
+    if (!bypassCache && serverDashboardCache?.scopeKey === scopeKey && nowTime < serverDashboardCache.expiry) {
       return json(serverDashboardCache.data)
     }
 
@@ -44,21 +48,21 @@ export async function GET(req: Request) {
       dueToday,
       upcomingInstallments,
     ] = await Promise.all([
-      db.customer.count(),
-      db.customer.count({ where: { status: { in: ['ACTIVE', 'APPROVED', 'DISBURSED'] } } }),
-      db.customer.count({ where: { status: 'PENDING_VERIFICATION' } }),
-      db.customer.count({ where: { status: 'APPROVED' } }),
-      db.customer.count({ where: { status: 'REJECTED' } }),
-      db.customer.count({ where: { status: 'DISBURSED' } }),
-      db.group.count(),
-      db.account.findMany({ select: { id: true, principal: true, totalPayable: true, status: true, startDate: true } }),
-      db.collection.findMany({ where: { status: 'SUCCESSFUL' }, select: { amount: true, paymentMode: true, collectedById: true, collectionDate: true } }),
-      db.collection.findMany({ where: { status: 'SUCCESSFUL', collectionDate: { gte: todayStart, lte: todayEnd } }, include: { collectedBy: { select: { name: true } }, customer: { select: { fullName: true, customerId: true } }, account: { select: { accountNumber: true } } }, orderBy: { collectionDate: 'desc' } }),
-      db.collection.findMany({ where: { status: 'SUCCESSFUL', collectionDate: { gte: weekStart } }, select: { amount: true, paymentMode: true } }),
-      db.collection.findMany({ where: { status: 'SUCCESSFUL', collectionDate: { gte: monthStart } }, select: { amount: true, paymentMode: true } }),
-      db.collection.findMany({ where: { status: 'SUCCESSFUL', collectionDate: { gte: sixMonthsAgo } }, select: { amount: true, collectionDate: true, paymentMode: true } }),
+      db.customer.count({ where: branchFilter }),
+      db.customer.count({ where: { status: { in: ['ACTIVE', 'APPROVED', 'DISBURSED'] }, ...branchFilter } }),
+      db.customer.count({ where: { status: 'PENDING_VERIFICATION', ...branchFilter } }),
+      db.customer.count({ where: { status: 'APPROVED', ...branchFilter } }),
+      db.customer.count({ where: { status: 'REJECTED', ...branchFilter } }),
+      db.customer.count({ where: { status: 'DISBURSED', ...branchFilter } }),
+      db.group.count({ where: branchFilter }),
+      db.account.findMany({ where: branchFilter, select: { id: true, principal: true, totalPayable: true, status: true, startDate: true } }),
+      db.collection.findMany({ where: { status: 'SUCCESSFUL', ...branchFilter }, select: { amount: true, paymentMode: true, collectedById: true, collectionDate: true } }),
+      db.collection.findMany({ where: { status: 'SUCCESSFUL', collectionDate: { gte: todayStart, lte: todayEnd }, ...branchFilter }, include: { collectedBy: { select: { name: true } }, customer: { select: { fullName: true, customerId: true } }, account: { select: { accountNumber: true } } }, orderBy: { collectionDate: 'desc' } }),
+      db.collection.findMany({ where: { status: 'SUCCESSFUL', collectionDate: { gte: weekStart }, ...branchFilter }, select: { amount: true, paymentMode: true } }),
+      db.collection.findMany({ where: { status: 'SUCCESSFUL', collectionDate: { gte: monthStart }, ...branchFilter }, select: { amount: true, paymentMode: true } }),
+      db.collection.findMany({ where: { status: 'SUCCESSFUL', collectionDate: { gte: sixMonthsAgo }, ...branchFilter }, select: { amount: true, collectionDate: true, paymentMode: true } }),
       db.customer.findMany({
-        where: { status: 'PENDING_VERIFICATION' },
+        where: { status: 'PENDING_VERIFICATION', ...branchFilter },
         include: {
           group: { select: { id: true, groupId: true, name: true } },
           createdBy: { select: { id: true, name: true } },
@@ -66,19 +70,20 @@ export async function GET(req: Request) {
         orderBy: { createdAt: 'desc' },
         take: 10,
       }),
-      db.user.findMany({ select: { id: true, name: true, role: true } }),
+      db.user.findMany({ where: branchFilter, select: { id: true, name: true, role: true } }),
       db.installment.findMany({
-        where: { dueDate: { lt: now }, status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] } },
+        where: { dueDate: { lt: now }, status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] }, ...installmentBranchFilter },
         include: { account: { include: { customer: { select: { fullName: true, customerId: true, primaryMobile: true } } } } },
       }),
       db.installment.findMany({
-        where: { dueDate: { lte: todayEnd }, status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] } },
+        where: { dueDate: { lte: todayEnd }, status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] }, ...installmentBranchFilter },
         select: { amount: true, paidAmount: true },
       }),
       db.installment.findMany({
         where: {
           dueDate: { gt: todayEnd, lte: sevenDaysLater },
           status: { in: ['PENDING', 'PARTIAL'] },
+          ...installmentBranchFilter,
         },
         select: { amount: true, paidAmount: true, dueDate: true },
       }),
@@ -238,6 +243,7 @@ export async function GET(req: Request) {
     }
 
     serverDashboardCache = {
+      scopeKey,
       data: result,
       expiry: Date.now() + SERVER_CACHE_TTL,
     }

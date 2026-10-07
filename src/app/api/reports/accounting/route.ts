@@ -26,6 +26,11 @@ export async function GET(req: Request) {
     const principalCollected = num(collectionsAgg._sum.allocatedPrincipal)
     const interestIncome = num(collectionsAgg._sum.allocatedInterest)
     const customerSavings = num(collectionsAgg._sum.allocatedSavings)
+    const cashCollectionsAgg = await db.collection.aggregate({
+      where: { status: { in: ['APPROVED', 'SUCCESSFUL'] }, paymentMode: 'CASH', ...branchFilter },
+      _sum: { amount: true },
+    })
+    const cashCollections = num(cashCollectionsAgg._sum.amount)
 
     // 2. Loan Accounts & Receivables
     const accountsAgg = await db.account.aggregate({
@@ -48,20 +53,27 @@ export async function GET(req: Request) {
       _sum: { amount: true },
     })
     const totalInvestments = num(investmentsAgg._sum.amount)
+    const cashInvestmentsAgg = await db.investment.aggregate({
+      where: { status: { not: 'CANCELLED' }, paymentMode: 'CASH', ...branchFilter },
+      _sum: { amount: true },
+    })
+    const cashInvestments = num(cashInvestmentsAgg._sum.amount)
 
     // 4. Expenses (Operating & Administrative Outflows)
     const expenses = await db.expense.findMany({
       where: { status: { not: 'CANCELLED' }, ...branchFilter },
-      select: { expenseType: true, amount: true },
+      select: { expenseType: true, amount: true, paymentMode: true },
     })
     let totalExpenses = 0
     let interestExpense = 0
     let operatingExpenses = 0
     let otherExpenses = 0
+    let cashExpenses = 0
 
     for (const exp of expenses) {
       const amt = num(exp.amount)
       totalExpenses = addMoney(totalExpenses, amt)
+      if (exp.paymentMode === 'CASH') cashExpenses = addMoney(cashExpenses, amt)
       if (exp.expenseType.includes('INTEREST')) {
         interestExpense = addMoney(interestExpense, amt)
       } else if (exp.expenseType.includes('SALARY') || exp.expenseType.includes('OFFICE') || exp.expenseType.includes('STATIONERY')) {
@@ -78,9 +90,26 @@ export async function GET(req: Request) {
     })
     const totalBankDeposits = num(bankDepositsAgg._sum.amount)
 
+    const businessDates = await db.businessDate.findMany({
+      where: { ...branchFilter },
+      orderBy: { businessDate: 'asc' },
+      select: { branchId: true, openingCash: true },
+    })
+    const openingCashByBranch = new Map<string | null, number>()
+    for (const businessDate of businessDates) {
+      if (!openingCashByBranch.has(businessDate.branchId)) {
+        openingCashByBranch.set(businessDate.branchId, num(businessDate.openingCash))
+      }
+    }
+    const openingCash = Array.from(openingCashByBranch.values()).reduce((total, amount) => total + amount, 0)
+
     // 6. Cash and Bank Balances
-    // Cash In Hand = Total Collections (Cash) + Investments (Cash) - Disbursements - Expenses (Cash) - Bank Deposits
-    const cashInHand = Math.max(0, totalInvestments + totalCollected - totalDisbursedPrincipal - totalExpenses - totalBankDeposits)
+    // Cash in hand follows physical cash movements; non-cash collections and expenses are excluded.
+    const cashInHand = Math.max(
+      0,
+      openingCash + cashCollections + cashInvestments + processingFeeIncome + insuranceIncome -
+        totalDisbursedPrincipal - cashExpenses - totalBankDeposits
+    )
     const bankBalance = totalBankDeposits
 
     // Total Income & Net Profit

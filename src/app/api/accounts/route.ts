@@ -4,6 +4,7 @@ import { logAudit } from '@/lib/audit'
 import { calculateLoan, parseCalendarDate, type InterestType, type InterestPeriod, type InstallmentFreq } from '@/lib/calc'
 import { getActiveBusinessDate, assertBusinessDateOpen } from '@/lib/business-date'
 import { z } from 'zod'
+import { getBranchFilter } from '@/lib/branch'
 
 const accountSchema = z.object({
   customerId: z.string().min(1, 'Customer is required'),
@@ -34,14 +35,7 @@ export async function GET(req: Request) {
     if (status) where.status = status
     if (customerId) where.customerId = customerId
 
-    // Branch scoping
-    if (user.role !== 'ADMIN') {
-      if (user.branchId) {
-        where.branchId = user.branchId
-      }
-    } else if (branchId && branchId !== 'ALL') {
-      where.branchId = branchId
-    }
+    Object.assign(where, getBranchFilter(user, branchId))
 
     if (q) {
       const or: any[] = [{ accountNumber: { contains: q } }]
@@ -125,8 +119,8 @@ export async function POST(req: Request) {
     }
     const data = result.data
 
-    const customer = await db.customer.findUnique({
-      where: { id: data.customerId },
+    const customer = await db.customer.findFirst({
+      where: { id: data.customerId, ...getBranchFilter(user) },
       include: { group: true },
     })
     if (!customer) return error('Customer not found.', 404)

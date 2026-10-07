@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
 import { num } from '@/lib/calc'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   // reverse a collection (controlled, audited, no hard delete)
@@ -11,7 +12,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     const reason = (body.reason || '').toString().trim()
     if (!reason) return error('A reason is required to reverse a transaction.', 422)
 
-    const collection = await db.collection.findUnique({ where: { id }, include: { account: true } })
+    const collection = await db.collection.findFirst({
+      where: { id, ...getBranchFilter(user) },
+      include: { account: true },
+    })
     if (!collection) return error('Collection not found.', 404)
     if (collection.status !== 'SUCCESSFUL') return error('Only successful transactions can be reversed.', 422)
 

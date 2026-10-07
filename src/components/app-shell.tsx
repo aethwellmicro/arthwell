@@ -433,7 +433,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Main */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
-          <header className="sticky top-0 z-30 h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center gap-3 px-4 lg:px-6">
+          <header className="sticky top-0 z-30 min-h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center gap-3 px-4 py-2 lg:px-6">
             <Button
               variant="ghost"
               size="icon"
@@ -448,6 +448,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <h1 className="text-xl font-bold tracking-tight truncate">{getTitle(pathname)}</h1>
                 <BusinessDateHeaderBadge />
               </div>
+              {user?.branch?.name && (
+                <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[10px] font-medium text-primary">
+                  <GitBranch className="h-3 w-3 shrink-0" />
+                  <span className="truncate">Branch: {user.branch.name}</span>
+                </div>
+              )}
               <p className="text-xs text-muted-foreground hidden sm:block">
                 {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
               </p>
@@ -504,23 +510,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </header>
 
           {/* View content */}
-          <main className="flex-1 p-4 lg:p-6">
-            <div className="view-fade-in">
+          <main className="flex-1 min-w-0 overflow-x-hidden p-4 lg:p-6">
+            <div className="view-fade-in min-w-0 w-full">
               {children}
             </div>
           </main>
         </div>
       </div>
 
-      {/* Floating Action Button (mobile only) */}
-      <Button
-        onClick={() => router.push('/collections')}
-        className="lg:hidden fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full shadow-lg p-0"
-        size="icon"
-        aria-label="Quick Collection"
-      >
-        <HandCoins className="h-6 w-6" />
-      </Button>
+      {/* Dashboard quick action; keep dense transaction and report views unobstructed. */}
+      {pathname === '/dashboard' && (
+        <Button
+          onClick={() => router.push('/collections')}
+          className="lg:hidden fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full shadow-lg p-0"
+          size="icon"
+          aria-label="Quick Collection"
+        >
+          <HandCoins className="h-6 w-6" />
+        </Button>
+      )}
 
       {/* Footer */}
       <footer className="mt-auto border-t bg-sidebar/40">

@@ -2,12 +2,13 @@ import { db } from '@/lib/db'
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
 import crypto from 'crypto'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   return withAuth(async (user) => {
     const { id } = await ctx.params
-    const customer = await db.customer.findUnique({
-      where: { id },
+    const customer = await db.customer.findFirst({
+      where: { id, ...getBranchFilter(user) },
       select: { id: true, customerId: true, fullName: true },
     })
 

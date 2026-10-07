@@ -56,6 +56,12 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       data.branchId = user.branchId
     }
 
+    const resultingRole = data.role ?? existing.role
+    const resultingBranchId = data.branchId !== undefined ? data.branchId : existing.branchId
+    if (resultingRole !== ROLE_ADMIN && !resultingBranchId) {
+      return error('A branch must be assigned to every non-admin employee.', 422)
+    }
+
     const updated = await db.user.update({
       where: { id },
       data,

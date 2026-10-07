@@ -2,12 +2,13 @@ import { db } from '@/lib/db'
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
 import { ROLE_ADMIN, ROLE_BRANCH_MANAGER } from '@/lib/auth'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { id } = await ctx.params
-    const customer = await db.customer.findUnique({
-      where: { id },
+    const customer = await db.customer.findFirst({
+      where: { id, ...getBranchFilter(user) },
       include: {
         group: { select: { id: true, groupId: true, name: true, branch: true } },
         createdBy: { select: { id: true, name: true, email: true, role: true } },
@@ -43,7 +44,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   return withAuth(async (user) => {
     const { id } = await ctx.params
     const body = await parseBody(req)
-    const existing = await db.customer.findUnique({ where: { id } })
+    const existing = await db.customer.findFirst({ where: { id, ...getBranchFilter(user) } })
     if (!existing) return error('Customer not found.', 404)
 
     const data: any = {}
@@ -60,17 +61,21 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       'photoUrl',
       'idType',
       'idNumber',
-      'branch',
       'groupId',
     ]) {
       if (body[k] !== undefined) data[k] = body[k] === '' ? null : body[k]
+    }
+    if (user.role === ROLE_ADMIN && body.branch !== undefined) {
+      data.branch = body.branch === '' ? null : body.branch
     }
 
     if (body.amount !== undefined) data.amount = parseFloat(body.amount) || 0
 
     // If changing group, ensure group exists and is active
     if (data.groupId && data.groupId !== existing.groupId) {
-      const g = await db.group.findUnique({ where: { id: data.groupId } })
+      const g = await db.group.findFirst({
+        where: { id: data.groupId, ...getBranchFilter(user) },
+      })
       if (!g) return error('Selected group does not exist.', 404)
       if (g.status !== 'ACTIVE') return error(`Cannot assign customer to ${g.status.toLowerCase()} group.`, 422)
       data.branch = g.branch
@@ -108,8 +113,8 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   return withAuth(async (user) => {
     const { id } = await ctx.params
-    const existing = await db.customer.findUnique({
-      where: { id },
+    const existing = await db.customer.findFirst({
+      where: { id, ...getBranchFilter(user) },
       include: {
         _count: {
           select: {

@@ -45,6 +45,9 @@ export interface BusinessDateWithTotals {
  */
 export async function getActiveBusinessDate(user?: SessionUser, tx?: any, targetDate?: string | Date | null): Promise<any> {
   const client = tx || db
+  const branchScope = user && user.role !== 'ADMIN'
+    ? { branchId: user.branchId || '__UNASSIGNED__' }
+    : {}
 
   // 1. If targetDate is provided (e.g. backdated transaction for 2026-07-27)
   if (targetDate) {
@@ -59,6 +62,7 @@ export async function getActiveBusinessDate(user?: SessionUser, tx?: any, target
         where: {
           businessDate: { gte: dayStart, lte: dayEnd },
           status: { in: ['OPEN', 'REOPENED', 'RECONCILIATION_PENDING'] },
+          ...branchScope,
         },
         include: {
           openedBy: { select: { id: true, name: true, role: true } },
@@ -74,6 +78,7 @@ export async function getActiveBusinessDate(user?: SessionUser, tx?: any, target
       const closed = await client.businessDate.findFirst({
         where: {
           businessDate: { gte: dayStart, lte: dayEnd },
+          ...branchScope,
         },
         include: {
           openedBy: { select: { id: true, name: true, role: true } },
@@ -87,13 +92,24 @@ export async function getActiveBusinessDate(user?: SessionUser, tx?: any, target
       const fallbackUserId = user?.id || (await client.user.findFirst({ where: { role: 'ADMIN' } }))?.id || ''
       if (fallbackUserId) {
         const exactDate = parseCalendarDate(dateStr)
+        const previousClosedDate = await client.businessDate.findFirst({
+          where: {
+            businessDate: { lt: exactDate },
+            status: 'CLOSED',
+            ...branchScope,
+          },
+          orderBy: { businessDate: 'desc' },
+          select: { closingCash: true },
+        })
+        const openingCash = previousClosedDate ? num(previousClosedDate.closingCash) : 0
         matched = await client.businessDate.create({
           data: {
             businessDate: exactDate,
             status: 'OPEN',
             openedById: fallbackUserId,
-            openingCash: 0,
-            closingCash: 0,
+            branchId: user?.branchId || null,
+            openingCash,
+            closingCash: openingCash,
             reconciliationStatus: 'PENDING',
           },
           include: {
@@ -107,7 +123,7 @@ export async function getActiveBusinessDate(user?: SessionUser, tx?: any, target
   }
 
   let active = await client.businessDate.findFirst({
-    where: { status: { in: ['OPEN', 'REOPENED', 'RECONCILIATION_PENDING'] } },
+    where: { status: { in: ['OPEN', 'REOPENED', 'RECONCILIATION_PENDING'] }, ...branchScope },
     include: {
       openedBy: { select: { id: true, name: true, role: true } },
       closedBy: { select: { id: true, name: true } },
@@ -119,7 +135,7 @@ export async function getActiveBusinessDate(user?: SessionUser, tx?: any, target
   if (!active) {
     // If no business date has ever been created, create the initial one
     const lastClosed = await client.businessDate.findFirst({
-      where: { status: 'CLOSED' },
+      where: { status: 'CLOSED', ...branchScope },
       orderBy: { businessDate: 'desc' },
     })
 
@@ -373,7 +389,10 @@ export async function closeActiveBusinessDate({
       where: { id: businessDateId },
       include: {
         collections: { select: { amount: true, paymentMode: true, status: true } },
-        accounts: { select: { principal: true, processingFee: true, insurancePremium: true } },
+        accounts: {
+          where: { status: { not: 'CANCELLED' } },
+          select: { principal: true, processingFee: true, insurancePremium: true },
+        },
         bankDeposits: { select: { amount: true } },
         investments: { where: { status: { not: 'CANCELLED' } }, select: { amount: true, paymentMode: true } },
         expenses: { where: { status: { not: 'CANCELLED' } }, select: { amount: true, paymentMode: true } },
@@ -381,6 +400,9 @@ export async function closeActiveBusinessDate({
     })
 
     if (!bDate) throw new Error('Business date not found.')
+    if (user.role !== 'ADMIN' && bDate.branchId !== user.branchId) {
+      throw new Error('You are not authorized to close another branch business date.')
+    }
     if (bDate.status === 'CLOSED') throw new Error('Business date is already closed.')
 
     // Calculate exact closing cash
@@ -449,12 +471,15 @@ export async function closeActiveBusinessDate({
     const nextCalendarDate = addPeriod(parseCalendarDate(bDate.businessDate), 'DAILY')
     
     // Check if next date already exists
-    let nextDate = await tx.businessDate.findUnique({ where: { businessDate: nextCalendarDate } })
+    let nextDate = await tx.businessDate.findFirst({
+      where: { businessDate: nextCalendarDate, branchId: bDate.branchId },
+    })
     if (nextDate) {
       nextDate = await tx.businessDate.update({
         where: { id: nextDate.id },
         data: {
           status: 'OPEN',
+          branchId: bDate.branchId,
           openingCash: enteredActualCash,
           closingCash: enteredActualCash,
           openedById: user.id,
@@ -466,6 +491,7 @@ export async function closeActiveBusinessDate({
         data: {
           businessDate: nextCalendarDate,
           status: 'OPEN',
+          branchId: bDate.branchId,
           openedById: user.id,
           openingCash: enteredActualCash,
           closingCash: enteredActualCash,

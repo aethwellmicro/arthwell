@@ -3,6 +3,7 @@ import { json, error, withAuth, parseBody } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
 import { num } from '@/lib/calc'
 import { getActiveBusinessDate, assertBusinessDateOpen } from '@/lib/business-date'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(req: Request) {
   return withAuth(async (user) => {
@@ -29,14 +30,7 @@ export async function GET(req: Request) {
     if (paymentMode) where.paymentMode = paymentMode
     if (status) where.status = status
 
-    // Branch scoping
-    if (user.role !== 'ADMIN') {
-      if (user.branchId) {
-        where.branchId = user.branchId
-      }
-    } else if (branchId && branchId !== 'ALL') {
-      where.branchId = branchId
-    }
+    Object.assign(where, getBranchFilter(user, branchId))
 
     const collections = await db.collection.findMany({
       where,
@@ -102,7 +96,10 @@ export async function POST(req: Request) {
     if (!['CASH', 'UPI', 'BANK', 'OTHER'].includes(paymentMode)) return error('Invalid payment mode.', 422)
     if (!collectionDateStr) return error('Collection date is required.', 422)
 
-    const account = await db.account.findUnique({ where: { id: accountId }, include: { customer: true } })
+    const account = await db.account.findFirst({
+      where: { id: accountId, ...getBranchFilter(user) },
+      include: { customer: true, branch: { select: { name: true } } },
+    })
     if (!account) return error('Account not found.', 404)
     if (account.customerId !== customerId) return error('Account does not belong to the selected customer.', 422)
     if (account.status !== 'ACTIVE' && account.status !== 'OVERDUE') {
@@ -184,7 +181,7 @@ export async function POST(req: Request) {
         data: {
           collectionId: newCollection.id,
           receiptNumber,
-          branchName: 'ArthWell Micro Finance - Main Branch',
+          branchName: account.branch?.name || account.customer.branch || 'Branch Office',
           printCount: 0,
         },
       })

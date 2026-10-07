@@ -1,12 +1,13 @@
 import { db } from '@/lib/db'
 import { json, error, withAuth } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { id } = await ctx.params
-    const account = await db.account.findUnique({
-      where: { id },
+    const account = await db.account.findFirst({
+      where: { id, ...getBranchFilter(user) },
       include: { customer: true, product: true, createdBy: { select: { name: true } } },
     })
     if (!account) return error('Account not found.', 404)
@@ -51,7 +52,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   return withAuth(async (user) => {
     const { id } = await ctx.params
     const body = await req.json().catch(() => ({}))
-    const existing = await db.account.findUnique({ where: { id } })
+    const existing = await db.account.findFirst({ where: { id, ...getBranchFilter(user) } })
     if (!existing) return error('Account not found.', 404)
 
     const data: any = {}
@@ -70,8 +71,8 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string 
     }
 
     const { id } = await ctx.params
-    const account = await db.account.findUnique({
-      where: { id },
+    const account = await db.account.findFirst({
+      where: { id, ...getBranchFilter(user) },
       include: {
         customer: true,
         collections: {

@@ -2,12 +2,13 @@ import { db } from '@/lib/db'
 import { json, error, withAuth } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
 import { num } from '@/lib/calc'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { id } = await ctx.params
-    const c = await db.collection.findUnique({
-      where: { id },
+    const c = await db.collection.findFirst({
+      where: { id, ...getBranchFilter(user) },
       include: {
         customer: true,
         account: true,
@@ -30,8 +31,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   return withAuth(async (user) => {
     const { id } = await ctx.params
-    const collection = await db.collection.findUnique({
-      where: { id },
+    const collection = await db.collection.findFirst({
+      where: { id, ...getBranchFilter(user) },
       include: {
         account: true,
         customer: true,

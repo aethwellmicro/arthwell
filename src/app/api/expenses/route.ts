@@ -26,6 +26,7 @@ export async function GET(req: Request) {
             gte: new Date(businessDateStr + 'T00:00:00.000Z'),
             lte: new Date(businessDateStr + 'T23:59:59.999Z'),
           },
+          ...branchFilter,
         },
       })
       if (bDate) whereClause.businessDateId = bDate.id

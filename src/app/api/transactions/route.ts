@@ -2,13 +2,15 @@ import { db } from '@/lib/db'
 import { json, withAuth } from '@/lib/api'
 import { getActiveBusinessDate } from '@/lib/business-date'
 import { num } from '@/lib/calc'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(req: Request) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { searchParams } = new URL(req.url)
     const type = searchParams.get('type') || 'ALL' // ALL, COLLECTION, DISBURSEMENT, BANK_DEPOSIT
     const businessDateStr = searchParams.get('businessDate') || undefined
     const limit = parseInt(searchParams.get('limit') || '200')
+    const branchFilter = getBranchFilter(user)
 
     let targetBusinessDateId: string | undefined
 
@@ -19,6 +21,7 @@ export async function GET(req: Request) {
             gte: new Date(businessDateStr + 'T00:00:00.000Z'),
             lte: new Date(businessDateStr + 'T23:59:59.999Z'),
           },
+          ...branchFilter,
         },
       })
       if (b) targetBusinessDateId = b.id
@@ -30,7 +33,7 @@ export async function GET(req: Request) {
     // CRITICAL: Cash Book must contain ONLY approved/final transactions.
     // Pending collections must NOT contaminate the final Cash Book.
     if (type === 'ALL' || type === 'COLLECTION') {
-      const collectionWhere: any = targetBusinessDateId ? { businessDateId: targetBusinessDateId } : {}
+      const collectionWhere: any = { ...branchFilter, ...(targetBusinessDateId ? { businessDateId: targetBusinessDateId } : {}) }
       const statusParam = searchParams.get('status')
       if (statusParam) {
         collectionWhere.status = statusParam
@@ -73,7 +76,7 @@ export async function GET(req: Request) {
     // 2. Disbursements (Debit) & Deducted/Recovered Charges (Credit)
     if (type === 'ALL' || type === 'DISBURSEMENT' || type === 'CHARGE_RECOVERY') {
       const accounts = await db.account.findMany({
-        where: targetBusinessDateId ? { businessDateId: targetBusinessDateId } : {},
+        where: { ...branchFilter, ...(targetBusinessDateId ? { businessDateId: targetBusinessDateId } : {}) },
         include: {
           customer: { select: { fullName: true, customerId: true, primaryMobile: true } },
           createdBy: { select: { name: true } },
@@ -134,7 +137,7 @@ export async function GET(req: Request) {
     // 3. Bank Deposits (Debit from Vault / Deposit to Bank)
     if (type === 'ALL' || type === 'BANK_DEPOSIT') {
       const deposits = await db.bankDeposit.findMany({
-        where: targetBusinessDateId ? { businessDateId: targetBusinessDateId } : {},
+        where: { ...branchFilter, ...(targetBusinessDateId ? { businessDateId: targetBusinessDateId } : {}) },
         include: {
           businessDate: { select: { businessDate: true } },
           createdBy: { select: { name: true } },
@@ -165,7 +168,7 @@ export async function GET(req: Request) {
     // 4. Investments (Inflow / Automatic Credit to Cash/Bank Balance)
     if (type === 'ALL' || type === 'INVESTMENT') {
       const investments = await db.investment.findMany({
-        where: targetBusinessDateId ? { businessDateId: targetBusinessDateId } : {},
+        where: { ...branchFilter, ...(targetBusinessDateId ? { businessDateId: targetBusinessDateId } : {}) },
         include: {
           businessDate: { select: { businessDate: true } },
           createdBy: { select: { name: true } },
@@ -196,7 +199,7 @@ export async function GET(req: Request) {
     // 5. Expenses (Outflow / Automatic Debit from Cash/Bank Balance)
     if (type === 'ALL' || type === 'EXPENSE') {
       const expenses = await db.expense.findMany({
-        where: targetBusinessDateId ? { businessDateId: targetBusinessDateId } : {},
+        where: { ...branchFilter, ...(targetBusinessDateId ? { businessDateId: targetBusinessDateId } : {}) },
         include: {
           businessDate: { select: { businessDate: true } },
           createdBy: { select: { name: true } },

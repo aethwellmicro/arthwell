@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { getActiveBusinessDate, getBusinessDateSummary, closeActiveBusinessDate } from '@/lib/business-date'
 import { ROLE_ADMIN, ROLE_BRANCH_MANAGER } from '@/lib/auth'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(req: Request) {
   return withAuth(async (user) => {
@@ -10,7 +11,7 @@ export async function GET(req: Request) {
 
     if (history) {
       const records = await db.businessDate.findMany({
-        where: { status: 'CLOSED' },
+        where: { status: 'CLOSED', ...getBranchFilter(user) },
         include: {
           openedBy: { select: { name: true } },
           closedBy: { select: { name: true } },
@@ -37,7 +38,7 @@ export async function GET(req: Request) {
     const summary = await getBusinessDateSummary(active.id)
 
     const openDates = await db.businessDate.findMany({
-      where: { status: { in: ['OPEN', 'REOPENED', 'RECONCILIATION_PENDING'] } },
+      where: { status: { in: ['OPEN', 'REOPENED', 'RECONCILIATION_PENDING'] }, ...getBranchFilter(user) },
       orderBy: { businessDate: 'asc' },
       select: { id: true, businessDate: true, status: true },
     })
@@ -73,7 +74,9 @@ export async function POST(req: Request) {
     const targetBusinessDateId = body.businessDateId
     let active: any
     if (targetBusinessDateId) {
-      active = await db.businessDate.findUnique({ where: { id: targetBusinessDateId } })
+      active = await db.businessDate.findFirst({
+        where: { id: targetBusinessDateId, ...getBranchFilter(user) },
+      })
     } else if (body.businessDate) {
       active = await getActiveBusinessDate(user, undefined, body.businessDate)
     } else {

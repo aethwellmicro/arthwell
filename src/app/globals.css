@@ -136,6 +136,23 @@
 }
 .view-fade-in {
   animation: view-fade-in 0.25s ease-out;
+  min-width: 0;
+  width: 100%;
+}
+
+@media (max-width: 639px) {
+  .view-fade-in button {
+    white-space: normal;
+  }
+
+  .view-fade-in :where(input, select, textarea) {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .view-fade-in [role="tablist"] {
+    max-width: 100%;
+  }
 }
 
 /* Subtle pulse for live indicators */

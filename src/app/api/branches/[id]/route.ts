@@ -3,6 +3,7 @@ import { json, error, withAuth, parseBody } from '@/lib/api'
 import { ROLE_ADMIN } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
 import { num } from '@/lib/calc'
+import { assertBranchAccess } from '@/lib/branch'
 
 export async function GET(
   req: Request,
@@ -10,6 +11,7 @@ export async function GET(
 ) {
   return withAuth(async (user) => {
     const { id } = await params
+    if (!assertBranchAccess(user, id)) return error('Branch not found.', 404)
     const branch = await db.branch.findUnique({
       where: { id },
       include: {

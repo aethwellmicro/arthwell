@@ -2,16 +2,17 @@ import { db } from '@/lib/db'
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
 import { hashPassword, ROLE_ADMIN, ROLE_BRANCH_MANAGER } from '@/lib/auth'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(req: Request) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { searchParams } = new URL(req.url)
     const role = searchParams.get('role') || undefined
     const branchId = searchParams.get('branchId') || undefined
     const employees = await db.user.findMany({
       where: {
         ...(role ? { role } : {}),
-        ...(branchId && branchId !== 'ALL' ? { branchId } : {}),
+        ...getBranchFilter(user, branchId),
       },
       select: {
         id: true,
@@ -74,6 +75,9 @@ export async function POST(req: Request) {
     if (!['ADMIN', 'BRANCH_MANAGER', 'ACCOUNTANT', 'COLLECTION_EMPLOYEE'].includes(role)) return error('Invalid role.', 422)
     if (user.role === ROLE_BRANCH_MANAGER && role === ROLE_ADMIN) {
       return error('Branch managers cannot create Administrator accounts.', 403)
+    }
+    if (role !== ROLE_ADMIN && !branchId) {
+      return error('A branch must be assigned to every non-admin employee.', 422)
     }
     if (password.length < 6) return error('Password must be at least 6 characters.', 422)
 

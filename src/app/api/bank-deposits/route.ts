@@ -4,6 +4,7 @@ import { getActiveBusinessDate, assertBusinessDateOpen } from '@/lib/business-da
 import { parseCalendarDate } from '@/lib/calc'
 import { logAudit } from '@/lib/audit'
 import { z } from 'zod'
+import { getBranchFilter } from '@/lib/branch'
 
 const depositSchema = z.object({
   bankAccount: z.string().min(1, 'Bank Account is required').max(100),
@@ -14,12 +15,12 @@ const depositSchema = z.object({
 })
 
 export async function GET(req: Request) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { searchParams } = new URL(req.url)
     const businessDateId = searchParams.get('businessDateId') || undefined
     const limit = parseInt(searchParams.get('limit') || '100')
 
-    const where: any = {}
+    const where: any = { ...getBranchFilter(user) }
     if (businessDateId) where.businessDateId = businessDateId
 
     const items = await db.bankDeposit.findMany({
@@ -74,6 +75,7 @@ export async function POST(req: Request) {
         data: {
           depositNumber,
           businessDateId: activeBDate.id,
+          branchId: activeBDate.branchId,
           bankAccount: data.bankAccount.trim(),
           amount: data.amount,
           referenceNumber: data.referenceNumber?.trim() || null,

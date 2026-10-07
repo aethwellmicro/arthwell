@@ -2,7 +2,7 @@
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { ROLE_ADMIN } from '@/lib/auth'
 import { logAudit } from '@/lib/audit'
-import { ensureDefaultBranch } from '@/lib/branch'
+import { ensureDefaultBranch, getBranchFilter } from '@/lib/branch'
 
 export async function GET(req: Request) {
   return withAuth(async (user) => {
@@ -12,7 +12,7 @@ export async function GET(req: Request) {
     const q = (searchParams.get('q') || '').trim().toLowerCase()
     const status = searchParams.get('status') || undefined
 
-    const where: any = {}
+    const where: any = { ...getBranchFilter(user, undefined, 'id') }
     if (status && status !== 'ALL') where.status = status
     if (q) {
       where.OR = [

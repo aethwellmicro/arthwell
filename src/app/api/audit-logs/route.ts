@@ -1,8 +1,9 @@
 import { db } from '@/lib/db'
 import { json, withAuth } from '@/lib/api'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(req: Request) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { searchParams } = new URL(req.url)
     const action = searchParams.get('action') || undefined
     const entity = searchParams.get('entity') || undefined
@@ -12,6 +13,7 @@ export async function GET(req: Request) {
     const limit = parseInt(searchParams.get('limit') || '200')
 
     const where: any = {}
+    if (user.role !== 'ADMIN') where.user = { is: getBranchFilter(user) }
     if (action) where.action = action
     if (entity) where.entity = entity
     if (userId) where.userId = userId

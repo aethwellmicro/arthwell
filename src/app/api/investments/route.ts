@@ -3,6 +3,7 @@ import { json, error, withAuth, parseBody } from '@/lib/api'
 import { getActiveBusinessDate } from '@/lib/business-date'
 import { logAudit } from '@/lib/audit'
 import { num, parseCalendarDate } from '@/lib/calc'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(req: Request) {
   return withAuth(async (user) => {
@@ -17,14 +18,7 @@ export async function GET(req: Request) {
     if (type !== 'ALL') whereClause.investmentType = type
     if (status !== 'ALL') whereClause.status = status
 
-    // Branch scoping
-    if (user.role !== 'ADMIN') {
-      if (user.branchId) {
-        whereClause.branchId = user.branchId
-      }
-    } else if (branchId && branchId !== 'ALL') {
-      whereClause.branchId = branchId
-    }
+    Object.assign(whereClause, getBranchFilter(user, branchId))
 
     if (businessDateStr) {
       const bDate = await db.businessDate.findFirst({
@@ -132,7 +126,7 @@ export async function POST(req: Request) {
         investmentType,
         amount,
         paymentMode,
-        branchId: body.branchId || user.branchId || null,
+        branchId: user.role === 'ADMIN' ? body.branchId || user.branchId || null : user.branchId || null,
         investmentDate,
         termMonths,
         interestRate,

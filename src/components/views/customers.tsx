@@ -705,7 +705,7 @@ export function CustomersView({ customerId }: { customerId?: string }) {
                   </div>
 
                   {/* Mobile Actions */}
-                  <div className="flex items-center justify-end gap-1.5 pt-1 border-t" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex flex-wrap items-center justify-end gap-1.5 pt-1 border-t" onClick={(e) => e.stopPropagation()}>
                     {isManagerOrAdmin && c.status === 'PENDING_VERIFICATION' && (
                       <>
                         <Button

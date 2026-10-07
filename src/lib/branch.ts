@@ -60,6 +60,5 @@ export function getBranchFilter(
  */
 export function assertBranchAccess(user: SessionUser, targetBranchId?: string | null): boolean {
   if (user.role === ROLE_ADMIN) return true
-  if (!targetBranchId) return true
-  return user.branchId === targetBranchId
+  return Boolean(targetBranchId && user.branchId && user.branchId === targetBranchId)
 }

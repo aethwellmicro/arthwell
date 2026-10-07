@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
+import { getBranchFilter } from '@/lib/branch'
 import { z } from 'zod'
 
 const customerSchema = z.object({
@@ -50,14 +51,7 @@ export async function GET(req: Request) {
     if (groupId && groupId !== 'ALL') where.groupId = groupId
     if (branch && branch !== 'ALL') where.branch = branch
 
-    // Enforce branch-wise access control
-    if (user.role !== 'ADMIN') {
-      if (user.branchId) {
-        where.branchId = user.branchId
-      }
-    } else if (branchId && branchId !== 'ALL') {
-      where.branchId = branchId
-    }
+    Object.assign(where, getBranchFilter(user, branchId))
 
     const [items, total] = await Promise.all([
       db.customer.findMany({
@@ -125,7 +119,9 @@ export async function POST(req: Request) {
       return error('Please select a group for this customer.', 422)
     }
 
-    const group = await db.group.findUnique({ where: { id: data.groupId } })
+    const group = await db.group.findFirst({
+      where: { id: data.groupId, ...getBranchFilter(user) },
+    })
     if (!group) {
       return error('Selected group does not exist.', 404)
     }

@@ -153,8 +153,8 @@ export function EmployeesView() {
         employeeCode: form.employeeCode?.trim() || null,
         phone: form.phone?.trim() || null,
       }
-      if (isAdmin && form.branchId) {
-        payload.branchId = form.branchId === 'NONE' ? null : form.branchId
+      if (isAdmin) {
+        payload.branchId = form.branchId === 'NONE' ? null : form.branchId || null
       }
       await apiFetch('/api/employees', { method: 'POST', body: JSON.stringify(payload) })
       toast.success('Employee created')
@@ -358,11 +358,11 @@ export function EmployeesView() {
               </Select>
             </div>
             {isAdmin && (
-              <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Branch</Label>
-                <Select value={form.branchId || 'NONE'} onValueChange={(v) => setForm({ ...form, branchId: v })}>
+              <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Branch *</Label>
+                <Select value={form.branchId || (form.role === 'ADMIN' ? 'NONE' : '')} onValueChange={(v) => setForm({ ...form, branchId: v })}>
                   <SelectTrigger><SelectValue placeholder="Select Branch" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="NONE">Head Office / No Branch</SelectItem>
+                    {form.role === 'ADMIN' && <SelectItem value="NONE">Head Office / No Branch</SelectItem>}
                     {branches.map((b) => (
                       <SelectItem key={b.id} value={b.id}>{b.name} ({b.branchCode})</SelectItem>
                     ))}
@@ -404,11 +404,11 @@ export function EmployeesView() {
                     </Select>
                   </div>
                   {isAdmin ? (
-                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Branch</Label>
-                      <Select value={editForm.branchId || 'NONE'} onValueChange={(v) => setEditForm({ ...editForm, branchId: v })}>
+                    <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Branch *</Label>
+                      <Select value={editForm.branchId || (editForm.role === 'ADMIN' ? 'NONE' : '')} onValueChange={(v) => setEditForm({ ...editForm, branchId: v })}>
                         <SelectTrigger><SelectValue placeholder="Select Branch" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="NONE">Head Office / No Branch</SelectItem>
+                          {editForm.role === 'ADMIN' && <SelectItem value="NONE">Head Office / No Branch</SelectItem>}
                           {branches.map((b) => (
                             <SelectItem key={b.id} value={b.id}>{b.name} ({b.branchCode})</SelectItem>
                           ))}

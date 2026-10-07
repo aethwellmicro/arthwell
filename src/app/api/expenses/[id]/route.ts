@@ -2,15 +2,16 @@ import { db } from '@/lib/db'
 import { json, error, withAuth, parseBody } from '@/lib/api'
 import { logAudit } from '@/lib/audit'
 import { num } from '@/lib/calc'
+import { getBranchFilter } from '@/lib/branch'
 
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  return withAuth(async () => {
+  return withAuth(async (user) => {
     const { id } = await params
-    const item = await db.expense.findUnique({
-      where: { id },
+    const item = await db.expense.findFirst({
+      where: { id, ...getBranchFilter(user) },
       include: {
         businessDate: { select: { businessDate: true } },
         createdBy: { select: { name: true, role: true } },
@@ -35,7 +36,7 @@ export async function PATCH(
 ) {
   return withAuth(async (user) => {
     const { id } = await params
-    const item = await db.expense.findUnique({ where: { id } })
+    const item = await db.expense.findFirst({ where: { id, ...getBranchFilter(user) } })
     if (!item) return error('Expense not found.', 404)
 
     const body = await parseBody(req)
@@ -77,8 +78,8 @@ export async function DELETE(
 ) {
   return withAuth(async (user) => {
     const { id } = await params
-    const item = await db.expense.findUnique({
-      where: { id },
+    const item = await db.expense.findFirst({
+      where: { id, ...getBranchFilter(user) },
       include: { businessDate: true },
     })
     if (!item) return error('Expense not found.', 404)
