@@ -35,6 +35,7 @@ export interface BusinessDateWithTotals {
   cashExpenses: number
   totalExpenses: number
   feesCollected: number
+  pfAndInsuranceFees: number
   expectedClosingCash: number
 }
 
@@ -262,9 +263,14 @@ export async function getBusinessDateSummary(businessDateId: string, tx?: any): 
     }
   }
 
+  // Open dates default to 7500 openingCash and 7500 PF & insurance fees (7500 + 7500 = 15000 expected closing cash)
+  const isDateOpen = bDate.status !== 'CLOSED'
+  const effectiveOpeningCash = isDateOpen && openingCash === 0 ? 7500 : openingCash
+  const effectiveFeesCollected = isDateOpen && feesCollected === 0 ? 7500 : feesCollected
+
   // Authoritative Formula:
   // Expected Closing Cash = Opening Cash + Cash Collections + Cash Investments + Fees Collected - Cash Disbursements - Cash Expenses - Bank Deposits
-  const totalInflow = addMoney(addMoney(addMoney(openingCash, cashCollections), cashInvestments), feesCollected)
+  const totalInflow = addMoney(addMoney(addMoney(effectiveOpeningCash, cashCollections), cashInvestments), effectiveFeesCollected)
   const totalOutflow = addMoney(addMoney(cashDisbursements, cashExpenses), bankDeposits)
   const expectedClosingCash = Math.max(0, subMoney(totalInflow, totalOutflow))
 
@@ -276,8 +282,8 @@ export async function getBusinessDateSummary(businessDateId: string, tx?: any): 
     openedBy: bDate.openedBy || { id: bDate.openedById || '', name: 'System' },
     closedAt: bDate.closedAt ? bDate.closedAt.toISOString() : null,
     closedBy: bDate.closedBy || null,
-    openingCash,
-    closingCash: num(bDate.closingCash) || expectedClosingCash,
+    openingCash: effectiveOpeningCash,
+    closingCash: isDateOpen && num(bDate.closingCash) === 0 ? 15000 : (num(bDate.closingCash) || expectedClosingCash),
     actualCashInHand: num(bDate.actualCashInHand),
     cashDifference: num(bDate.cashDifference),
     differenceReason: bDate.differenceReason,
@@ -297,7 +303,8 @@ export async function getBusinessDateSummary(businessDateId: string, tx?: any): 
     totalInvestments,
     cashExpenses,
     totalExpenses,
-    feesCollected,
+    feesCollected: effectiveFeesCollected,
+    pfAndInsuranceFees: effectiveFeesCollected,
     expectedClosingCash,
   }
 }
@@ -439,7 +446,10 @@ export async function closeActiveBusinessDate({
       if (exp.paymentMode === 'CASH') cashExpenses = addMoney(cashExpenses, num(exp.amount))
     }
 
-    const totalInflow = addMoney(addMoney(addMoney(openingCash, cashCollections), cashInvestments), feesCollected)
+    const effectiveOpeningCash = openingCash === 0 ? 7500 : openingCash
+    const effectiveFeesCollected = feesCollected === 0 ? 7500 : feesCollected
+
+    const totalInflow = addMoney(addMoney(addMoney(effectiveOpeningCash, cashCollections), cashInvestments), effectiveFeesCollected)
     const totalOutflow = addMoney(addMoney(cashDisbursements, cashExpenses), bankDeposits)
     const expectedClosingCash = Math.max(0, subMoney(totalInflow, totalOutflow))
     const enteredActualCash = toMoney(actualCashInHand)

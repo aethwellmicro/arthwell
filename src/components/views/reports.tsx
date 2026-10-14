@@ -12,8 +12,12 @@ import {
   AlertTriangle,
   Landmark,
   Scale,
+  Wallet,
+  Banknote,
+  HandCoins,
+  CheckCircle2,
 } from 'lucide-react'
-import { apiFetch, formatMoney, formatDate, formatDateTime, STATUS_COLORS, ROLE_LABELS, downloadCSV } from '@/lib/format'
+import { apiFetch, formatMoney, formatMoneyCompact, formatDate, formatDateTime, STATUS_COLORS, ROLE_LABELS, downloadCSV } from '@/lib/format'
 import { useApp } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -248,15 +252,56 @@ export function ReportsView() {
 
       {/* Summary */}
       {data?.summary && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <StatCard label="Total Amount" value={formatMoney(data.summary.total || 0)} sub={`${data.summary.count || 0} records`} icon={BarChart3} />
-          <StatCard label="Cash" value={formatMoney(data.summary.cashTotal || 0)} icon={CreditCard} tone="success" />
-          <StatCard label="UPI" value={formatMoney(data.summary.upiTotal || 0)} icon={CreditCard} tone="info" />
-          <StatCard label="Bank" value={formatMoney(data.summary.bankTotal || 0)} icon={CreditCard} tone="default" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <StatCard
+            label="Total Amount"
+            value={formatMoneyCompact(data.summary.total || 0)}
+            fullValue={formatMoney(data.summary.total || 0)}
+            sub={`${data.summary.count || 0} records`}
+            icon={BarChart3}
+            tone="default"
+          />
+          <StatCard
+            label="Cash Collections"
+            value={formatMoneyCompact(data.summary.cashTotal || 0)}
+            fullValue={formatMoney(data.summary.cashTotal || 0)}
+            sub="Physical cash mode"
+            icon={Wallet}
+            tone="success"
+          />
+          <StatCard
+            label="UPI Digital"
+            value={formatMoneyCompact(data.summary.upiTotal || 0)}
+            fullValue={formatMoney(data.summary.upiTotal || 0)}
+            sub="Instant UPI transfers"
+            icon={CreditCard}
+            tone="info"
+          />
+          <StatCard
+            label="Bank / Direct"
+            value={formatMoneyCompact(data.summary.bankTotal || 0)}
+            fullValue={formatMoney(data.summary.bankTotal || 0)}
+            sub="NEFT/RTGS/IMPS"
+            icon={Landmark}
+            tone="default"
+          />
           {isBalance && (
             <>
-              <StatCard label={type === 'overdue' ? 'Overdue Total' : 'Outstanding Total'} value={formatMoney(data.summary.total || 0)} icon={AlertTriangle} tone="warning" />
-              <StatCard label="Accounts" value={String(data.summary.count || 0)} icon={Landmark} />
+              <StatCard
+                label={type === 'overdue' ? 'Overdue Total' : 'Outstanding Total'}
+                value={formatMoneyCompact(data.summary.total || 0)}
+                fullValue={formatMoney(data.summary.total || 0)}
+                sub="Cumulative balance"
+                icon={AlertTriangle}
+                tone="warning"
+              />
+              <StatCard
+                label="Account Count"
+                value={String(data.summary.count || 0)}
+                sub="Active portfolios"
+                icon={CheckCircle2}
+                tone="info"
+              />
             </>
           )}
         </div>

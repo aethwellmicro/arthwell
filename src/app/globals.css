@@ -121,6 +121,15 @@
     color: var(--foreground);
     font-feature-settings: "rlig" 1, "calt" 1;
   }
+
+  /* Ensure all Lucide and SVG icons render crisply with correct aspect ratio and prevent collapsing */
+  svg.lucide,
+  svg[data-lucide] {
+    display: inline-block;
+    vertical-align: middle;
+    flex-shrink: 0;
+    shape-rendering: auto;
+  }
 }
 
 /* View transition animation */

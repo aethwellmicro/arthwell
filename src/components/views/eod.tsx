@@ -18,6 +18,8 @@ import {
   FileText,
   Printer,
   Trash2,
+  Banknote,
+  Coins,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatDateTime, formatDate, downloadCSV } from '@/lib/format'
 import { useApp } from '@/lib/store'
@@ -34,7 +36,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { SectionCard, LoadingRows, EmptyState } from '@/components/ui-bits'
+import { SectionCard, LoadingRows, EmptyState, StatCard } from '@/components/ui-bits'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -68,6 +70,7 @@ interface BusinessDateSummary {
   totalDisbursements: number
   bankDeposits: number
   feesCollected: number
+  pfAndInsuranceFees?: number
   expectedClosingCash: number
 }
 
@@ -386,6 +389,38 @@ export function EODView() {
         />
       ) : (
         <>
+          {/* Key Cash Position Overview (Opening Cash, Collections & Fees, Expected Cash in Hand) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <StatCard
+              label="Opening Cash"
+              value={formatMoney(summary.openingCash)}
+              sub="Day opening float"
+              icon={Wallet}
+              tone="default"
+            />
+            <StatCard
+              label="Collections & Fees"
+              value={formatMoney((summary.cashCollections || 0) + (summary.feesCollected || 0))}
+              sub={`Fees: ${formatMoney(summary.feesCollected || 0)} · Col: ${formatMoney(summary.cashCollections || 0)}`}
+              icon={Coins}
+              tone="success"
+            />
+            <StatCard
+              label="Cash in Hand / Expected"
+              value={formatMoney(summary.expectedClosingCash)}
+              sub="Authoritative balance"
+              icon={Banknote}
+              tone="success"
+            />
+            <StatCard
+              label="Reconciliation Status"
+              value={summary.status}
+              sub={summary.reconciliationStatus || 'PENDING'}
+              icon={CheckCircle2}
+              tone={summary.status === 'CLOSED' ? 'success' : 'warning'}
+            />
+          </div>
+
           {/* Visual Cash Flow Waterfall (Section 27 Acceptance Criteria) */}
           <SectionCard title="Authoritative Cash Reconciliation Waterfall">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
@@ -427,13 +462,13 @@ export function EODView() {
               {/* 3.5. Fees Collected (+) */}
               <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
                 <p className="text-[11px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                  <ArrowDownRight className="h-3.5 w-3.5" /> + Fees
+                  <ArrowDownRight className="h-3.5 w-3.5" /> + PF & Insurance Fees
                 </p>
                 <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
                   {formatMoney(summary.feesCollected || 0)}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Processing/Insurance
+                  Processing & Insurance
                 </p>
               </div>
 
@@ -659,7 +694,7 @@ export function EODView() {
                   <span className="font-bold text-indigo-600">{formatMoney(summary.cashInvestments || 0)}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block text-[10px] uppercase">+ Fees</span>
+                  <span className="text-muted-foreground block text-[10px] uppercase">+ PF & Insurance Fees</span>
                   <span className="font-bold text-emerald-600">{formatMoney(summary.feesCollected || 0)}</span>
                 </div>
                 <div>
@@ -936,7 +971,7 @@ export function EODView() {
                   <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{formatMoney(reportData.report.cashReconciliation.totalInvestments || 0)}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">+ Fees</span>
+                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">+ PF & Insurance Fees</span>
                   <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatMoney(reportData.report.cashReconciliation.feesCollected || 0)}</span>
                 </div>
                 <div>

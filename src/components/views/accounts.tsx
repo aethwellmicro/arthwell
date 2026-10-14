@@ -20,6 +20,8 @@ import {
   Download,
   Printer,
   Trash2,
+  Banknote,
+  CheckCircle2,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatMoneyCompact, formatDate, STATUS_COLORS, downloadCSV } from '@/lib/format'
 import { useApp } from '@/lib/store'
@@ -55,7 +57,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu'
-import { SectionCard, EmptyState, LoadingRows } from '@/components/ui-bits'
+import { SectionCard, EmptyState, LoadingRows, StatCard } from '@/components/ui-bits'
 import { SortableHeader, sortArray } from '@/components/sortable-header'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -341,23 +343,37 @@ export function AccountsView({ accountId }: { accountId?: string }) {
 
       {/* Summary stats */}
       {!loading && items.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Accounts</p>
-            <p className="text-lg font-bold">{items.length}</p>
-          </div>
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Active</p>
-            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{items.filter((a) => a.status === 'ACTIVE').length}</p>
-          </div>
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Disbursed</p>
-            <p className="text-lg font-bold text-primary">{formatMoneyCompact(items.reduce((s, a) => s + a.principal, 0))}</p>
-          </div>
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Outstanding</p>
-            <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{formatMoneyCompact(items.reduce((s, a) => s + a.outstanding, 0))}</p>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+          <StatCard
+            label="Total Accounts"
+            value={String(items.length)}
+            sub="All loan files"
+            icon={Landmark}
+            tone="default"
+          />
+          <StatCard
+            label="Active Accounts"
+            value={String(items.filter((a) => a.status === 'ACTIVE').length)}
+            sub="Live repayment"
+            icon={CheckCircle2}
+            tone="success"
+          />
+          <StatCard
+            label="Total Disbursed"
+            value={formatMoneyCompact(items.reduce((s, a) => s + a.principal, 0))}
+            fullValue={formatMoney(items.reduce((s, a) => s + a.principal, 0))}
+            sub="Principal issued"
+            icon={Banknote}
+            tone="info"
+          />
+          <StatCard
+            label="Total Outstanding"
+            value={formatMoneyCompact(items.reduce((s, a) => s + a.outstanding, 0))}
+            fullValue={formatMoney(items.reduce((s, a) => s + a.outstanding, 0))}
+            sub="Balance to collect"
+            icon={AlertTriangle}
+            tone="warning"
+          />
         </div>
       )}
 

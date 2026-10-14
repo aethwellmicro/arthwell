@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import { UserCog, Plus, Pencil, ShieldCheck, Mail, Phone, BadgeCheck, Search, Trash2, AlertTriangle } from 'lucide-react'
+import { UserCog, Plus, Pencil, ShieldCheck, Mail, Phone, BadgeCheck, Search, Trash2, AlertTriangle, Users, CheckCircle2, HandCoins } from 'lucide-react'
 import { apiFetch, formatMoney, formatMoneyCompact, formatDate, ROLE_LABELS, ROLE_COLORS } from '@/lib/format'
 import { useApp, canManageUsers } from '@/lib/store'
 import { Button } from '@/components/ui/button'
@@ -23,7 +23,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { SectionCard, EmptyState, LoadingRows } from '@/components/ui-bits'
+import { SectionCard, EmptyState, LoadingRows, StatCard } from '@/components/ui-bits'
 import { SortableHeader, sortArray } from '@/components/sortable-header'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -219,23 +219,36 @@ export function EmployeesView() {
 
       {/* Summary stats */}
       {!loading && items.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Employees</p>
-            <p className="text-lg font-bold">{items.length}</p>
-          </div>
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Active</p>
-            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{items.filter((e) => e.active).length}</p>
-          </div>
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Collectors</p>
-            <p className="text-lg font-bold text-primary">{items.filter((e) => e.role === 'COLLECTION_EMPLOYEE').length}</p>
-          </div>
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Collected</p>
-            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{formatMoneyCompact(items.reduce((s, e) => s + e.totalCollected, 0))}</p>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+          <StatCard
+            label="Total Employees"
+            value={String(items.length)}
+            sub="Registered staff"
+            icon={Users}
+            tone="default"
+          />
+          <StatCard
+            label="Active Staff"
+            value={String(items.filter((e) => e.active).length)}
+            sub="Active login accounts"
+            icon={CheckCircle2}
+            tone="success"
+          />
+          <StatCard
+            label="Field Officers"
+            value={String(items.filter((e) => e.role === 'COLLECTION_EMPLOYEE').length)}
+            sub="Assigned collectors"
+            icon={UserCog}
+            tone="info"
+          />
+          <StatCard
+            label="Total Collected"
+            value={formatMoneyCompact(items.reduce((s, e) => s + e.totalCollected, 0))}
+            fullValue={formatMoney(items.reduce((s, e) => s + e.totalCollected, 0))}
+            sub="Lifetime collections"
+            icon={HandCoins}
+            tone="success"
+          />
         </div>
       )}
 

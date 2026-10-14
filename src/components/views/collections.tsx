@@ -19,8 +19,11 @@ import {
   ShieldCheck,
   Clock,
   Trash2,
+  Wallet,
+  Banknote,
+  AlertTriangle,
 } from 'lucide-react'
-import { apiFetch, formatMoney, formatDateTime, todayInput, STATUS_COLORS, downloadCSV } from '@/lib/format'
+import { apiFetch, formatMoney, formatDateTime, todayInput, STATUS_COLORS, downloadCSV, formatMoneyCompact } from '@/lib/format'
 import { useApp, canReverse } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,7 +45,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { SectionCard, EmptyState, LoadingRows } from '@/components/ui-bits'
+import { SectionCard, EmptyState, LoadingRows, StatCard } from '@/components/ui-bits'
 import { Pagination } from '@/components/pagination'
 import { SortableHeader, sortArray } from '@/components/sortable-header'
 import { ReceiptPrint } from '@/components/receipt-print'
@@ -360,10 +363,52 @@ export function CollectionsView() {
     return items
   }, [items, sortKey, sortDir])
 
-  const pendingCount = useMemo(() => items.filter((c) => c.status === 'PENDING_APPROVAL').length, [items])
+  const approvedTotal = useMemo(() => items.filter((c) => c.status === 'SUCCESSFUL' || c.status === 'APPROVED').reduce((s, c) => s + c.amount, 0), [items])
+  const pendingTotal = useMemo(() => items.filter((c) => c.status === 'PENDING_APPROVAL').reduce((s, c) => s + c.amount, 0), [items])
+  const todayTotal = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    return items.filter((c) => c.collectionDate?.startsWith(today) && (c.status === 'SUCCESSFUL' || c.status === 'APPROVED')).reduce((s, c) => s + c.amount, 0)
+  }, [items])
 
   return (
     <div className="space-y-4">
+      {/* Consistent StatCards matching Dashboard */}
+      {!loading && items.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+          <StatCard
+            label="Total Collected"
+            value={formatMoneyCompact(approvedTotal)}
+            fullValue={formatMoney(approvedTotal)}
+            sub="Approved collections"
+            icon={HandCoins}
+            tone="success"
+          />
+          <StatCard
+            label="Pending Approval"
+            value={formatMoneyCompact(pendingTotal)}
+            fullValue={formatMoney(pendingTotal)}
+            sub={`${pendingCount} awaiting approval`}
+            icon={ShieldCheck}
+            tone="warning"
+          />
+          <StatCard
+            label="Today's Collections"
+            value={formatMoneyCompact(todayTotal)}
+            fullValue={formatMoney(todayTotal)}
+            sub="Collected today"
+            icon={Wallet}
+            tone="default"
+          />
+          <StatCard
+            label="Total Receipts"
+            value={String(items.length)}
+            sub="All collection entries"
+            icon={ReceiptIcon}
+            tone="info"
+          />
+        </div>
+      )}
+
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'pending' | 'history' | 'due')}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3">
           <TabsList className="grid grid-cols-3 w-full sm:w-[500px]">

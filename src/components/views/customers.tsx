@@ -547,35 +547,43 @@ export function CustomersView({ customerId }: { customerId?: string }) {
 
       {/* Summary stats */}
       {!loading && items.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Customers</p>
-            <p className="text-lg font-bold">{items.length}</p>
-          </div>
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-amber-600 dark:text-amber-400">Pending Approval</p>
-            <p className="text-lg font-bold text-amber-600 dark:text-amber-400">
-              {items.filter((c) => c.status === 'PENDING_VERIFICATION').length}
-            </p>
-          </div>
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-teal-600 dark:text-teal-400">Approved</p>
-            <p className="text-lg font-bold text-teal-600 dark:text-teal-400">
-              {items.filter((c) => c.status === 'APPROVED' || c.status === 'READY_FOR_DISBURSEMENT').length}
-            </p>
-          </div>
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Disbursed / Active</p>
-            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-              {items.filter((c) => c.status === 'DISBURSED' || c.status === 'ACTIVE').length}
-            </p>
-          </div>
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Outstanding</p>
-            <p className="text-lg font-bold text-primary">
-              {formatMoneyCompact(items.reduce((s, c) => s + (c.outstanding || 0), 0))}
-            </p>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+          <StatCard
+            label="Total Customers"
+            value={String(items.length)}
+            sub="Registered profiles"
+            icon={Users}
+            tone="default"
+          />
+          <StatCard
+            label="Pending Approval"
+            value={String(items.filter((c) => c.status === 'PENDING_VERIFICATION').length)}
+            sub="Awaiting verification"
+            icon={AlertTriangle}
+            tone="warning"
+          />
+          <StatCard
+            label="Approved"
+            value={String(items.filter((c) => c.status === 'APPROVED' || c.status === 'READY_FOR_DISBURSEMENT').length)}
+            sub="Ready for loan"
+            icon={CheckCircle2}
+            tone="info"
+          />
+          <StatCard
+            label="Disbursed / Active"
+            value={String(items.filter((c) => c.status === 'DISBURSED' || c.status === 'ACTIVE').length)}
+            sub="Active borrowers"
+            icon={HandCoins}
+            tone="success"
+          />
+          <StatCard
+            label="Total Outstanding"
+            value={formatMoneyCompact(items.reduce((s, c) => s + (c.outstanding || 0), 0))}
+            fullValue={formatMoney(items.reduce((s, c) => s + (c.outstanding || 0), 0))}
+            sub="Principal + interest"
+            icon={Banknote}
+            tone="default"
+          />
         </div>
       )}
 

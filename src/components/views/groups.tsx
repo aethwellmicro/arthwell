@@ -14,6 +14,8 @@ import {
   Trash2,
   X,
   FileSpreadsheet,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react'
 import { apiFetch, formatDate, STATUS_COLORS, downloadCSV } from '@/lib/format'
 import { useApp } from '@/lib/store'
@@ -42,7 +44,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from '@/components/ui/drawer'
-import { SectionCard, EmptyState, LoadingRows } from '@/components/ui-bits'
+import { SectionCard, EmptyState, LoadingRows, StatCard } from '@/components/ui-bits'
 import { Pagination } from '@/components/pagination'
 import { SortableHeader, sortArray } from '@/components/sortable-header'
 import { toast } from 'sonner'
@@ -289,29 +291,35 @@ export function GroupsView() {
 
       {/* Summary KPI Cards */}
       {!loading && items.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Groups</p>
-            <p className="text-lg font-bold">{items.length}</p>
-          </div>
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Active Groups</p>
-            <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-              {items.filter((g) => g.status === 'ACTIVE').length}
-            </p>
-          </div>
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Inactive / Closed</p>
-            <p className="text-lg font-bold text-amber-600 dark:text-amber-400">
-              {items.filter((g) => g.status !== 'ACTIVE').length}
-            </p>
-          </div>
-          <div className="rounded-lg border bg-card p-3">
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total Members</p>
-            <p className="text-lg font-bold text-primary">
-              {items.reduce((acc, g) => acc + (g._count?.customers ?? 0), 0)}
-            </p>
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+          <StatCard
+            label="Total Groups"
+            value={String(items.length)}
+            sub="Self-help groups"
+            icon={UsersRound}
+            tone="default"
+          />
+          <StatCard
+            label="Active Groups"
+            value={String(items.filter((g) => g.status === 'ACTIVE').length)}
+            sub="Operational groups"
+            icon={CheckCircle2}
+            tone="success"
+          />
+          <StatCard
+            label="Inactive / Closed"
+            value={String(items.filter((g) => g.status !== 'ACTIVE').length)}
+            sub="Awaiting revival / closed"
+            icon={AlertTriangle}
+            tone="warning"
+          />
+          <StatCard
+            label="Total Members"
+            value={String(items.reduce((acc, g) => acc + (g._count?.customers ?? 0), 0))}
+            sub="Enrolled customers"
+            icon={Users}
+            tone="info"
+          />
         </div>
       )}
 

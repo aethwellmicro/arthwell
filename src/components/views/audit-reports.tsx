@@ -22,6 +22,7 @@ import {
   ClipboardList,
   AlertTriangle,
   CheckCircle2,
+  History,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatDateTime, formatRelativeTime, downloadCSV } from '@/lib/format'
 import { Button } from '@/components/ui/button'
@@ -111,21 +112,21 @@ export function AuditReportsView() {
   return (
     <div className="space-y-4">
       {/* Header banner */}
-      <div className="rounded-xl border bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900 text-white p-5 shadow-lg">
+      <div className="rounded-xl border border-slate-200/80 dark:border-border bg-white dark:bg-card text-black dark:text-foreground p-5 shadow-xs">
         <div className="flex items-start sm:items-center justify-between gap-4 flex-col sm:flex-row">
           <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-              <ClipboardList className="h-6 w-6 text-white" />
+            <div className="h-11 w-11 rounded-lg bg-slate-100 dark:bg-muted flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-border">
+              <ClipboardList className="h-6 w-6 text-slate-900 dark:text-foreground" />
             </div>
             <div>
-              <h2 className="text-lg font-bold tracking-tight">Audit &amp; Financial Reports</h2>
-              <p className="text-xs text-slate-300 mt-0.5">
+              <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">Audit &amp; Financial Reports</h2>
+              <p className="text-xs text-slate-600 dark:text-muted-foreground mt-0.5">
                 Complete audit trail, statutory financial statements, and cash reconciliation for external auditors
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <CalendarCheck className="h-4 w-4" />
+          <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-muted-foreground bg-slate-50 dark:bg-muted/50 px-3 py-1.5 rounded-lg border border-slate-200/50 dark:border-border">
+            <CalendarCheck className="h-4 w-4 text-slate-700 dark:text-muted-foreground" />
             <span>Generated: {new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
           </div>
         </div>
@@ -325,6 +326,40 @@ function AuditLogsSection() {
         </div>
       </div>
 
+      {/* Summary KPI Cards matching Dashboard design */}
+      {!loading && items.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+          <StatCard
+            label="Total Logged Events"
+            value={String(filteredItems.length)}
+            sub="Captured audit entries"
+            icon={ScrollText}
+            tone="default"
+          />
+          <StatCard
+            label="Creations & Inserts"
+            value={String(filteredItems.filter((l) => l.action === 'CREATE').length)}
+            sub="New financial records"
+            icon={CheckCircle2}
+            tone="success"
+          />
+          <StatCard
+            label="Updates & Modifications"
+            value={String(filteredItems.filter((l) => l.action === 'UPDATE').length)}
+            sub="Audited alterations"
+            icon={History}
+            tone="info"
+          />
+          <StatCard
+            label="Deletions & Reversals"
+            value={String(filteredItems.filter((l) => l.action === 'DELETE' || l.action === 'REVERSE').length)}
+            sub="High security events"
+            icon={AlertTriangle}
+            tone="warning"
+          />
+        </div>
+      )}
+
       <SectionCard title={`Audit Trail (${filteredItems.length} records)`} description="Immutable chronological activity log — all actions are permanently recorded">
         {loading ? (
           <LoadingRows rows={6} />
@@ -473,11 +508,39 @@ function CashBookSection() {
 
       {/* Summary cards */}
       {data && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatCard label="Opening Balance" value={formatMoney(data.openingBalance || 0)} icon={Wallet} />
-          <StatCard label="Total Cash Receipts (Dr)" value={formatMoney(data.totalDebits || 0)} icon={TrendingUp} tone="success" />
-          <StatCard label="Total Cash Payments (Cr)" value={formatMoney(data.totalCredits || 0)} icon={TrendingDown} tone="warning" />
-          <StatCard label="Closing Balance" value={formatMoney(data.closingBalance || 0)} icon={Wallet} tone={data.closingBalance >= 0 ? 'success' : 'danger'} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <StatCard
+            label="Opening Balance"
+            value={formatMoneyCompact(data.openingBalance || 0)}
+            fullValue={formatMoney(data.openingBalance || 0)}
+            sub="Cash in hand at period start"
+            icon={Wallet}
+            tone="default"
+          />
+          <StatCard
+            label="Cash Receipts (Dr)"
+            value={formatMoneyCompact(data.totalDebits || 0)}
+            fullValue={formatMoney(data.totalDebits || 0)}
+            sub="Collections, inflows & deposits"
+            icon={TrendingUp}
+            tone="success"
+          />
+          <StatCard
+            label="Cash Payments (Cr)"
+            value={formatMoneyCompact(data.totalCredits || 0)}
+            fullValue={formatMoney(data.totalCredits || 0)}
+            sub="Disbursements & expenditures"
+            icon={TrendingDown}
+            tone="warning"
+          />
+          <StatCard
+            label="Closing Balance"
+            value={formatMoneyCompact(data.closingBalance || 0)}
+            fullValue={formatMoney(data.closingBalance || 0)}
+            sub="Vault cash balance"
+            icon={Wallet}
+            tone={data.closingBalance >= 0 ? 'success' : 'danger'}
+          />
         </div>
       )}
 
@@ -915,15 +978,35 @@ function EodHistorySection() {
     <div className="space-y-4">
       {/* Summary cards */}
       {!loading && items.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <StatCard label="Total Business Days" value={String(totalDays)} icon={CalendarCheck} />
-          <StatCard label="Balanced Days" value={String(balancedDays)} icon={CheckCircle2} tone="success" />
-          <StatCard label="Days with Variance" value={String(differencesDays)} icon={AlertTriangle} tone={differencesDays > 0 ? 'warning' : 'success'} />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
           <StatCard
-            label="Total Closing Cash"
-            value={items.length > 0 ? formatMoney(items[0].closingCash) : '₹0'}
+            label="Total Business Days"
+            value={String(totalDays)}
+            sub="Closed operational periods"
+            icon={CalendarCheck}
+            tone="default"
+          />
+          <StatCard
+            label="Balanced Days"
+            value={String(balancedDays)}
+            sub="Zero cash variance"
+            icon={CheckCircle2}
+            tone="success"
+          />
+          <StatCard
+            label="Days with Variance"
+            value={String(differencesDays)}
+            sub={differencesDays > 0 ? 'Discrepancy logged' : 'No variances'}
+            icon={AlertTriangle}
+            tone={differencesDays > 0 ? 'warning' : 'success'}
+          />
+          <StatCard
+            label="Latest Closing Cash"
+            value={items.length > 0 ? formatMoneyCompact(items[0].closingCash) : '₹0'}
+            fullValue={items.length > 0 ? formatMoney(items[0].closingCash) : '₹0'}
+            sub="Most recent closed day"
             icon={Wallet}
-            sub="Latest closed day"
+            tone="info"
           />
         </div>
       )}

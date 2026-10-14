@@ -40,7 +40,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { SectionCard, LoadingRows, EmptyState } from '@/components/ui-bits'
+import { SectionCard, LoadingRows, EmptyState, StatCard } from '@/components/ui-bits'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -227,42 +227,32 @@ export function ExpensesView() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <div className="rounded-lg border bg-card p-4 shadow-2xs">
-          <p className="text-xs uppercase tracking-wide text-rose-600 dark:text-rose-400 font-semibold flex items-center gap-1.5">
-            <TrendingDown className="h-4 w-4 text-rose-600" /> Total Expenditure
-          </p>
-          <p className="text-2xl font-bold text-rose-600 dark:text-rose-400 mt-1">
-            {formatMoney(summary?.totalExpenseAmount || 0)}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Across {items.length} recorded vouchers &amp; disbursements
-          </p>
-        </div>
-
-        <div className="rounded-lg border bg-card p-4 shadow-2xs">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1.5">
-            <BadgeDollarSign className="h-4 w-4 text-amber-600 dark:text-amber-400" /> Investment Interest Paid
-          </p>
-          <p className="text-2xl font-bold text-foreground mt-1">
-            {formatMoney(summary?.byType?.INVESTMENT_INTEREST || 0)}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">Interest paid to external investors</p>
-        </div>
-
-        <div className="rounded-lg border bg-card p-4 shadow-2xs">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1.5">
-            <Briefcase className="h-4 w-4 text-primary" /> Salaries &amp; Office Costs
-          </p>
-          <p className="text-2xl font-bold text-foreground mt-1">
-            {formatMoney(
-              (summary?.byType?.EMPLOYEE_SALARY || 0) +
-              (summary?.byType?.OFFICE_EXPENSE || 0) +
-              (summary?.byType?.RENT || 0)
-            )}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">Staff salaries, rent and branch upkeep</p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <StatCard
+          label="Total Expenditure"
+          value={formatMoney(summary?.totalExpenseAmount || 0)}
+          sub={`Across ${items.length} vouchers & payouts`}
+          icon={TrendingDown}
+          tone="danger"
+        />
+        <StatCard
+          label="Investment Interest Paid"
+          value={formatMoney(summary?.byType?.INVESTMENT_INTEREST || 0)}
+          sub="Interest paid to external investors"
+          icon={BadgeDollarSign}
+          tone="warning"
+        />
+        <StatCard
+          label="Salaries & Office Costs"
+          value={formatMoney(
+            (summary?.byType?.EMPLOYEE_SALARY || 0) +
+            (summary?.byType?.OFFICE_EXPENSE || 0) +
+            (summary?.byType?.RENT || 0)
+          )}
+          sub="Staff salaries, rent and branch upkeep"
+          icon={Briefcase}
+          tone="default"
+        />
       </div>
 
       {/* Filters Toolbar */}

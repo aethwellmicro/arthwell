@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { ScrollText, ChevronDown, ChevronRight, Search, RefreshCw, FileSpreadsheet } from 'lucide-react'
+import { ScrollText, ChevronDown, ChevronRight, Search, RefreshCw, FileSpreadsheet, ShieldAlert, CheckCircle2, UserCog, History } from 'lucide-react'
 import { apiFetch, formatDateTime, formatRelativeTime, downloadCSV } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { SectionCard, EmptyState, LoadingRows } from '@/components/ui-bits'
+import { SectionCard, EmptyState, LoadingRows, StatCard } from '@/components/ui-bits'
 import { Pagination } from '@/components/pagination'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -193,6 +193,40 @@ export function AuditLogsView() {
           </Button>
         </div>
       </div>
+
+      {/* Summary KPI Cards matching Dashboard design */}
+      {!loading && items.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+          <StatCard
+            label="Total Logged Events"
+            value={String(filteredItems.length)}
+            sub="Captured actions"
+            icon={ScrollText}
+            tone="default"
+          />
+          <StatCard
+            label="Creations & Inserts"
+            value={String(filteredItems.filter((l) => l.action === 'CREATE').length)}
+            sub="New financial records"
+            icon={CheckCircle2}
+            tone="success"
+          />
+          <StatCard
+            label="Updates & Modifications"
+            value={String(filteredItems.filter((l) => l.action === 'UPDATE').length)}
+            sub="Audited alterations"
+            icon={History}
+            tone="info"
+          />
+          <StatCard
+            label="Deletions & Reversals"
+            value={String(filteredItems.filter((l) => l.action === 'DELETE' || l.action === 'REVERSE').length)}
+            sub="High security events"
+            icon={ShieldAlert}
+            tone="warning"
+          />
+        </div>
+      )}
 
       <SectionCard title={`Audit Logs (${filteredItems.length})`} description="Complete chronological activity trail">
         {loading ? (

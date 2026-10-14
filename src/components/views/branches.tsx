@@ -41,7 +41,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { SectionCard, EmptyState, LoadingRows } from '@/components/ui-bits'
+import { SectionCard, EmptyState, LoadingRows, StatCard } from '@/components/ui-bits'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -105,20 +105,6 @@ const STATUS_COLORS: Record<string, string> = {
   SUSPENDED: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
 }
 
-function StatCard({ label, value, icon: Icon, color }: { label: string; value: string; icon: any; color: string }) {
-  return (
-    <div className="rounded-lg border bg-card p-3 flex items-center gap-3">
-      <div className={cn('h-9 w-9 rounded-full flex items-center justify-center shrink-0', color)}>
-        <Icon className="h-4 w-4" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className="text-base font-bold truncate">{value}</p>
-      </div>
-    </div>
-  )
-}
-
 function BranchDetailPanel({ branchId, onClose }: { branchId: string; onClose: () => void }) {
   const [detail, setDetail] = useState<BranchDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -166,11 +152,11 @@ function BranchDetailPanel({ branchId, onClose }: { branchId: string; onClose: (
       {/* Financial Summary */}
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Financial Summary</p>
-        <div className="grid grid-cols-2 gap-2">
-          <StatCard label="Total Collected" value={formatMoneyCompact(financials.totalCollected)} icon={TrendingUp} color="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" />
-          <StatCard label="Total Disbursed" value={formatMoneyCompact(financials.totalDisbursed)} icon={TrendingDown} color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" />
-          <StatCard label="Investments" value={formatMoneyCompact(financials.totalInvestments)} icon={TrendingUp} color="bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400" />
-          <StatCard label="Expenses" value={formatMoneyCompact(financials.totalExpenses)} icon={TrendingDown} color="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" />
+        <div className="grid grid-cols-2 gap-2.5">
+          <StatCard label="Total Collected" value={formatMoneyCompact(financials.totalCollected)} fullValue={formatMoney(financials.totalCollected)} icon={TrendingUp} tone="success" />
+          <StatCard label="Total Disbursed" value={formatMoneyCompact(financials.totalDisbursed)} fullValue={formatMoney(financials.totalDisbursed)} icon={TrendingDown} tone="default" />
+          <StatCard label="Investments" value={formatMoneyCompact(financials.totalInvestments)} fullValue={formatMoney(financials.totalInvestments)} icon={TrendingUp} tone="info" />
+          <StatCard label="Expenses" value={formatMoneyCompact(financials.totalExpenses)} fullValue={formatMoney(financials.totalExpenses)} icon={TrendingDown} tone="warning" />
         </div>
         <div className={cn('mt-2 rounded-lg border p-3 text-center', netCash >= 0 ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-950/40' : 'border-red-200 bg-red-50 dark:bg-red-950/40')}>
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Net Cash Position</p>

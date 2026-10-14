@@ -270,38 +270,28 @@ export function InvestmentsView() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <div className="rounded-lg border bg-card p-4 shadow-2xs">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1.5">
-            <Landmark className="h-4 w-4 text-emerald-600 dark:text-emerald-400" /> Active Investments
-          </p>
-          <p className="text-2xl font-bold text-foreground mt-1">
-            {formatMoney(summary?.totalActiveAmount || 0)}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Across {items.filter((i) => i.status === 'ACTIVE').length} active portfolios
-          </p>
-        </div>
-
-        <div className="rounded-lg border bg-card p-4 shadow-2xs">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1.5">
-            <BadgePercent className="h-4 w-4 text-teal-600 dark:text-teal-400" /> Interest Paid Out
-          </p>
-          <p className="text-2xl font-bold text-teal-600 dark:text-teal-400 mt-1">
-            {formatMoney(summary?.totalInterestPaid || 0)}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">Recorded cumulative interest payouts</p>
-        </div>
-
-        <div className="rounded-lg border bg-card p-4 shadow-2xs">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1.5">
-            <Banknote className="h-4 w-4 text-primary" /> Total Portfolios
-          </p>
-          <p className="text-2xl font-bold text-foreground mt-1">
-            {summary?.count || items.length}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">Director, member &amp; institutional records</p>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <StatCard
+          label="Active Investments"
+          value={formatMoney(summary?.totalActiveAmount || 0)}
+          sub={`Across ${items.filter((i) => i.status === 'ACTIVE').length} active portfolios`}
+          icon={Landmark}
+          tone="success"
+        />
+        <StatCard
+          label="Interest Paid Out"
+          value={formatMoney(summary?.totalInterestPaid || 0)}
+          sub="Recorded cumulative interest payouts"
+          icon={BadgePercent}
+          tone="info"
+        />
+        <StatCard
+          label="Total Portfolios"
+          value={String(summary?.count || items.length)}
+          sub="Director, member & institutional records"
+          icon={Banknote}
+          tone="default"
+        />
       </div>
 
       {/* Filters Toolbar */}

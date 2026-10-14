@@ -140,6 +140,7 @@ export async function GET(req: Request) {
           otherCollections: summary.otherCollections || 0,
           totalInvestments: summary.cashInvestments || 0,
           feesCollected: summary.feesCollected || 0,
+          pfAndInsuranceFees: summary.feesCollected || 0,
           totalDisbursements: summary.cashDisbursements || 0,
           totalExpenses: summary.cashExpenses || 0,
           bankDeposits: summary.bankDeposits || 0,
