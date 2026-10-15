@@ -365,6 +365,7 @@ export function CollectionsView() {
 
   const approvedTotal = useMemo(() => items.filter((c) => c.status === 'SUCCESSFUL' || c.status === 'APPROVED').reduce((s, c) => s + c.amount, 0), [items])
   const pendingTotal = useMemo(() => items.filter((c) => c.status === 'PENDING_APPROVAL').reduce((s, c) => s + c.amount, 0), [items])
+  const pendingCount = useMemo(() => items.filter((c) => c.status === 'PENDING_APPROVAL').length, [items])
   const todayTotal = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10)
     return items.filter((c) => c.collectionDate?.startsWith(today) && (c.status === 'SUCCESSFUL' || c.status === 'APPROVED')).reduce((s, c) => s + c.amount, 0)
