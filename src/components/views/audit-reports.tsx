@@ -112,7 +112,7 @@ export function AuditReportsView() {
   return (
     <div className="space-y-4">
       {/* Header banner */}
-      <div className="rounded-xl border border-slate-200/80 dark:border-border bg-white dark:bg-card text-black dark:text-foreground p-5 shadow-xs">
+      <div className="rounded-xl border border-slate-200/80 dark:border-border bg-white dark:bg-card text-black dark:text-foreground p-5 shadow-xs no-print">
         <div className="flex items-start sm:items-center justify-between gap-4 flex-col sm:flex-row">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-lg bg-slate-100 dark:bg-muted flex items-center justify-center shrink-0 border border-slate-200/60 dark:border-border">
@@ -133,7 +133,7 @@ export function AuditReportsView() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="flex flex-wrap h-auto gap-1 p-1 bg-muted/60">
+        <TabsList className="flex flex-wrap h-auto gap-1 p-1 bg-muted/60 no-print">
           <TabsTrigger value="audit-logs" className="gap-1.5 text-xs">
             <ScrollText className="h-3.5 w-3.5" /> Audit Trail
           </TabsTrigger>
@@ -263,7 +263,7 @@ function AuditLogsSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-end gap-3 no-print">
         <div className="flex-1 min-w-[200px] relative">
           <Label className="text-xs text-muted-foreground">Search</Label>
           <div className="relative">
@@ -328,7 +328,7 @@ function AuditLogsSection() {
 
       {/* Summary KPI Cards matching Dashboard design */}
       {!loading && items.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 no-print">
           <StatCard
             label="Total Logged Events"
             value={String(filteredItems.length)}
@@ -484,7 +484,7 @@ function CashBookSection() {
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-end gap-3 no-print">
         <div>
           <Label className="text-xs text-muted-foreground">From Date</Label>
           <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-[150px]" />
@@ -508,7 +508,7 @@ function CashBookSection() {
 
       {/* Summary cards */}
       {data && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 no-print">
           <StatCard
             label="Opening Balance"
             value={formatMoneyCompact(data.openingBalance || 0)}
@@ -710,7 +710,7 @@ function AccountingReportSection({ reportType }: { reportType: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 no-print">
         <Button variant="outline" size="sm" onClick={load} disabled={loading}>
           <RefreshCw className={cn('h-4 w-4 mr-1', loading && 'animate-spin')} /> Refresh
         </Button>
@@ -978,7 +978,7 @@ function EodHistorySection() {
     <div className="space-y-4">
       {/* Summary cards */}
       {!loading && items.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 no-print">
           <StatCard
             label="Total Business Days"
             value={String(totalDays)}
@@ -1011,7 +1011,7 @@ function EodHistorySection() {
         </div>
       )}
 
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 no-print">
         <Button variant="outline" size="sm" onClick={load} disabled={loading}>
           <RefreshCw className={cn('h-4 w-4 mr-1', loading && 'animate-spin')} /> Refresh
         </Button>

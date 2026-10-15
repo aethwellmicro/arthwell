@@ -67,13 +67,15 @@ export function PrintReport({
       )}
 
       {/* Table */}
-      <table className="w-full text-xs border-collapse">
+      <table className="w-full text-[11px] border-collapse border border-gray-300">
         <thead>
           <tr className="border-b-2 border-black bg-gray-100">
             {columns.map((c, i) => (
               <th
                 key={i}
-                className={`px-2 py-1.5 font-bold ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : 'text-left'}`}
+                className={`px-2.5 py-1.5 font-bold uppercase tracking-wider text-[10px] text-gray-800 ${
+                  c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : 'text-left'
+                }`}
               >
                 {c.label}
               </th>
@@ -82,14 +84,18 @@ export function PrintReport({
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} className="border-b border-gray-300">
+            <tr key={i} className="border-b border-gray-200 even:bg-gray-50/50">
               {columns.map((c, j) => {
                 const v = row[c.key]
                 let display: string
-                if (v === null || v === undefined) display = ''
+                if (v === null || v === undefined) display = '—'
                 else if (typeof v === 'number') {
-                  // money columns detected by name
-                  const moneyKeys = ['amount', 'totalPayable', 'paidAmount', 'outstanding', 'principal', 'paid', 'overdueAmount', 'previousOutstanding', 'currentOutstanding', 'balanceAfter', 'total', 'cash', 'upi', 'bank', 'other', 'cashTotal', 'upiTotal', 'bankTotal', 'otherTotal', 'disbursed', 'payable']
+                  const moneyKeys = [
+                    'amount', 'totalPayable', 'paidAmount', 'outstanding', 'principal', 'paid',
+                    'overdueAmount', 'previousOutstanding', 'currentOutstanding', 'balanceAfter',
+                    'total', 'cash', 'upi', 'bank', 'other', 'cashTotal', 'upiTotal', 'bankTotal',
+                    'otherTotal', 'disbursed', 'payable', 'debit', 'credit'
+                  ]
                   display = moneyKeys.includes(c.key) ? formatMoney(v) : String(v)
                 } else if (v instanceof Date || (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v))) {
                   display = formatDate(v)
@@ -98,10 +104,13 @@ export function PrintReport({
                 } else {
                   display = String(v)
                 }
+                const isNumeric = c.align === 'right'
                 return (
                   <td
                     key={j}
-                    className={`px-2 py-1 ${c.align === 'right' ? 'text-right' : c.align === 'center' ? 'text-center' : 'text-left'}`}
+                    className={`px-2.5 py-1.5 leading-snug ${
+                      c.align === 'right' ? 'text-right font-mono' : c.align === 'center' ? 'text-center' : 'text-left'
+                    } ${isNumeric ? 'whitespace-nowrap' : 'break-words'}`}
                   >
                     {display}
                   </td>

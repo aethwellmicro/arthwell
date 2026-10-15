@@ -149,6 +149,15 @@ export function ReportsView() {
       cols.push({ key: 'status', label: 'Status' })
       return cols
     }
+    if (type === 'trial-balance') {
+      const cols: ColDef[] = [
+        { key: 'code', label: 'Account Code' },
+        { key: 'account', label: 'Account Description' },
+        { key: 'debit', label: 'Debit (₹)', align: 'right' },
+        { key: 'credit', label: 'Credit (₹)', align: 'right' },
+      ]
+      return cols
+    }
     if (isGrouped) {
       const cols: ColDef[] = [{ key: 'key', label: type === 'customer' ? 'Customer' : type === 'employee' ? 'Employee' : type === 'paymentmode' ? 'Mode' : type === 'accountstatus' ? 'Status' : 'Collector' }]
       cols.push({ key: 'count', label: 'Count', align: 'right' })
@@ -252,7 +261,7 @@ export function ReportsView() {
 
       {/* Summary */}
       {data?.summary && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 no-print">
           <StatCard
             label="Total Amount"
             value={formatMoneyCompact(data.summary.total || 0)}
@@ -308,7 +317,11 @@ export function ReportsView() {
       )}
 
       {/* Data table */}
-      <SectionCard title={report.label + ' Report'} description={data?.summary ? `From ${formatDate(data.summary.dateFrom)} to ${formatDate(data.summary.dateTo)}` : undefined}>
+      <SectionCard
+        title={report.label + ' Report'}
+        description={data?.summary ? `From ${formatDate(data.summary.dateFrom)} to ${formatDate(data.summary.dateTo)}` : undefined}
+        className="no-print"
+      >
         {loading ? (
           <LoadingRows rows={6} />
         ) : !data ? (
@@ -522,17 +535,34 @@ export function ReportsView() {
       {data && (
         <PrintReport
           title={`${report.label} Report`}
-          subtitle={data.summary ? `${data.summary.count || 0} records` : undefined}
+          subtitle={
+            type === 'trial-balance'
+              ? `Reconciliation: ${data.reconciled ? 'BALANCED' : `Variance: ${formatMoney(data.difference || 0)}`}`
+              : data.summary ? `${data.summary.count || 0} records` : undefined
+          }
           dateFrom={data.summary?.dateFrom}
           dateTo={data.summary?.dateTo}
-          summary={data.summary ? [
-            { label: 'Total', value: formatMoney(data.summary.total || 0) },
-            { label: 'Count', value: String(data.summary.count || 0) },
-            { label: 'Cash', value: formatMoney(data.summary.cashTotal || 0) },
-            { label: 'UPI', value: formatMoney(data.summary.upiTotal || 0) },
-          ] : undefined}
+          summary={
+            type === 'trial-balance' ? [
+              { label: 'Total Debit', value: formatMoney(data.totalDebit || 0) },
+              { label: 'Total Credit', value: formatMoney(data.totalCredit || 0) },
+              { label: 'Variance', value: formatMoney(data.difference || 0) },
+              { label: 'Status', value: data.reconciled ? 'BALANCED' : 'UNBALANCED' },
+            ] : data.summary ? [
+              { label: 'Total', value: formatMoney(data.summary.total || 0) },
+              { label: 'Count', value: String(data.summary.count || 0) },
+              { label: 'Cash', value: formatMoney(data.summary.cashTotal || 0) },
+              { label: 'UPI', value: formatMoney(data.summary.upiTotal || 0) },
+            ] : undefined
+          }
           columns={printColumns}
-          rows={data.grouped && isGrouped ? data.grouped : data.items}
+          rows={
+            type === 'trial-balance'
+              ? (data.items || [])
+              : data.grouped && isGrouped
+              ? data.grouped
+              : (data.items || [])
+          }
         />
       )}
     </div>
