@@ -196,10 +196,10 @@ export function ExpensesView() {
   return (
     <div className="space-y-5">
       {/* Top Banner */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border bg-card p-4 sm:p-5 shadow-xs">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-[12px] border bg-card p-4 sm:p-5 shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
-            <ReceiptIndianRupee className="h-5 w-5 sm:h-6 sm:w-6" />
+          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-[8px] border border-border bg-[#f5f5f5] dark:bg-[#171717] text-foreground flex items-center justify-center shrink-0">
+            <ReceiptIndianRupee className="h-5 w-5" />
           </div>
           <div>
             <h2 className="text-lg sm:text-xl font-bold">Expense Management</h2>
@@ -478,12 +478,12 @@ export function ExpensesView() {
         <DialogContent className="w-[96vw] max-w-lg max-h-[92vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <ReceiptIndianRupee className="h-5 w-5 text-rose-600" /> Record New Expense Entry
+              <ReceiptIndianRupee className="h-5 w-5 text-foreground" /> Record New Expense Entry
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3 py-1 text-xs">
-            <div className="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-900 dark:text-rose-200">
+            <div className="p-2.5 rounded-[6px] bg-muted/60 border border-border text-foreground">
               <p className="font-semibold flex items-center gap-1">
                 <TrendingDown className="h-3.5 w-3.5" /> Automatic Cash/Bank Deduction Effect
               </p>
@@ -618,7 +618,7 @@ export function ExpensesView() {
         <DialogContent className="w-[96vw] max-w-md max-h-[92vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <ReceiptIndianRupee className="h-5 w-5 text-rose-600" /> Expense Voucher: {viewTarget?.expenseNumber}
+              <ReceiptIndianRupee className="h-5 w-5 text-foreground" /> Expense Voucher: {viewTarget?.expenseNumber}
             </DialogTitle>
           </DialogHeader>
 

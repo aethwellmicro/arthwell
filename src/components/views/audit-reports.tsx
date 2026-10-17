@@ -23,6 +23,13 @@ import {
   AlertTriangle,
   CheckCircle2,
   History,
+  Plus,
+  Pencil,
+  Trash2,
+  Undo2,
+  KeyRound,
+  LogOut,
+  Activity,
 } from 'lucide-react'
 import { apiFetch, formatMoney, formatDateTime, formatRelativeTime, downloadCSV } from '@/lib/format'
 import { Button } from '@/components/ui/button'
@@ -57,30 +64,30 @@ interface AuditLog {
 }
 
 const ACTION_COLORS: Record<string, string> = {
-  CREATE: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  UPDATE: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
-  DELETE: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  REVERSE: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  LOGIN: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  LOGOUT: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  CREATE: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#171717] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#ededed]',
+  UPDATE: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#171717] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#ededed]',
+  DELETE: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#171717] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#ededed]',
+  REVERSE: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#171717] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#ededed]',
+  LOGIN: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#4d4d4d] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#a1a1a1]',
+  LOGOUT: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#4d4d4d] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#a1a1a1]',
 }
 
 const ACTION_BORDERS: Record<string, string> = {
-  CREATE: 'border-l-emerald-500',
-  UPDATE: 'border-l-teal-500',
-  DELETE: 'border-l-red-500',
-  REVERSE: 'border-l-amber-500',
-  LOGIN: 'border-l-slate-400',
-  LOGOUT: 'border-l-slate-400',
+  CREATE: 'border-l-border',
+  UPDATE: 'border-l-border',
+  DELETE: 'border-l-border',
+  REVERSE: 'border-l-border',
+  LOGIN: 'border-l-border',
+  LOGOUT: 'border-l-border',
 }
 
-const ACTION_ICONS: Record<string, string> = {
-  CREATE: '➕',
-  UPDATE: '✏️',
-  DELETE: '🗑️',
-  REVERSE: '↩️',
-  LOGIN: '🔑',
-  LOGOUT: '🚪',
+const ACTION_ICONS: Record<string, any> = {
+  CREATE: Plus,
+  UPDATE: Pencil,
+  DELETE: Trash2,
+  REVERSE: Undo2,
+  LOGIN: KeyRound,
+  LOGOUT: LogOut,
 }
 
 // ─── Cash Book Entry type ─────────────────────────────────────────────────────
@@ -382,8 +389,15 @@ function AuditLogsSection() {
                       {hasDetail ? (
                         isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                       ) : <span className="w-4" />}
-                      <span className="text-base shrink-0" aria-hidden>{ACTION_ICONS[l.action] || '•'}</span>
-                      <Badge className={cn(ACTION_COLORS[l.action] || 'bg-slate-200 text-slate-700')}>{l.action}</Badge>
+                      {(() => {
+                        const IconComp = ACTION_ICONS[l.action] || Activity
+                        return (
+                          <div className="h-7 w-7 rounded-[6px] border border-border bg-[#f5f5f5] dark:bg-[#1a1a1a] flex items-center justify-center shrink-0">
+                            <IconComp className="h-3.5 w-3.5 text-foreground" />
+                          </div>
+                        )
+                      })()}
+                      <Badge className={cn(ACTION_COLORS[l.action] || 'border border-border bg-[#f5f5f5] text-foreground')}>{l.action}</Badge>
                       <Badge variant="outline">{l.entity}</Badge>
                       {l.entityId && <span className="font-mono text-xs text-muted-foreground hidden md:inline">{l.entityId.slice(0, 12)}</span>}
                       <span className="text-sm flex-1 truncate">

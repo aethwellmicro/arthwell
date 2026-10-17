@@ -21,7 +21,7 @@ import {
   Trash2,
   AlertTriangle,
 } from 'lucide-react'
-import { apiFetch, formatMoney, formatMoneyCompact, formatDate } from '@/lib/format'
+import { apiFetch, formatMoney, formatMoneyCompact, formatDate, sanitizeMobile } from '@/lib/format'
 import { useApp } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -549,8 +549,14 @@ export function BranchesView() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Phone</Label>
-              <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              <Label className="text-xs text-muted-foreground">Phone (10 digits)</Label>
+              <Input
+                type="tel"
+                maxLength={10}
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: sanitizeMobile(e.target.value) })}
+                placeholder="10-digit phone number"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">City</Label>
@@ -605,8 +611,14 @@ export function BranchesView() {
                 <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Phone</Label>
-                <Input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+                <Label className="text-xs text-muted-foreground">Phone (10 digits)</Label>
+                <Input
+                  type="tel"
+                  maxLength={10}
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: sanitizeMobile(e.target.value) })}
+                  placeholder="10-digit phone number"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">City</Label>

@@ -410,7 +410,7 @@ export function GroupsView() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
                             title="Delete Group"
                             onClick={() => setDeleteTarget(g)}
                           >

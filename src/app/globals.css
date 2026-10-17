@@ -44,72 +44,134 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.99 0.005 162);
-  --foreground: oklch(0.18 0.02 165);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.02 165);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.02 165);
-  --primary: oklch(0.55 0.13 162);
-  --primary-foreground: oklch(0.99 0.01 162);
-  --secondary: oklch(0.96 0.015 162);
-  --secondary-foreground: oklch(0.25 0.04 162);
-  --muted: oklch(0.96 0.01 162);
-  --muted-foreground: oklch(0.5 0.02 162);
-  --accent: oklch(0.93 0.04 162);
-  --accent-foreground: oklch(0.25 0.04 162);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0.015 162);
-  --input: oklch(0.9 0.015 162);
-  --ring: oklch(0.55 0.13 162);
-  --chart-1: oklch(0.55 0.13 162);
-  --chart-2: oklch(0.6 0.11 195);
-  --chart-3: oklch(0.65 0.15 75);
-  --chart-4: oklch(0.55 0.18 30);
-  --chart-5: oklch(0.5 0.13 280);
-  --sidebar: oklch(0.98 0.008 162);
-  --sidebar-foreground: oklch(0.2 0.02 165);
-  --sidebar-primary: oklch(0.55 0.13 162);
-  --sidebar-primary-foreground: oklch(0.99 0.01 162);
-  --sidebar-accent: oklch(0.93 0.04 162);
-  --sidebar-accent-foreground: oklch(0.25 0.04 162);
-  --sidebar-border: oklch(0.9 0.015 162);
-  --sidebar-ring: oklch(0.55 0.13 162);
+  /* Canonical Geist Design Tokens from Master Prompt */
+  --geist-primary: #171717;
+  --geist-ink: #171717;
+  --geist-body: #4d4d4d;
+  --geist-muted: #8f8f8f;
+  --geist-faint: #a1a1a1;
+
+  --geist-canvas: #fafafa;
+  --geist-surface: #ffffff;
+  --geist-surface-subtle: #f2f2f2;
+  --geist-border: #ebebeb;
+
+  --geist-link: #171717;
+  --geist-link-hover: #000000;
+  --geist-link-soft: #f5f5f5;
+
+  --geist-error: #171717;
+  --geist-error-hover: #000000;
+  --geist-warning: #8f8f8f;
+  --geist-success: #171717;
+
+  --geist-radius-control: 6px;
+  --geist-radius-card: 12px;
+  --geist-radius-panel: 16px;
+  --geist-radius-pill: 9999px;
+
+  --geist-border-width: 1px;
+  --geist-shadow-subtle: 0 1px 1px rgba(0, 0, 0, 0.04);
+  --geist-shadow-floating: 0 2px 2px rgba(0, 0, 0, 0.025), 0 8px 16px -4px rgba(0, 0, 0, 0.06);
+
+  /* Design System Aliases */
+  --color-primary: var(--geist-primary);
+  --color-ink: var(--geist-ink);
+  --color-body: var(--geist-body);
+  --color-muted: var(--geist-muted);
+  --color-faint: var(--geist-faint);
+
+  --color-canvas: var(--geist-canvas);
+  --color-surface: var(--geist-surface);
+  --color-surface-subtle: var(--geist-surface-subtle);
+  --color-border: var(--geist-border);
+
+  --color-link: var(--geist-link);
+  --color-link-hover: var(--geist-link-hover);
+  --color-link-soft: var(--geist-link-soft);
+
+  --color-error: var(--geist-error);
+  --color-error-hover: var(--geist-error-hover);
+  --color-warning: var(--geist-warning);
+  --color-success: var(--geist-success);
+
+  /* Standard Radii - Geist Spec: 6px controls, 12px cards, 16px dialogs/panels */
+  --radius: 0.375rem; /* 6px */
+
+  /* Tailwind CSS Theme Mapping */
+  --background: #fafafa;
+  --foreground: #171717;
+  --card: #ffffff;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
+  --primary: #171717;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #171717;
+  --muted: #f5f5f5;
+  --muted-foreground: #8f8f8f;
+  --accent: #f5f5f5;
+  --accent-foreground: #171717;
+  --destructive: #171717;
+  --destructive-foreground: #ffffff;
+  --border: #ebebeb;
+  --input: #ebebeb;
+  --ring: #171717;
+
+  /* Chart Accents - Strict Black, Gray, White Palette */
+  --chart-1: #171717;
+  --chart-2: #4d4d4d;
+  --chart-3: #8f8f8f;
+  --chart-4: #a1a1a1;
+  --chart-5: #d4d4d4;
+
+  /* Sidebar Tokens (Geist Light) */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #171717;
+  --sidebar-primary: #171717;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: #ebebeb;
+  --sidebar-ring: #171717;
 }
 
 .dark {
-  --background: oklch(0.16 0.012 165);
-  --foreground: oklch(0.97 0.005 162);
-  --card: oklch(0.21 0.015 165);
-  --card-foreground: oklch(0.97 0.005 162);
-  --popover: oklch(0.21 0.015 165);
-  --popover-foreground: oklch(0.97 0.005 162);
-  --primary: oklch(0.7 0.14 162);
-  --primary-foreground: oklch(0.16 0.012 165);
-  --secondary: oklch(0.27 0.02 165);
-  --secondary-foreground: oklch(0.97 0.005 162);
-  --muted: oklch(0.27 0.02 165);
-  --muted-foreground: oklch(0.72 0.01 162);
-  --accent: oklch(0.32 0.04 162);
-  --accent-foreground: oklch(0.97 0.005 162);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.7 0.14 162);
-  --chart-1: oklch(0.7 0.14 162);
-  --chart-2: oklch(0.65 0.11 195);
-  --chart-3: oklch(0.7 0.15 75);
-  --chart-4: oklch(0.65 0.18 30);
-  --chart-5: oklch(0.6 0.13 280);
-  --sidebar: oklch(0.19 0.012 165);
-  --sidebar-foreground: oklch(0.97 0.005 162);
-  --sidebar-primary: oklch(0.7 0.14 162);
-  --sidebar-primary-foreground: oklch(0.16 0.012 165);
-  --sidebar-accent: oklch(0.32 0.04 162);
-  --sidebar-accent-foreground: oklch(0.97 0.005 162);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.7 0.14 162);
+  --background: #000000;
+  --foreground: #ededed;
+  --card: #0a0a0a;
+  --card-foreground: #ededed;
+  --popover: #0a0a0a;
+  --popover-foreground: #ededed;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #ededed;
+  --muted: #1a1a1a;
+  --muted-foreground: #a1a1a1;
+  --accent: #1a1a1a;
+  --accent-foreground: #ededed;
+  --destructive: #ffffff;
+  --destructive-foreground: #000000;
+  --border: #262626;
+  --input: #262626;
+  --ring: #ededed;
+
+  --chart-1: #ffffff;
+  --chart-2: #d4d4d4;
+  --chart-3: #a1a1a1;
+  --chart-4: #737373;
+  --chart-5: #404040;
+
+  --sidebar: #050505;
+  --sidebar-foreground: #ededed;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #171717;
+  --sidebar-accent-foreground: #ededed;
+  --sidebar-border: #262626;
+  --sidebar-ring: #ededed;
 }
 
 @layer base {
@@ -122,13 +184,14 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
-  /* Ensure all Lucide and SVG icons render crisply with correct aspect ratio and prevent collapsing */
+  /* Geist Icon Architecture: Crisp 1.5px - 1.75px stroke, exact optical alignment, no raster distortion */
   svg.lucide,
   svg[data-lucide] {
     display: inline-block;
     vertical-align: middle;
     flex-shrink: 0;
-    shape-rendering: auto;
+    shape-rendering: geometricPrecision;
+    stroke-width: 1.75px;
   }
 }
 
@@ -150,10 +213,6 @@
 }
 
 @media (max-width: 639px) {
-  .view-fade-in button {
-    white-space: normal;
-  }
-
   .view-fade-in :where(input, select, textarea) {
     min-width: 0;
     max-width: 100%;
@@ -162,6 +221,34 @@
   .view-fade-in [role="tablist"] {
     max-width: 100%;
   }
+}
+
+/* Universal Form & Drawer Form Architecture */
+input, select, textarea {
+  font-family: inherit;
+  border-radius: var(--geist-radius-control);
+}
+
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: none;
+  border-color: var(--geist-ink) !important;
+  box-shadow: 0 0 0 1px var(--geist-ink);
+}
+
+label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--geist-body);
+  letter-spacing: -0.01em;
+  margin-bottom: 0.25rem;
+}
+
+[data-slot="dialog-content"] {
+  scrollbar-width: none !important;
+}
+
+[data-slot="dialog-content"]::-webkit-scrollbar {
+  display: none !important;
 }
 
 /* Subtle pulse for live indicators */
@@ -173,21 +260,282 @@
   animation: pulse-dot 2s ease-in-out infinite;
 }
 
-/* Data table zebra striping + hover */
-.zebra-table tbody tr:nth-child(even) {
-  background-color: color-mix(in oklch, var(--muted) 30%, transparent);
+/* Universal Table & Card Surface Alignment */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background-color: transparent;
 }
-.zebra-table tbody tr {
-  transition: background-color 0.15s ease;
+
+thead, 
+thead.bg-muted\/50, 
+thead.bg-muted, 
+thead.bg-muted\/60,
+div:has(> table) thead {
+  background-color: var(--card) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+thead th {
+  background-color: var(--card) !important;
+  color: var(--muted-foreground) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding: 0.75rem 1rem !important;
+  white-space: nowrap;
+}
+
+tbody tr {
+  background-color: var(--card) !important;
+  transition: background-color 0.12s ease;
+  border-bottom: 1px solid var(--border);
+}
+
+tbody tr:hover, 
+tbody tr.hover\:bg-muted\/40:hover, 
+tbody tr.hover\:bg-muted\/30:hover {
+  background-color: var(--muted) !important;
+}
+
+tbody td {
+  padding: 0.85rem 1rem !important;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+  color: var(--foreground);
+}
+
+tbody tr:last-child td {
+  border-bottom: none !important;
+}
+
+tfoot, tfoot.bg-muted\/40, tfoot.bg-muted\/50 {
+  background-color: var(--card) !important;
+  border-top: 1px solid var(--border) !important;
+}
+
+tfoot td, tfoot th {
+  padding: 0.85rem 1rem !important;
+  border-top: 1px solid var(--border);
+}
+
+/* Data table striping removed for clean card surface continuity */
+.zebra-table tbody tr:nth-child(even),
+.zebra-table tbody tr:nth-child(odd) {
+  background-color: var(--card) !important;
 }
 .zebra-table tbody tr:hover {
-  background-color: color-mix(in oklch, var(--primary) 8%, transparent);
+  background-color: var(--muted) !important;
 }
 
 /* Smooth focus ring */
 *:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+
+/* Hide scrollbars globally from left and right side while maintaining full scrollability */
+* {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+html, body {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  overflow-x: hidden;
+}
+
+/* Universal Geist Card & Metric Typography Hierarchy (Black & Gray Palette) */
+[data-slot="card"],
+.card,
+.stat-card {
+  color: var(--foreground);
+  background-color: var(--card);
+  border-color: var(--border);
+}
+
+/* Ensure all text across cards and sections conforms to the black and gray ladder */
+[data-slot="card"] h1, [data-slot="card"] h2, [data-slot="card"] h3, [data-slot="card"] h4, [data-slot="card"] h5, [data-slot="card"] h6,
+.card h1, .card h2, .card h3, .card h4, .card h5, .card h6,
+.stat-card h1, .stat-card h2, .stat-card h3 {
+  color: var(--foreground) !important;
+}
+
+[data-slot="card"] .text-muted-foreground,
+.card .text-muted-foreground,
+.stat-card .text-muted-foreground,
+.text-muted-foreground {
+  color: #8f8f8f !important;
+}
+
+.dark [data-slot="card"] .text-muted-foreground,
+.dark .card .text-muted-foreground,
+.dark .stat-card .text-muted-foreground,
+.dark .text-muted-foreground {
+  color: #a1a1a1 !important;
+}
+
+/* All icons globally conform to the clean Geist black and gray card icon aesthetic */
+svg.lucide,
+svg[data-lucide] {
+  color: currentColor;
+}
+
+/* Icons inside cards, headers, waterfalls, and metric badges inherit foreground or neutral gray */
+[data-slot="card"] svg.lucide,
+.card svg.lucide,
+.stat-card svg.lucide,
+table svg.lucide {
+  color: var(--foreground);
+}
+
+button svg.lucide,
+nav svg.lucide,
+a svg.lucide {
+  color: currentColor;
+}
+
+/* Subtle secondary icons use muted gray */
+.text-muted-foreground svg.lucide,
+[data-slot="card"] p.text-muted-foreground svg.lucide,
+.card p.text-muted-foreground svg.lucide {
+  color: #8f8f8f;
+}
+
+.dark .text-muted-foreground svg.lucide,
+.dark [data-slot="card"] p.text-muted-foreground svg.lucide,
+.dark .card p.text-muted-foreground svg.lucide {
+  color: #a1a1a1;
+}
+
+/* Universal Geist Icon Consistency */
+svg.lucide,
+svg[data-lucide] {
+  stroke-width: 1.75px !important;
+  shape-rendering: geometricPrecision;
+  vertical-align: middle;
+}
+
+/* Enforce strict monochromatic black, gray, and white design system across all legacy colored tags, text, and pills */
+[class*="text-emerald-"],
+[class*="text-teal-"],
+[class*="text-green-"],
+[class*="text-blue-"],
+[class*="text-sky-"],
+[class*="text-cyan-"],
+[class*="text-indigo-"],
+[class*="text-amber-"],
+[class*="text-yellow-"],
+[class*="text-orange-"],
+[class*="text-rose-"],
+[class*="text-purple-"],
+[class*="text-violet-"],
+[class*="text-red-"],
+[class*="text-destructive"] {
+  color: var(--foreground) !important;
+}
+
+.dark [class*="text-red-"],
+.dark [class*="text-blue-"],
+.dark [class*="text-green-"],
+.dark [class*="text-emerald-"],
+.dark [class*="text-teal-"] {
+  color: var(--foreground) !important;
+}
+
+/* Background badges, tags, and status pills map strictly to Geist neutral hairline surface */
+[class*="bg-emerald-"],
+[class*="bg-teal-"],
+[class*="bg-green-"],
+[class*="bg-blue-"],
+[class*="bg-sky-"],
+[class*="bg-cyan-"],
+[class*="bg-indigo-"],
+[class*="bg-amber-"],
+[class*="bg-yellow-"],
+[class*="bg-orange-"],
+[class*="bg-rose-"],
+[class*="bg-purple-"],
+[class*="bg-violet-"],
+[class*="bg-red-"] {
+  background-color: var(--secondary) !important;
+  color: var(--foreground) !important;
+  border-color: var(--border) !important;
+}
+
+[class*="border-emerald-"],
+[class*="border-teal-"],
+[class*="border-green-"],
+[class*="border-blue-"],
+[class*="border-sky-"],
+[class*="border-cyan-"],
+[class*="border-indigo-"],
+[class*="border-amber-"],
+[class*="border-yellow-"],
+[class*="border-orange-"],
+[class*="border-rose-"],
+[class*="border-purple-"],
+[class*="border-violet-"],
+[class*="border-red-"] {
+  border-color: var(--border) !important;
+}
+
+/* Standardize all pill indicators across the system */
+.rounded-full.border {
+  border-color: var(--border) !important;
+}
+
+/* Standardize button icon sizing and stroke across all views */
+button svg.lucide,
+[data-slot="button"] svg.lucide {
+  stroke-width: 1.75px;
+  color: currentColor;
+}
+
+/* Geist Design System Utilities from design.md */
+.geist-hero-mesh {
+  position: relative;
+  overflow: hidden;
+}
+.geist-hero-mesh::before {
+  content: "";
+  position: absolute;
+  top: -20%;
+  right: -10%;
+  width: 50%;
+  height: 140%;
+  background: radial-gradient(circle at 50% 50%, rgba(0, 112, 243, 0.08), rgba(121, 40, 202, 0.06), rgba(255, 0, 128, 0.04), transparent 70%);
+  filter: blur(40px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.geist-mono-eyebrow {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.geist-pill-cta {
+  border-radius: 100px;
+  padding-left: 18px;
+  padding-right: 18px;
+  font-weight: 500;
+  transition: all 0.15s ease;
 }
 
 /* Custom scrollbar */

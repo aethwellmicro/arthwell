@@ -278,50 +278,50 @@ export function TransactionsView() {
       {/* KPI Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
         <div className="rounded-lg border bg-card p-3 flex flex-col justify-between">
-          <p className="text-[10px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400 font-medium">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
             Total Inflows (Cr)
           </p>
-          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+          <p className="text-lg font-bold text-foreground">
             +{formatMoney(totalInflows)}
           </p>
         </div>
         <div className="rounded-lg border bg-card p-3 flex flex-col justify-between">
-          <p className="text-[10px] uppercase tracking-wide text-indigo-600 dark:text-indigo-400 font-medium">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
             Investments (Cr)
           </p>
-          <p className="text-lg font-bold text-indigo-600 dark:text-indigo-400">
+          <p className="text-lg font-bold text-foreground">
             +{formatMoney(totalInvestments)}
           </p>
         </div>
         <div className="rounded-lg border bg-card p-3 flex flex-col justify-between">
-          <p className="text-[10px] uppercase tracking-wide text-teal-600 dark:text-teal-400 font-medium">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
             Recovered Charges
           </p>
-          <p className="text-lg font-bold text-teal-600 dark:text-teal-400">
+          <p className="text-lg font-bold text-foreground">
             +{formatMoney(totalRecoveredCharges)}
           </p>
         </div>
         <div className="rounded-lg border bg-card p-3 flex flex-col justify-between">
-          <p className="text-[10px] uppercase tracking-wide text-amber-600 dark:text-amber-400 font-medium">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
             Expenses (Dr)
           </p>
-          <p className="text-lg font-bold text-amber-600 dark:text-amber-400">
+          <p className="text-lg font-bold text-foreground">
             -{formatMoney(totalExpenses)}
           </p>
         </div>
         <div className="rounded-lg border bg-card p-3 flex flex-col justify-between">
-          <p className="text-[10px] uppercase tracking-wide text-rose-600 dark:text-rose-400 font-medium">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
             Disbursements (Dr)
           </p>
-          <p className="text-lg font-bold text-rose-600 dark:text-rose-400">
+          <p className="text-lg font-bold text-foreground">
             -{formatMoney(totalOutflows)}
           </p>
         </div>
         <div className="rounded-lg border bg-card p-3 flex flex-col justify-between">
-          <p className="text-[10px] uppercase tracking-wide text-blue-600 dark:text-blue-400 font-medium">
+          <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
             Bank Deposits (Dr)
           </p>
-          <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+          <p className="text-lg font-bold text-foreground">
             -{formatMoney(totalDeposits)}
           </p>
         </div>

@@ -34,23 +34,23 @@ export function StatCard({
   animateFormat?: (n: number) => string // formatter for the animated number
 }) {
   const tones: Record<string, string> = {
-    default: 'bg-primary/10 text-primary',
-    success: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-    warning: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-    danger: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-    info: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
+    default: 'bg-muted text-foreground border border-border',
+    success: 'bg-muted text-foreground border border-border',
+    warning: 'bg-muted text-foreground border border-border',
+    danger: 'bg-muted text-foreground border border-border',
+    info: 'bg-muted text-foreground border border-border',
   }
   const displayValue = (animateValue !== undefined && animateFormat) ? (
     <AnimatedNumber value={animateValue} format={animateFormat} />
   ) : value
   const valueEl = (
-    <p className="mt-1.5 text-2xl font-bold tracking-tight truncate">{displayValue}</p>
+    <p className="mt-1 text-2xl font-semibold tracking-tight text-foreground truncate">{displayValue}</p>
   )
   const inner = (
-    <CardContent className="p-5">
+    <CardContent className="p-4 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold text-muted-foreground/80 uppercase tracking-wide">{label}</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
           {fullValue && fullValue !== value ? (
             <TooltipProvider delayDuration={200}>
               <Tooltip>
@@ -58,17 +58,17 @@ export function StatCard({
                   <span className="block cursor-help" onClick={onClick}>{valueEl}</span>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  <span className="font-medium">{fullValue}</span>
+                  <span className="font-mono text-xs">{fullValue}</span>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           ) : (
             valueEl
           )}
-          {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
+          {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
         </div>
-        <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0', tones[tone])}>
-          <Icon className="h-5 w-5" />
+        <div className={cn('h-8 w-8 rounded-[6px] flex items-center justify-center shrink-0 border border-border bg-[#f5f5f5] dark:bg-[#171717] text-foreground')}>
+          <Icon className="h-4 w-4" />
         </div>
       </div>
     </CardContent>
@@ -80,14 +80,14 @@ export function StatCard({
         tabIndex={0}
         onClick={onClick}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
-        className="overflow-hidden transition-all hover:shadow-lg hover:-translate-y-0.5 duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-ring"
+        className="overflow-hidden transition-all hover:border-foreground/30 hover:shadow-xs duration-150 cursor-pointer focus-visible:ring-2 focus-visible:ring-ring border-border bg-card rounded-[12px]"
       >
         {inner}
       </Card>
     )
   }
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-md hover:-translate-y-0.5 duration-200">
+    <Card className="overflow-hidden transition-all hover:border-foreground/20 hover:shadow-xs duration-150 border-border bg-card rounded-[12px]">
       {inner}
     </Card>
   )
@@ -107,11 +107,11 @@ export function SectionCard({
   className?: string
 }) {
   return (
-    <Card className={className}>
+    <Card className={cn('rounded-[12px] border border-border shadow-xs overflow-hidden bg-card', className)}>
       {(title || action) && (
-        <div className="flex items-center justify-between gap-2 px-5 py-3.5 border-b">
+        <div className="flex items-center justify-between gap-2 px-5 py-3.5 border-b border-border bg-card">
           <div>
-            {title && <h3 className="font-semibold text-sm">{title}</h3>}
+            {title && <h3 className="font-semibold text-sm text-foreground tracking-tight">{title}</h3>}
             {description && <p className="text-xs text-muted-foreground mt-0.5">{description}</p>}
           </div>
           {action}

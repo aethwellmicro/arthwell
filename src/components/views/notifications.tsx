@@ -12,7 +12,7 @@ import {
   RefreshCw,
   FileSpreadsheet,
 } from 'lucide-react'
-import { apiFetch, formatDateTime, formatMoney, formatRelativeTime, STATUS_COLORS, downloadCSV } from '@/lib/format'
+import { apiFetch, formatDateTime, formatMoney, formatRelativeTime, STATUS_COLORS, downloadCSV, sanitizeMobile } from '@/lib/format'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -47,16 +47,16 @@ interface Notification {
 }
 
 const TYPE_CONFIG: Record<string, { label: string; icon: any; color: string; border: string }> = {
-  PAYMENT_CONFIRMATION: { label: 'Payment Confirmation', icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/40 dark:text-emerald-300', border: 'border-l-emerald-500' },
-  DUE_REMINDER: { label: 'Due Reminder', icon: CalendarClock, color: 'text-amber-600 bg-amber-100 dark:bg-amber-900/40 dark:text-amber-300', border: 'border-l-amber-500' },
-  OVERDUE_REMINDER: { label: 'Overdue Reminder', icon: AlertTriangle, color: 'text-red-600 bg-red-100 dark:bg-red-900/40 dark:text-red-300', border: 'border-l-red-500' },
-  ACCOUNT_COMPLETION: { label: 'Account Completion', icon: PartyPopper, color: 'text-teal-600 bg-teal-100 dark:bg-teal-900/40 dark:text-teal-300', border: 'border-l-teal-500' },
+  PAYMENT_CONFIRMATION: { label: 'Payment Confirmation', icon: CheckCircle2, color: 'text-foreground bg-[#f5f5f5] dark:bg-[#1a1a1a] border border-border', border: 'border-l-border' },
+  DUE_REMINDER: { label: 'Due Reminder', icon: CalendarClock, color: 'text-foreground bg-[#f5f5f5] dark:bg-[#1a1a1a] border border-border', border: 'border-l-border' },
+  OVERDUE_REMINDER: { label: 'Overdue Reminder', icon: AlertTriangle, color: 'text-foreground bg-[#f5f5f5] dark:bg-[#1a1a1a] border border-border', border: 'border-l-border' },
+  ACCOUNT_COMPLETION: { label: 'Account Completion', icon: PartyPopper, color: 'text-foreground bg-[#f5f5f5] dark:bg-[#1a1a1a] border border-border', border: 'border-l-border' },
 }
 
 const STATUS_BORDER: Record<string, string> = {
-  SENT: 'border-l-emerald-500',
-  PENDING: 'border-l-amber-500',
-  FAILED: 'border-l-red-500',
+  SENT: 'border-l-border',
+  PENDING: 'border-l-border',
+  FAILED: 'border-l-border',
 }
 
 export function NotificationsView() {
@@ -198,19 +198,19 @@ export function NotificationsView() {
       <div className="grid grid-cols-4 gap-3">
         <div className="rounded-lg border bg-card p-3">
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total</p>
-          <p className="text-lg font-bold">{stats.total}</p>
+          <p className="text-lg font-bold text-foreground">{stats.total}</p>
         </div>
         <div className="rounded-lg border bg-card p-3">
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Sent</p>
-          <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{stats.sent}</p>
+          <p className="text-lg font-bold text-foreground">{stats.sent}</p>
         </div>
         <div className="rounded-lg border bg-card p-3">
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Pending</p>
-          <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{stats.pending}</p>
+          <p className="text-lg font-bold text-foreground">{stats.pending}</p>
         </div>
         <div className="rounded-lg border bg-card p-3">
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Failed</p>
-          <p className="text-lg font-bold text-red-600 dark:text-red-400">{stats.failed}</p>
+          <p className="text-lg font-bold text-foreground">{stats.failed}</p>
         </div>
       </div>
 
@@ -272,8 +272,14 @@ export function NotificationsView() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Recipient (mobile)</Label>
-              <Input value={form.recipient} onChange={(e) => setForm({ ...form, recipient: e.target.value })} placeholder="9876543210" />
+              <Label className="text-xs text-muted-foreground">Recipient (10-digit mobile)</Label>
+              <Input
+                type="tel"
+                maxLength={10}
+                value={form.recipient}
+                onChange={(e) => setForm({ ...form, recipient: sanitizeMobile(e.target.value) })}
+                placeholder="10-digit mobile number"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Message</Label>

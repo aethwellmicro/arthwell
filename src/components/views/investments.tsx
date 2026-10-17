@@ -22,7 +22,7 @@ import {
   Trash2,
   AlertTriangle,
 } from 'lucide-react'
-import { apiFetch, formatMoney, formatDate, formatDateTime, downloadCSV } from '@/lib/format'
+import { apiFetch, formatMoney, formatDate, formatDateTime, downloadCSV, sanitizeMobile } from '@/lib/format'
 import { useApp } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -620,10 +620,12 @@ export function InvestmentsView() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs font-semibold">Investor Mobile</Label>
+                <Label className="text-xs font-semibold">Investor Mobile (10 digits)</Label>
                 <Input
+                  type="tel"
+                  maxLength={10}
                   value={createForm.investorPhone}
-                  onChange={(e) => setCreateForm({ ...createForm, investorPhone: e.target.value })}
+                  onChange={(e) => setCreateForm({ ...createForm, investorPhone: sanitizeMobile(e.target.value) })}
                   placeholder="e.g. 9876543210"
                   className="mt-1 text-xs"
                 />

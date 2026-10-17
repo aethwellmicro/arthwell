@@ -328,15 +328,15 @@ export function AccountsView({ accountId }: { accountId?: string }) {
             </SelectContent>
           </Select>
         </div>
-        <div className="ml-auto flex gap-2">
-          <Button variant="outline" onClick={load} disabled={loading}>
-            <RefreshCw className={cn('h-4 w-4 mr-1', loading && 'animate-spin')} /> Refresh
+        <div className="ml-auto flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+            <RefreshCw className={cn('h-3.5 w-3.5 mr-1', loading && 'animate-spin')} /> Refresh
           </Button>
-          <Button variant="outline" onClick={exportCSV} disabled={!sortedItems.length}>
-            <FileSpreadsheet className="h-4 w-4 mr-1" /> Export
+          <Button variant="outline" size="sm" onClick={exportCSV} disabled={!sortedItems.length}>
+            <FileSpreadsheet className="h-3.5 w-3.5 mr-1" /> Export
           </Button>
-          <Button onClick={() => setShowNew(true)}>
-            <Plus className="h-4 w-4 mr-1" /> New Account
+          <Button variant="pill" size="sm" onClick={() => setShowNew(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> New Account
           </Button>
         </div>
       </div>
@@ -1048,7 +1048,7 @@ function PreviewRow({ label, value, tone = 'default', big }: { label: string; va
   )
 }
 function MiniStat({ icon: Icon, label, value, tone = 'default' }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; tone?: 'default' | 'success' | 'warning' | 'info' }) {
-  const tones: Record<string, string> = { default: 'bg-primary/10 text-primary', success: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300', warning: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300', info: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300' }
+  const tones: Record<string, string> = { default: 'bg-muted text-foreground border border-border', success: 'bg-muted text-foreground border border-border', warning: 'bg-muted text-foreground border border-border', info: 'bg-muted text-foreground border border-border' }
   return (
     <div className="flex items-center gap-2">
       <div className={cn('h-9 w-9 rounded-md flex items-center justify-center', tones[tone])}><Icon className="h-4 w-4" /></div>

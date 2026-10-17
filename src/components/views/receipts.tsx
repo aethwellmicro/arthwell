@@ -175,18 +175,18 @@ export function ReceiptsView({ receiptId }: { receiptId?: string }) {
             />
           </div>
         </div>
-        <div className="w-[calc(50%-5px)] sm:w-[130px]">
-          <Label className="text-xs text-muted-foreground">From</Label>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full" />
+        <div className="w-[calc(50%-6px)] sm:w-36 md:w-40 shrink-0">
+          <Label className="text-xs text-muted-foreground block mb-1">From</Label>
+          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-full text-xs h-9" />
         </div>
-        <div className="w-[calc(50%-5px)] sm:w-[130px]">
-          <Label className="text-xs text-muted-foreground">To</Label>
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full" />
+        <div className="w-[calc(50%-6px)] sm:w-36 md:w-40 shrink-0">
+          <Label className="text-xs text-muted-foreground block mb-1">To</Label>
+          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-full text-xs h-9" />
         </div>
-        <div className="w-[calc(50%-5px)] sm:w-[110px]">
-          <Label className="text-xs text-muted-foreground">Mode</Label>
+        <div className="w-[calc(50%-6px)] sm:w-32 shrink-0">
+          <Label className="text-xs text-muted-foreground block mb-1">Mode</Label>
           <Select value={paymentMode} onValueChange={setPaymentMode}>
-            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full h-9"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Modes</SelectItem>
               <SelectItem value="CASH">Cash</SelectItem>
@@ -196,10 +196,10 @@ export function ReceiptsView({ receiptId }: { receiptId?: string }) {
             </SelectContent>
           </Select>
         </div>
-        <div className="w-[calc(50%-5px)] sm:w-[130px]">
-          <Label className="text-xs text-muted-foreground">Status</Label>
+        <div className="w-[calc(50%-6px)] sm:w-36 shrink-0">
+          <Label className="text-xs text-muted-foreground block mb-1">Status</Label>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full h-9"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Status</SelectItem>
               <SelectItem value="SUCCESSFUL">Successful</SelectItem>
@@ -208,11 +208,11 @@ export function ReceiptsView({ receiptId }: { receiptId?: string }) {
             </SelectContent>
           </Select>
         </div>
-        <div className="w-full sm:w-auto sm:ml-auto flex gap-2 pt-1 sm:pt-0">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="flex-1 sm:flex-initial">
+        <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-2 pt-1 sm:pt-0">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="flex-1 sm:flex-initial h-9">
             <RefreshCw className={cn('h-3.5 w-3.5 mr-1.5', loading && 'animate-spin')} /> Refresh
           </Button>
-          <Button variant="outline" size="sm" onClick={exportCSV} disabled={!items.length} className="flex-1 sm:flex-initial">
+          <Button variant="outline" size="sm" onClick={exportCSV} disabled={!items.length} className="flex-1 sm:flex-initial h-9">
             <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" /> Export
           </Button>
         </div>

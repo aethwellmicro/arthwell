@@ -284,31 +284,24 @@ export function EODView() {
   return (
     <div className="space-y-6">
       {/* Top Banner / Status */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border bg-card p-4 sm:p-5 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-            <CalendarClock className="h-5 w-5 sm:h-6 sm:w-6" />
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-[12px] border border-border bg-card p-5 shadow-xs">
+        <div className="flex items-center gap-3.5">
+          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-[8px] border border-border bg-[#f5f5f5] dark:bg-[#171717] text-foreground flex items-center justify-center shrink-0">
+            <CalendarClock className="h-5 w-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg sm:text-xl font-bold">Day End &amp; EOD Cash Reconciliation</h2>
+              <h2 className="text-base sm:text-lg font-semibold tracking-tight text-foreground">
+                Day End &amp; EOD Cash Reconciliation
+              </h2>
               {summary && (
-                <Badge
-                  className={cn(
-                    'font-mono text-xs',
-                    summary.status === 'OPEN'
-                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                      : summary.status === 'REOPENED'
-                      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                      : 'bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-300'
-                  )}
-                >
-                  ● {summary.status}
+                <Badge variant="outline" className="font-mono text-[11px] px-2 py-0.5">
+                  {summary.status}
                 </Badge>
               )}
             </div>
-            <div className="flex flex-wrap items-center gap-2 mt-1">
-              <span className="text-xs text-muted-foreground">Active Business Date:</span>
+            <div className="flex flex-wrap items-center gap-1.5 mt-1 text-xs text-muted-foreground">
+              <span>Active Business Date:</span>
               {openDates.length > 0 ? (
                 <div className="flex items-center gap-1.5">
                   <select
@@ -318,7 +311,7 @@ export function EODView() {
                       setSelectedDate(val)
                       load(val)
                     }}
-                    className="bg-card text-foreground font-mono font-bold text-xs border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs"
+                    className="bg-card text-foreground font-mono font-semibold text-xs border border-border rounded-[6px] px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-ring"
                     aria-label="Select open business date"
                   >
                     {openDates.map((d) => (
@@ -327,14 +320,15 @@ export function EODView() {
                       </option>
                     ))}
                   </select>
-                  <span className="text-[11px] text-muted-foreground">({openDates.length} dates open)</span>
+                  <span className="font-mono text-[11px]">({openDates.length} open)</span>
                 </div>
               ) : (
-                <span className="font-mono font-semibold text-foreground">
+                <span className="font-mono font-semibold text-foreground text-xs">
                   {summary ? summary.businessDate : 'Not Initialized'}
                 </span>
               )}
-              <span className="text-xs text-muted-foreground">· Opened by {summary?.openedBy?.name || 'System'}</span>
+              <span className="text-muted-foreground/60">·</span>
+              <span>Opened by <strong className="font-medium text-foreground">{summary?.openedBy?.name || 'System'}</strong></span>
             </div>
           </div>
         </div>
@@ -426,19 +420,19 @@ export function EODView() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
               {/* 1. Opening Cash */}
               <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
-                <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1">
-                  <Wallet className="h-3.5 w-3.5 text-primary" /> Opening Cash
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1.5">
+                  <Wallet className="h-3.5 w-3.5 text-foreground" /> Opening Cash
                 </p>
-                <p className="text-xl font-bold mt-1">{formatMoney(summary.openingCash)}</p>
+                <p className="text-xl font-bold mt-1 text-foreground">{formatMoney(summary.openingCash)}</p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Start of business day</p>
               </div>
 
               {/* 2. Cash Collections (+) */}
               <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
-                <p className="text-[11px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                  <ArrowDownRight className="h-3.5 w-3.5" /> + Collections
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1.5">
+                  <ArrowDownRight className="h-3.5 w-3.5 text-foreground" /> + Collections
                 </p>
-                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                <p className="text-xl font-bold text-foreground mt-1">
                   {formatMoney(summary.cashCollections)}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -448,10 +442,10 @@ export function EODView() {
 
               {/* 3. Cash Investments (+) */}
               <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
-                <p className="text-[11px] uppercase tracking-wide text-indigo-600 dark:text-indigo-400 font-medium flex items-center gap-1">
-                  <ArrowDownRight className="h-3.5 w-3.5" /> + Investments
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1.5">
+                  <ArrowDownRight className="h-3.5 w-3.5 text-foreground" /> + Investments
                 </p>
-                <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400 mt-1">
+                <p className="text-xl font-bold text-foreground mt-1">
                   {formatMoney(summary.cashInvestments || 0)}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -461,10 +455,10 @@ export function EODView() {
 
               {/* 3.5. Fees Collected (+) */}
               <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
-                <p className="text-[11px] uppercase tracking-wide text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                  <ArrowDownRight className="h-3.5 w-3.5" /> + PF & Insurance Fees
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1.5">
+                  <ArrowDownRight className="h-3.5 w-3.5 text-foreground" /> + PF & Insurance
                 </p>
-                <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                <p className="text-xl font-bold text-foreground mt-1">
                   {formatMoney(summary.feesCollected || 0)}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -474,10 +468,10 @@ export function EODView() {
 
               {/* 4. Disbursements (-) */}
               <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
-                <p className="text-[11px] uppercase tracking-wide text-rose-600 dark:text-rose-400 font-medium flex items-center gap-1">
-                  <ArrowUpRight className="h-3.5 w-3.5" /> - Disbursements
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1.5">
+                  <ArrowUpRight className="h-3.5 w-3.5 text-foreground" /> - Disbursements
                 </p>
-                <p className="text-xl font-bold text-rose-600 dark:text-rose-400 mt-1">
+                <p className="text-xl font-bold text-foreground mt-1">
                   {formatMoney(summary.cashDisbursements)}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Physical loans issued</p>
@@ -485,10 +479,10 @@ export function EODView() {
 
               {/* 5. Expenses (-) */}
               <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
-                <p className="text-[11px] uppercase tracking-wide text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
-                  <ArrowUpRight className="h-3.5 w-3.5" /> - Expenses
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1.5">
+                  <ArrowUpRight className="h-3.5 w-3.5 text-foreground" /> - Expenses
                 </p>
-                <p className="text-xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+                <p className="text-xl font-bold text-foreground mt-1">
                   {formatMoney(summary.cashExpenses || 0)}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -498,21 +492,21 @@ export function EODView() {
 
               {/* 6. Bank Deposits (-) */}
               <div className="rounded-lg border bg-background p-3.5 shadow-2xs">
-                <p className="text-[11px] uppercase tracking-wide text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1">
-                  <Landmark className="h-3.5 w-3.5" /> - Deposits
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium flex items-center gap-1.5">
+                  <Landmark className="h-3.5 w-3.5 text-foreground" /> - Deposits
                 </p>
-                <p className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1">
+                <p className="text-xl font-bold text-foreground mt-1">
                   {formatMoney(summary.bankDeposits)}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Cash sent to bank</p>
               </div>
 
               {/* 7. Expected Closing Cash (=) */}
-              <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30 p-3.5 shadow-2xs sm:col-span-2 md:col-span-3 lg:col-span-1">
-                <p className="text-[11px] uppercase tracking-wide text-emerald-700 dark:text-emerald-400 font-bold flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> = Expected Cash
+              <div className="rounded-lg border bg-background p-3.5 shadow-2xs sm:col-span-2 md:col-span-3 lg:col-span-1">
+                <p className="text-[11px] uppercase tracking-wide text-foreground font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-foreground" /> = Expected Cash
                 </p>
-                <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400 mt-1">
+                <p className="text-xl font-bold text-foreground mt-1">
                   {formatMoney(summary.expectedClosingCash)}
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">Must balance physical count</p>

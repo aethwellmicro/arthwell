@@ -19,6 +19,15 @@ export const metadata: Metadata = {
   title: "ArthWell Micro Finance - Collection & Loan Management",
   description:
     "Internal web-based application for managing customer accounts, loan disbursement, collections, receipts, and reports.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/arthwell-icon.png", type: "image/png" },
+    ],
+    apple: [
+      { url: "/arthwell-icon.png" },
+    ],
+  },
 };
 
 export default function RootLayout({

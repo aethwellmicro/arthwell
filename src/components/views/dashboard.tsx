@@ -17,6 +17,13 @@ import {
   Phone,
   MessageCircle,
   X,
+  Plus,
+  Pencil,
+  Undo2,
+  Trash2,
+  KeyRound,
+  LogOut,
+  Activity,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -90,12 +97,12 @@ interface Dashboard {
 }
 
 const MODE_COLORS: Record<string, string> = {
-  CASH: '#10b981',
-  UPI: '#0d9488',
-  BANK: '#0891b2',
-  OTHER: '#7c3aed',
+  CASH: '#171717',
+  UPI: '#4d4d4d',
+  BANK: '#8f8f8f',
+  OTHER: '#a1a1a1',
 }
-const STATUS_PIE_COLORS = ['#10b981', '#0891b2', '#f59e0b', '#64748b', '#ef4444']
+const STATUS_PIE_COLORS = ['#171717', '#4d4d4d', '#737373', '#a1a1a1', '#d4d4d4']
 
 export function DashboardView() {
   const router = useRouter()
@@ -230,37 +237,37 @@ export function DashboardView() {
       {/* Quick actions & Live Auto-Refresh Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-card border rounded-xl p-3 shadow-xs">
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={() => setView('customers')} size="sm">
-            <Users className="h-4 w-4 mr-2" /> New Customer
+          <Button variant="pill" onClick={() => setView('customers')} size="sm">
+            <Users className="h-3.5 w-3.5 mr-1.5" /> New Customer
           </Button>
-          <Button variant="secondary" onClick={() => router.push('/collections')} size="sm">
-            <HandCoins className="h-4 w-4 mr-2" /> New Collection
+          <Button variant="pill-secondary" onClick={() => router.push('/collections')} size="sm">
+            <HandCoins className="h-3.5 w-3.5 mr-1.5" /> New Collection
           </Button>
-          <Button variant="outline" onClick={() => setView('reports')} size="sm">
-            View Reports <ArrowRight className="h-4 w-4 ml-2" />
+          <Button variant="pill-outline" onClick={() => setView('reports')} size="sm">
+            View Reports <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
           </Button>
         </div>
 
         {/* Hot Reloading & Live Status Controls */}
         <div className="flex items-center gap-2.5 ml-auto">
           {/* Live Pulsing Indicator & Interval Selector */}
-          <div className="flex items-center gap-1.5 bg-muted/60 px-2.5 py-1 rounded-lg border text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 bg-muted/60 px-2.5 py-1 rounded-lg border text-xs text-muted-foreground font-mono">
             {autoRefreshInterval > 0 ? (
-              <span className="flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
+              <span className="flex items-center gap-1.5 font-medium text-foreground">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-foreground opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-foreground"></span>
                 </span>
                 Live
               </span>
             ) : (
               <span className="flex items-center gap-1.5 font-medium text-muted-foreground">
-                <span className="inline-flex rounded-full h-2 w-2 bg-slate-400"></span>
+                <span className="inline-flex rounded-full h-2 w-2 bg-muted-foreground/50"></span>
                 Paused
               </span>
             )}
             <span className="text-muted-foreground/40">|</span>
-            <span className="text-[11px]">Auto:</span>
+            <span className="text-[11px] uppercase tracking-wide">Auto:</span>
             <select
               value={autoRefreshInterval}
               onChange={(e) => {
@@ -313,22 +320,22 @@ export function DashboardView() {
         const myTodayCount = data.todayCollections.filter((c) => c.collectedBy === user.name).length
         const myTodayAmount = data.todayCollections.filter((c) => c.collectedBy === user.name).reduce((s, c) => s + c.amount, 0)
         return (
-          <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-transparent">
-            <CardContent className="p-5">
+          <Card className="border border-border bg-card geist-hero-mesh relative shadow-xs overflow-hidden">
+            <CardContent className="p-5 relative z-10">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-lg">
+                  <div className="h-11 w-11 rounded-md bg-primary text-primary-foreground flex items-center justify-center font-semibold text-base shrink-0">
                     {user.name.split(' ').map((s) => s[0]).slice(0, 2).join('')}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold">{user.name}</p>
-                    <p className="text-xs text-muted-foreground">Your collection performance</p>
+                    <span className="geist-mono-eyebrow">Collector Performance</span>
+                    <p className="text-base font-semibold tracking-tight text-foreground">{user.name}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4 sm:gap-6">
                   <div>
                     <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Today</p>
-                    <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{formatMoney(myTodayAmount)}</p>
+                    <p className="text-lg font-bold text-foreground">{formatMoney(myTodayAmount)}</p>
                     <p className="text-[10px] text-muted-foreground">{myTodayCount} txns</p>
                   </div>
                   <div>
@@ -470,15 +477,15 @@ export function DashboardView() {
                 <AreaChart data={trendData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="cAmt" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      <stop offset="5%" stopColor="currentColor" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="currentColor" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" />
                   <YAxis tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
                   <Tooltip formatter={(v: any) => formatMoney(Number(v))} contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                  <Area type="monotone" dataKey="amount" stroke="#10b981" strokeWidth={2} fill="url(#cAmt)" />
+                  <Area type="monotone" dataKey="amount" stroke="var(--foreground)" strokeWidth={2} fill="url(#cAmt)" className="text-foreground" />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
@@ -519,7 +526,7 @@ export function DashboardView() {
                   <XAxis type="number" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} stroke="var(--muted-foreground)" width={90} />
                   <Tooltip formatter={(v: any) => formatMoney(Number(v))} contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                  <Bar dataKey="amount" fill="#10b981" radius={[0, 6, 6, 0]} barSize={28} />
+                  <Bar dataKey="amount" fill="#171717" radius={[0, 6, 6, 0]} barSize={28} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -595,42 +602,46 @@ export function DashboardView() {
         if (total <= 0) return null
         const bucketKeys = ['0-30', '31-60', '61-90', '90+']
         const buckets = [
-          { key: '0-30', label: '0-30 days', value: data.agingBuckets['0-30'], color: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
-          { key: '31-60', label: '31-60 days', value: data.agingBuckets['31-60'], color: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
-          { key: '61-90', label: '61-90 days', value: data.agingBuckets['61-90'], color: 'bg-orange-500', text: 'text-orange-600 dark:text-orange-400' },
-          { key: '90+', label: '90+ days', value: data.agingBuckets['90+'], color: 'bg-red-500', text: 'text-red-600 dark:text-red-400' },
+          { key: '0-30', label: '0-30 days', value: data.agingBuckets['0-30'], color: 'bg-[#171717] dark:bg-white', dot: 'bg-[#171717] dark:bg-white' },
+          { key: '31-60', label: '31-60 days', value: data.agingBuckets['31-60'], color: 'bg-[#666666]', dot: 'bg-[#666666]' },
+          { key: '61-90', label: '61-90 days', value: data.agingBuckets['61-90'], color: 'bg-[#a3a3a3]', dot: 'bg-[#a3a3a3]' },
+          { key: '90+', label: '90+ days', value: data.agingBuckets['90+'], color: 'bg-[#e5e5e5] dark:bg-[#333333]', dot: 'bg-[#e5e5e5] dark:bg-[#333333]' },
         ]
         return (
           <SectionCard title="Overdue Aging Analysis" description="Outstanding by age bracket — click to filter" action={agingFilter && (
-            <Button variant="ghost" size="sm" onClick={() => setAgingFilter(null)}>
+            <Button variant="ghost" size="sm" onClick={() => setAgingFilter(null)} className="h-7 px-2 text-xs">
               <X className="h-3 w-3 mr-1" /> Clear filter
             </Button>
           )}>
-            <div className="p-4 space-y-3">
+            <div className="p-5 space-y-4">
               {/* Stacked bar */}
-              <div className="flex h-8 rounded-lg overflow-hidden border">
+              <div className="flex h-4 rounded-[6px] overflow-hidden border border-border bg-muted/40 p-0.5 gap-0.5">
                 {buckets.map((b, i) => b.value > 0 && (
                   <button
                     key={i}
                     onClick={() => setAgingFilter(agingFilter === b.key ? null : b.key)}
-                    className={cn(b.color, 'transition-all hover:opacity-80', agingFilter && agingFilter !== b.key && 'opacity-40')}
+                    className={cn(b.color, 'h-full first:rounded-l-[4px] last:rounded-r-[4px] transition-all hover:opacity-80 focus:outline-none focus-visible:ring-1 focus-visible:ring-ring', agingFilter && agingFilter !== b.key && 'opacity-25')}
                     style={{ width: `${(b.value / total) * 100}%` }}
                     title={`${b.label}: ${formatMoney(b.value)} — click to filter`}
                   />
                 ))}
               </div>
-              {/* Legend */}
+              {/* Legend & Stat metrics */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {buckets.map((b, i) => (
                   <button
                     key={i}
                     onClick={() => setAgingFilter(agingFilter === b.key ? null : b.key)}
-                    className={cn('flex items-center gap-2 text-left transition-opacity hover:opacity-80', agingFilter && agingFilter !== b.key && 'opacity-40')}
+                    className={cn(
+                      'flex items-center gap-2.5 p-2 rounded-[6px] border border-border bg-card text-left transition-all hover:border-foreground/30 focus:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                      agingFilter === b.key ? 'border-primary ring-1 ring-primary' : 'hover:bg-muted/30',
+                      agingFilter && agingFilter !== b.key && 'opacity-40'
+                    )}
                   >
-                    <span className={cn('h-3 w-3 rounded shrink-0', b.color)} />
-                    <div className="min-w-0">
-                      <p className="text-[10px] uppercase text-muted-foreground truncate">{b.label}</p>
-                      <p className={cn('text-sm font-bold', b.text)}>{formatMoneyCompact(b.value)}</p>
+                    <span className={cn('h-2 w-2 rounded-full shrink-0', b.dot)} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground truncate">{b.label}</p>
+                      <p className="text-sm font-semibold tracking-tight text-foreground">{formatMoneyCompact(b.value)}</p>
                     </div>
                   </button>
                 ))}
@@ -663,7 +674,7 @@ export function DashboardView() {
                         <p className="text-xs text-muted-foreground truncate">{c.customerId}</p>
                       </td>
                       <td className="px-4 py-2 font-mono text-xs whitespace-nowrap">{c.receiptNumber}</td>
-                      <td className="px-4 py-2 text-right font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatMoney(c.amount)}</td>
+                      <td className="px-4 py-2 text-right font-semibold text-foreground whitespace-nowrap">{formatMoney(c.amount)}</td>
                       <td className="px-4 py-2 whitespace-nowrap">
                         <Badge variant="outline">{c.paymentMode}</Badge>
                       </td>
@@ -705,37 +716,30 @@ export function DashboardView() {
                 <tbody>
                   {filtered.map((a, i) => {
                     const days = a.maxOverdueDays || 0
-                    const severity = days > 60 ? 'critical' : days > 30 ? 'warning' : 'attention'
-                    const rowBg = severity === 'critical' ? 'bg-red-50/50 dark:bg-red-950/20' : severity === 'warning' ? 'bg-amber-50/50 dark:bg-amber-950/20' : ''
                     return (
-                      <tr key={i} className={cn('border-b last:border-0 hover:bg-muted/40', rowBg)}>
+                      <tr key={i} className="border-b last:border-0 hover:bg-muted/40">
                         <td className="px-4 py-2 font-mono text-xs whitespace-nowrap">{a.accountNumber}</td>
                         <td className="px-4 py-2 max-w-[160px]">
-                          <button className="font-medium hover:text-primary text-left truncate block w-full" onClick={() => router.push(`/customers/${a.customerId}`)} title={a.customer}>
+                          <button className="font-medium hover:text-foreground text-left truncate block w-full text-foreground" onClick={() => router.push(`/customers/${a.customerId}`)} title={a.customer}>
                             {a.customer}
                           </button>
                           <div className="flex items-center gap-1">
                             <p className="text-xs text-muted-foreground">{a.mobile}</p>
                             {a.mobile && (
                               <>
-                                <a href={`tel:${a.mobile}`} className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400" aria-label={`Call ${a.customer}`}>
+                                <a href={`tel:${a.mobile}`} className="text-muted-foreground hover:text-foreground" aria-label={`Call ${a.customer}`}>
                                   <Phone className="h-3 w-3" />
                                 </a>
-                                <a href={`https://wa.me/91${a.mobile.replace(/\D/g, '').slice(-10)}`} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:text-teal-700 dark:text-teal-400" aria-label={`WhatsApp ${a.customer}`}>
+                                <a href={`https://wa.me/91${a.mobile.replace(/\D/g, '').slice(-10)}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground" aria-label={`WhatsApp ${a.customer}`}>
                                   <MessageCircle className="h-3 w-3" />
                                 </a>
                               </>
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-2 text-right font-semibold text-red-600 dark:text-red-400 whitespace-nowrap">{formatMoney(a.overdueAmount)}</td>
+                        <td className="px-4 py-2 text-right font-semibold text-foreground whitespace-nowrap">{formatMoney(a.overdueAmount)}</td>
                         <td className="px-4 py-2 text-center whitespace-nowrap">
-                          <span className={cn(
-                            'inline-flex items-center justify-center min-w-[36px] px-1.5 py-0.5 rounded-full text-[10px] font-bold',
-                            severity === 'critical' && 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-                            severity === 'warning' && 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-                            severity === 'attention' && 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
-                          )} title={`${days} days overdue`}>
+                          <span className="inline-flex items-center justify-center min-w-[36px] px-2 py-0.5 rounded-[6px] text-[11px] font-mono font-medium border border-[#ebebeb] bg-[#f5f5f5] text-[#171717] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#ededed]" title={`${days} days overdue`}>
                             {days}d
                           </span>
                         </td>
@@ -770,23 +774,20 @@ export function DashboardView() {
       >
         <div className="max-h-72 overflow-y-auto scroll-area divide-y">
           {recentActivity.length > 0 ? recentActivity.map((log) => {
-            const actionColor = log.action === 'CREATE' ? 'text-emerald-600 dark:text-emerald-400' :
-              log.action === 'UPDATE' ? 'text-teal-600 dark:text-teal-400' :
-              log.action === 'REVERSE' ? 'text-amber-600 dark:text-amber-400' :
-              log.action === 'DELETE' ? 'text-red-600 dark:text-red-400' :
-              'text-muted-foreground'
-            const actionIcon = log.action === 'CREATE' ? '➕' :
-              log.action === 'UPDATE' ? '✏️' :
-              log.action === 'REVERSE' ? '↩️' :
-              log.action === 'DELETE' ? '🗑️' :
-              log.action === 'LOGIN' ? '🔑' :
-              log.action === 'LOGOUT' ? '🚪' : '•'
+            const IconComp = log.action === 'CREATE' ? Plus :
+              log.action === 'UPDATE' ? Pencil :
+              log.action === 'REVERSE' ? Undo2 :
+              log.action === 'DELETE' ? Trash2 :
+              log.action === 'LOGIN' ? KeyRound :
+              log.action === 'LOGOUT' ? LogOut : Activity
             return (
               <div key={log.id} className="px-4 py-2.5 flex items-center gap-3 hover:bg-muted/40">
-                <span className="text-base shrink-0">{actionIcon}</span>
+                <div className="h-7 w-7 rounded-[6px] border border-border bg-[#f5f5f5] dark:bg-[#1a1a1a] flex items-center justify-center shrink-0">
+                  <IconComp className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className={cn('text-xs font-bold', actionColor)}>{log.action}</span>
+                    <span className="text-xs font-semibold text-foreground">{log.action}</span>
                     <Badge variant="outline" className="text-[10px]">{log.entity}</Badge>
                     <span className="text-xs text-muted-foreground truncate flex-1">
                       {log.reason || (log.newValue ? (typeof log.newValue === 'string' ? log.newValue.slice(0, 60) : '') : `${log.action.toLowerCase()} ${log.entity.toLowerCase()}`)}

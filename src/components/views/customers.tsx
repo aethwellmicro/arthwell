@@ -30,7 +30,7 @@ import {
   Printer,
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
-import { apiFetch, formatMoney, formatMoneyCompact, formatDate, STATUS_COLORS, ROLE_LABELS, downloadCSV } from '@/lib/format'
+import { apiFetch, formatMoney, formatMoneyCompact, formatDate, STATUS_COLORS, ROLE_LABELS, downloadCSV, sanitizeMobile } from '@/lib/format'
 import { useApp } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -296,8 +296,13 @@ export function CustomersView({ customerId }: { customerId?: string }) {
   }, [customerId])
 
   async function save() {
-    if (!form.fullName.trim() || !form.primaryMobile.trim()) {
+    const cleanMobile = sanitizeMobile(form.primaryMobile)
+    if (!form.fullName.trim() || !cleanMobile) {
       toast.error('Name and primary mobile are required.')
+      return
+    }
+    if (cleanMobile.length !== 10) {
+      toast.error('Primary mobile must be exactly 10 digits.')
       return
     }
     if (!form.groupId) {
@@ -306,7 +311,15 @@ export function CustomersView({ customerId }: { customerId?: string }) {
     }
     setSaving(true)
     try {
-      await apiFetch('/api/customers', { method: 'POST', body: JSON.stringify(form) })
+      await apiFetch('/api/customers', { 
+        method: 'POST', 
+        body: JSON.stringify({
+          ...form,
+          primaryMobile: cleanMobile,
+          alternateMobile: sanitizeMobile(form.alternateMobile) || null,
+          referenceMobile: sanitizeMobile(form.referenceMobile) || null,
+        }) 
+      })
       toast.success('Customer registered and submitted for verification!')
       setForm(emptyForm)
       setShowNew(false)
@@ -530,17 +543,20 @@ export function CustomersView({ customerId }: { customerId?: string }) {
         {/* Dual Actions: [ + New Group ] [ + New Customer ] side-by-side / wrap safely */}
         <div className="flex items-center gap-2 w-full sm:w-auto justify-end pt-2 sm:pt-0">
           <Button
-            variant="outline"
+            variant="pill-secondary"
+            size="sm"
             onClick={() => setShowNewGroup(true)}
             className="flex-1 sm:flex-initial"
           >
-            <UsersRound className="h-4 w-4 mr-1.5 text-primary" /> + New Group
+            <UsersRound className="h-3.5 w-3.5 mr-1.5" /> + New Group
           </Button>
           <Button
+            variant="pill"
+            size="sm"
             onClick={() => setShowNew(true)}
             className="flex-1 sm:flex-initial"
           >
-            <UserPlus className="h-4 w-4 mr-1.5" /> + New Customer
+            <UserPlus className="h-3.5 w-3.5 mr-1.5" /> + New Customer
           </Button>
         </div>
       </div>
@@ -1092,8 +1108,10 @@ export function CustomersView({ customerId }: { customerId?: string }) {
             </Field>
             <Field label="Primary Mobile *">
               <Input
+                type="tel"
+                maxLength={10}
                 value={form.primaryMobile}
-                onChange={(e) => setForm({ ...form, primaryMobile: e.target.value })}
+                onChange={(e) => setForm({ ...form, primaryMobile: sanitizeMobile(e.target.value) })}
                 placeholder="10-digit mobile number"
               />
             </Field>
@@ -1113,8 +1131,11 @@ export function CustomersView({ customerId }: { customerId?: string }) {
             </Field>
             <Field label="Alternate Mobile">
               <Input
+                type="tel"
+                maxLength={10}
                 value={form.alternateMobile}
-                onChange={(e) => setForm({ ...form, alternateMobile: e.target.value })}
+                onChange={(e) => setForm({ ...form, alternateMobile: sanitizeMobile(e.target.value) })}
+                placeholder="10-digit mobile number"
               />
             </Field>
             <Field label="Occupation">
@@ -1149,8 +1170,11 @@ export function CustomersView({ customerId }: { customerId?: string }) {
             </Field>
             <Field label="Reference Mobile">
               <Input
+                type="tel"
+                maxLength={10}
                 value={form.referenceMobile}
-                onChange={(e) => setForm({ ...form, referenceMobile: e.target.value })}
+                onChange={(e) => setForm({ ...form, referenceMobile: sanitizeMobile(e.target.value) })}
+                placeholder="10-digit mobile number"
               />
             </Field>
             <Field label="KYC Type">
@@ -1757,20 +1781,44 @@ function CustomerDetail({
           </DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
             <Field label="Full Name"><Input value={editForm.fullName || ''} onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })} /></Field>
-            <Field label="Primary Mobile"><Input value={editForm.primaryMobile || ''} onChange={(e) => setEditForm({ ...editForm, primaryMobile: e.target.value })} /></Field>
+            <Field label="Primary Mobile">
+              <Input
+                type="tel"
+                maxLength={10}
+                value={editForm.primaryMobile || ''}
+                onChange={(e) => setEditForm({ ...editForm, primaryMobile: sanitizeMobile(e.target.value) })}
+                placeholder="10-digit mobile"
+              />
+            </Field>
             <Field label="Amount (₹)">
               <div className="relative">
                 <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">₹</span>
                 <Input type="number" min="0" step="0.01" value={editForm.amount || ''} onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })} placeholder="0.00" className="pl-7" />
               </div>
             </Field>
-            <Field label="Alternate Mobile"><Input value={editForm.alternateMobile || ''} onChange={(e) => setEditForm({ ...editForm, alternateMobile: e.target.value })} /></Field>
+            <Field label="Alternate Mobile">
+              <Input
+                type="tel"
+                maxLength={10}
+                value={editForm.alternateMobile || ''}
+                onChange={(e) => setEditForm({ ...editForm, alternateMobile: sanitizeMobile(e.target.value) })}
+                placeholder="10-digit mobile"
+              />
+            </Field>
             <Field label="Occupation"><Input value={editForm.occupation || ''} onChange={(e) => setEditForm({ ...editForm, occupation: e.target.value })} /></Field>
             <Field label="Address" full><Input value={editForm.address || ''} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} /></Field>
             <Field label="City"><Input value={editForm.city || ''} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} /></Field>
             <Field label="Area"><Input value={editForm.area || ''} onChange={(e) => setEditForm({ ...editForm, area: e.target.value })} /></Field>
             <Field label="Reference Name"><Input value={editForm.referenceName || ''} onChange={(e) => setEditForm({ ...editForm, referenceName: e.target.value })} /></Field>
-            <Field label="Reference Mobile"><Input value={editForm.referenceMobile || ''} onChange={(e) => setEditForm({ ...editForm, referenceMobile: e.target.value })} /></Field>
+            <Field label="Reference Mobile">
+              <Input
+                type="tel"
+                maxLength={10}
+                value={editForm.referenceMobile || ''}
+                onChange={(e) => setEditForm({ ...editForm, referenceMobile: sanitizeMobile(e.target.value) })}
+                placeholder="10-digit mobile"
+              />
+            </Field>
             <Field label="KYC Type">
               <Select value={editForm.idType || 'Aadhaar'} onValueChange={(v) => setEditForm({ ...editForm, idType: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1970,11 +2018,10 @@ function DetailItem({ icon: Icon, label, value }: { icon: React.ComponentType<{ 
   )
 }
 function MiniStat({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'success' | 'warning' }) {
-  const tones = { default: '', success: 'text-emerald-600 dark:text-emerald-400', warning: 'text-amber-600 dark:text-amber-400' }
   return (
     <div>
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className={cn('text-lg font-bold', tones[tone])}>{value}</p>
+      <p className="text-lg font-bold text-foreground">{value}</p>
     </div>
   )
 }

@@ -18,7 +18,7 @@ export function Pagination({ page, pageSize, total, onPageChange, onPageSizeChan
   const end = Math.min(page * pageSize, total)
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-2.5 border-t bg-muted/20">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-2.5 border-t border-border bg-card">
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span>
           Showing <span className="font-medium text-foreground">{start}</span>–

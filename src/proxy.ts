@@ -5,6 +5,9 @@ import type { NextRequest } from 'next/server'
 const PUBLIC_PATHS = [
   '/login',
   '/arthwell-logo.png',
+  '/arthwell-logo-full.png',
+  '/arthwell-mark.png',
+  '/arthwell-icon.png',
   '/arthwell-logo.svg',
   '/favicon.ico',
   '/robots.txt',
@@ -32,6 +35,6 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|arthwell-logo.png|arthwell-logo.svg|images).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|arthwell-logo.png|arthwell-logo-full.png|arthwell-mark.png|arthwell-icon.png|arthwell-logo.svg|images).*)',
   ],
 }

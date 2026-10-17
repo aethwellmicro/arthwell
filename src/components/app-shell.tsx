@@ -28,6 +28,10 @@ import {
   PiggyBank,
   ReceiptIndianRupee,
   GitBranch,
+  ChevronLeft,
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeft,
 } from 'lucide-react'
 import { useApp, canManageUsers, canManageSettings } from '@/lib/store'
 import { apiFetch, formatMoneyCompact, ROLE_LABELS, ROLE_COLORS } from '@/lib/format'
@@ -132,8 +136,8 @@ function NotificationBadge({ active }: { active: boolean }) {
 
   return (
     <span className={cn(
-      'inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold',
-      active ? 'bg-primary-foreground text-primary' : 'bg-red-500 text-white'
+      'inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-mono font-bold',
+      active ? 'bg-white text-[#171717]' : 'bg-[#171717] text-white dark:bg-white dark:text-[#171717]'
     )}>
       {count > 99 ? '99+' : count}
     </span>
@@ -178,16 +182,16 @@ function SidebarQuickStats() {
   if (!stats) return null
 
   return (
-    <div className="rounded-lg bg-sidebar-accent/60 p-2.5 space-y-1.5">
+    <div className="rounded-lg bg-sidebar-accent/60 p-2.5 space-y-1.5 border border-sidebar-border">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 pulse-dot" /> Today
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1 font-mono">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#171717] dark:bg-[#ededed]" /> Today
         </span>
-        <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatMoneyCompact(stats.todayCollected)}</span>
+        <span className="text-sm font-semibold text-foreground">{formatMoneyCompact(stats.todayCollected)}</span>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Overdue</span>
-        <span className={cn('text-sm font-bold', stats.overdueCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}>{stats.overdueCount}</span>
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-mono">Overdue</span>
+        <span className="text-sm font-semibold text-foreground">{stats.overdueCount}</span>
       </div>
     </div>
   )
@@ -221,16 +225,16 @@ function BusinessDateHeaderBadge() {
   }).toUpperCase()
 
   return (
-    <Link href="/eod" className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border bg-muted/50 hover:bg-muted transition-colors">
-      <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Business Date:</span>
-      <span className="font-mono font-bold text-foreground">{formattedDate}</span>
+    <Link href="/eod" className="hidden sm:inline-flex items-center gap-2 px-2.5 py-1 rounded-[100px] text-xs font-medium border border-[#ebebeb] dark:border-[#262626] bg-white dark:bg-[#0a0a0a] hover:bg-[#f5f5f5] dark:hover:bg-[#1a1a1a] transition-colors shadow-2xs">
+      <span className="text-[10px] text-[#8f8f8f] font-medium uppercase tracking-wider font-mono">Date</span>
+      <span className="font-mono text-xs font-semibold text-[#171717] dark:text-[#ededed]">{formattedDate}</span>
       {isClosed ? (
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-slate-400 text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-300">
-          ✓ CLOSED
+        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 border-[#ebebeb] text-[#8f8f8f]">
+          CLOSED
         </Badge>
       ) : (
-        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-emerald-500 text-emerald-600 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-400 flex items-center gap-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-[#ebebeb] dark:border-[#262626] bg-[#f5f5f5] dark:bg-[#1a1a1a] text-[#171717] dark:text-[#ededed] flex items-center gap-1 font-mono font-medium">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#171717] dark:bg-[#ededed]" />
           OPEN
         </Badge>
       )}
@@ -244,10 +248,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const { theme, setTheme } = useTheme()
   const [searchVal, setSearchVal] = useState('')
   const [booted, setBooted] = useState(false)
+
+  // Load collapsed preference
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('arthwell_sidebar_collapsed')
+      if (saved !== null) setCollapsed(saved === 'true')
+    } catch {}
+  }, [])
+
+  function toggleCollapse() {
+    setCollapsed((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('arthwell_sidebar_collapsed', String(next))
+      } catch {}
+      return next
+    })
+  }
 
   // Authenticate Session on mount
   useEffect(() => {
@@ -334,16 +357,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const initials = (user?.name || '?').split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase()
 
-  const renderSidebarContent = () => (
+  const renderSidebarContent = (isCollapsed = false) => (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2.5 px-5 h-16 border-b border-sidebar-border">
-        <img src="/arthwell-logo.png" alt="ArthWell" className="h-10 w-10 shrink-0 object-contain" />
-        <div>
-          <p className="font-semibold text-sm leading-tight">ArthWell</p>
-          <p className="text-[11px] text-muted-foreground leading-tight">Micro Finance</p>
-        </div>
+      <div className={cn(
+        "sticky top-0 z-10 bg-sidebar flex items-center h-16 border-b border-sidebar-border shrink-0 transition-all",
+        isCollapsed ? "justify-center px-2" : "justify-between px-4"
+      )}>
+        <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0" title="ArthWell Micro Finance">
+          {isCollapsed ? (
+            <img src="/arthwell-mark.png" alt="ArthWell" className="h-8 w-8 shrink-0 object-contain" />
+          ) : (
+            <img src="/arthwell-logo.png" alt="ArthWell Micro Finance" className="h-8 w-auto max-w-[160px] object-contain" />
+          )}
+        </Link>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "hidden lg:inline-flex h-8 w-8 text-muted-foreground hover:text-foreground rounded-[6px] hover:bg-sidebar-accent transition-colors",
+            isCollapsed && "mt-1"
+          )}
+          onClick={toggleCollapse}
+          title={isCollapsed ? "Expand sidebar (Menu)" : "Collapse sidebar (Menu)"}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          <Menu className="h-4 w-4" />
+        </Button>
       </div>
-      <nav className="flex-1 overflow-y-auto scroll-area p-3 space-y-1">
+      <nav className={cn("flex-1 overflow-y-auto scroll-area space-y-1", isCollapsed ? "p-2" : "p-3")}>
         {NAV.map((item) => {
           const Icon = item.icon
           const restricted = item.restricted && !canManageUsers(user?.role)
@@ -353,12 +394,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             return (
               <button
                 key={item.href}
-                className="w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors text-sidebar-foreground opacity-60 cursor-not-allowed"
+                className={cn(
+                  "w-full flex items-center rounded-md text-sm font-medium transition-colors text-sidebar-foreground opacity-60 cursor-not-allowed",
+                  isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2"
+                )}
+                title={isCollapsed ? `${item.label} (Locked)` : undefined}
                 onClick={() => toast.error('You do not have access to this section.')}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                <span className="flex-1 text-left">{item.label}</span>
-                <Lock className="h-3 w-3 opacity-60" />
+                {!isCollapsed && <span className="flex-1 text-left truncate">{item.label}</span>}
+                {!isCollapsed && <Lock className="h-3 w-3 opacity-60" />}
               </button>
             )
           }
@@ -368,25 +413,43 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               key={item.href}
               href={item.href}
               onClick={() => setMobileOpen(false)}
+              title={isCollapsed ? item.label : undefined}
               className={cn(
-                'w-full flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors group',
+                'w-full flex items-center rounded-md text-sm font-medium transition-all group relative',
+                isCollapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2',
                 active
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                  ? 'bg-primary text-primary-foreground font-semibold shadow-xs [&>svg]:text-primary-foreground'
+                  : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground [&>svg]:text-sidebar-foreground/80 hover:[&>svg]:text-sidebar-foreground'
               )}
             >
-              <Icon className={cn('h-4 w-4 shrink-0 transition-transform', active ? '' : 'group-hover:scale-110')} />
-              <span className="flex-1 text-left">{item.label}</span>
-              {item.href === '/notifications' && <NotificationBadge active={active} />}
+              <Icon className="h-4 w-4 shrink-0 transition-opacity" />
+              {!isCollapsed && <span className="flex-1 text-left truncate">{item.label}</span>}
+              {!isCollapsed && item.href === '/notifications' && <NotificationBadge active={active} />}
+              {isCollapsed && item.href === '/notifications' && (
+                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-foreground" />
+              )}
             </Link>
           )
         })}
       </nav>
-      <div className="border-t border-sidebar-border p-3 space-y-2">
-        <Button onClick={() => router.push('/collections')} className="w-full" size="sm">
-          <HandCoins className="h-4 w-4 mr-2" /> Quick Collection
-        </Button>
-        <SidebarQuickStats />
+      <div className={cn("sticky bottom-0 z-10 bg-sidebar border-t border-sidebar-border space-y-2 mt-auto shrink-0", isCollapsed ? "p-2" : "p-3")}>
+        {isCollapsed ? (
+          <Button
+            onClick={() => router.push('/collections')}
+            className="w-full bg-[#171717] text-white hover:bg-[#262626] dark:bg-white dark:text-[#171717] dark:hover:bg-[#f5f5f5] rounded-[6px] h-9 p-0 flex items-center justify-center shadow-xs"
+            size="icon"
+            title="Quick Collection"
+          >
+            <HandCoins className="h-4 w-4" />
+          </Button>
+        ) : (
+          <>
+            <Button onClick={() => router.push('/collections')} className="w-full bg-[#171717] text-white hover:bg-[#262626] dark:bg-white dark:text-[#171717] dark:hover:bg-[#f5f5f5] rounded-[6px] font-medium shadow-xs" size="sm">
+              <HandCoins className="h-4 w-4 mr-2" /> Quick Collection
+            </Button>
+            <SidebarQuickStats />
+          </>
+        )}
       </div>
     </div>
   )
@@ -415,106 +478,139 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <div className="flex flex-1">
-        {/* Desktop sidebar */}
-        <aside className="hidden lg:block w-64 shrink-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
-          {renderSidebarContent()}
-        </aside>
+    <div className="h-screen w-screen overflow-hidden flex bg-background">
+      {/* Desktop sidebar - 100% stable, fixed/sticky, never scrolls */}
+      <aside className={cn(
+        "hidden lg:block shrink-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border h-screen z-40 transition-all duration-200 ease-in-out overflow-hidden select-none",
+        collapsed ? "w-16" : "w-64"
+      )}>
+        {renderSidebarContent(collapsed)}
+      </aside>
 
-        {/* Mobile sidebar */}
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetContent side="left" className="w-72 p-0 bg-sidebar">
-            <SheetTitle className="sr-only">Navigation</SheetTitle>
-            {renderSidebarContent()}
-          </SheetContent>
-        </Sheet>
+      {/* Mobile sidebar */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent side="left" className="w-72 p-0 bg-sidebar">
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          {renderSidebarContent(false)}
+        </SheetContent>
+      </Sheet>
 
-        {/* Main */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Header */}
-          <header className="sticky top-0 z-30 min-h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center gap-3 px-4 py-2 lg:px-6">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden"
-              aria-label="Open menu"
-              onClick={() => setMobileOpen(true)}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight truncate">{getTitle(pathname)}</h1>
-                <BusinessDateHeaderBadge />
-              </div>
-              {user?.branch?.name && (
-                <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[10px] font-medium text-primary">
-                  <GitBranch className="h-3 w-3 shrink-0" />
-                  <span className="truncate">Branch: {user.branch.name}</span>
-                </div>
-              )}
-              <p className="text-xs text-muted-foreground hidden sm:block">
-                {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
-              </p>
+      {/* Main Column: Header stays permanently fixed at top, only inner page scrolls */}
+      <div className="flex-1 flex flex-col h-screen min-w-0 overflow-hidden">
+        {/* Navbar / Header - Permanently sticky & stable */}
+        <header className="shrink-0 z-30 min-h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center gap-3 px-4 py-2 lg:px-6">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            aria-label="Open menu"
+            onClick={() => setMobileOpen(true)}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <Link href="/dashboard" className="flex items-center gap-2 mr-1 shrink-0 lg:hidden">
+            <img src="/arthwell-mark.png" alt="ArthWell" className="h-8 w-8 object-contain" />
+            <span className="font-bold text-sm tracking-tight text-foreground">ArthWell</span>
+          </Link>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold tracking-tight truncate">{getTitle(pathname)}</h1>
+              <BusinessDateHeaderBadge />
             </div>
-            <form onSubmit={onSearchSubmit} className="hidden md:flex items-center">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  value={searchVal}
-                  onChange={(e) => setSearchVal(e.target.value)}
-                  placeholder="Search customers, accounts (LN-), receipts (RCP-)…"
-                  className="pl-8 w-64 lg:w-72"
-                />
+            {user?.branch?.name && (
+              <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[10px] font-medium text-foreground">
+                <GitBranch className="h-3 w-3 shrink-0" />
+                <span className="truncate">Branch: {user.branch.name}</span>
               </div>
-            </form>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Toggle theme"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            >
-              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-full hover:bg-accent p-1 pr-2 transition-colors">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="hidden sm:block text-left">
-                    <p className="text-xs font-medium leading-tight">{user?.name}</p>
-                    <p className="text-[10px] text-muted-foreground leading-tight">{ROLE_LABELS[user?.role || '']}</p>
-                  </div>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col gap-1">
-                    <span className="font-medium">{user?.name}</span>
-                    <span className="text-xs text-muted-foreground font-normal">{user?.email}</span>
-                    <Badge className={cn('w-fit', ROLE_COLORS[user?.role || ''])}>
-                      {ROLE_LABELS[user?.role || '']}
-                    </Badge>
-                  </div>
-                </DropdownMenuLabel>
+            )}
+            <p className="text-xs text-muted-foreground hidden sm:block">
+              {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+            </p>
+          </div>
+          <form onSubmit={onSearchSubmit} className="hidden md:flex items-center">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={searchVal}
+                onChange={(e) => setSearchVal(e.target.value)}
+                placeholder="Search customers, accounts (LN-), receipts (RCP-)…"
+                className="pl-8 w-64 lg:w-72"
+              />
+            </div>
+          </form>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Toggle theme"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 rounded-full hover:bg-accent p-1 pr-2 transition-colors">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="hidden sm:block text-left">
+                  <p className="text-xs font-medium leading-tight">{user?.name}</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight">{ROLE_LABELS[user?.role || '']}</p>
+                </div>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <div className="flex flex-col gap-1">
+                  <span className="font-medium">{user?.name}</span>
+                  <span className="text-xs text-muted-foreground font-normal">{user?.email}</span>
+                  <Badge className={cn('w-fit', ROLE_COLORS[user?.role || ''])}>
+                    {ROLE_LABELS[user?.role || '']}
+                  </Badge>
+                </div>
+              </DropdownMenuLabel>
 
-                <DropdownMenuItem onClick={doLogout}>
-                  <LogOut className="h-4 w-4 mr-2" /> Sign Out
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </header>
+              <DropdownMenuItem onClick={doLogout}>
+                <LogOut className="h-4 w-4 mr-2" /> Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </header>
 
-          {/* View content */}
-          <main className="flex-1 min-w-0 overflow-x-hidden p-4 lg:p-6">
+        {/* ONLY Inner Page Scrolls */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col scroll-area">
+          <main className="flex-1 min-w-0 p-4 lg:p-6">
             <div className="view-fade-in min-w-0 w-full">
               {children}
             </div>
           </main>
+
+          {/* Footer inside scrollable inner page */}
+          <footer className="mt-auto border-t bg-sidebar/40 shrink-0">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 lg:px-6 py-3 text-xs text-muted-foreground">
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <img src="/arthwell-logo.png" alt="ArthWell" className="h-4 w-4 object-contain" />
+                  <span>ArthWell Micro Finance · Collection & Loan Management</span>
+                </div>
+                <span className="hidden sm:inline text-muted-foreground/40">·</span>
+                <span className="hidden sm:inline">Shortcuts:</span>
+                <kbd className="hidden sm:inline-flex items-center gap-1 rounded border bg-background px-1.5 py-0.5 text-[10px] font-medium">
+                  Ctrl+K <span className="text-muted-foreground">Collection</span>
+                </kbd>
+                <kbd className="hidden md:inline-flex items-center gap-1 rounded border bg-background px-1.5 py-0.5 text-[10px] font-medium">
+                  D <span className="text-muted-foreground">Dashboard</span>
+                </kbd>
+                <kbd className="hidden md:inline-flex items-center gap-1 rounded border bg-background px-1.5 py-0.5 text-[10px] font-medium">
+                  C <span className="text-muted-foreground">Customers</span>
+                </kbd>
+              </div>
+              <div className="flex items-center gap-3">
+                <span>Internal Use Only</span>
+              </div>
+            </div>
+          </footer>
         </div>
       </div>
 
@@ -529,33 +625,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <HandCoins className="h-6 w-6" />
         </Button>
       )}
-
-      {/* Footer */}
-      <footer className="mt-auto border-t bg-sidebar/40">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 lg:px-6 py-3 text-xs text-muted-foreground">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <img src="/arthwell-logo.png" alt="ArthWell" className="h-4 w-4 object-contain" />
-              <span>ArthWell Micro Finance · Collection & Loan Management</span>
-            </div>
-            <span className="hidden sm:inline text-muted-foreground/40">·</span>
-            <span className="hidden sm:inline">Shortcuts:</span>
-            <kbd className="hidden sm:inline-flex items-center gap-1 rounded border bg-background px-1.5 py-0.5 text-[10px] font-medium">
-              Ctrl+K <span className="text-muted-foreground">Collection</span>
-            </kbd>
-            <kbd className="hidden md:inline-flex items-center gap-1 rounded border bg-background px-1.5 py-0.5 text-[10px] font-medium">
-              D <span className="text-muted-foreground">Dashboard</span>
-            </kbd>
-            <kbd className="hidden md:inline-flex items-center gap-1 rounded border bg-background px-1.5 py-0.5 text-[10px] font-medium">
-              C <span className="text-muted-foreground">Customers</span>
-            </kbd>
-          </div>
-          <div className="flex items-center gap-3">
-            <span>Internal Use Only</span>
-
-          </div>
-        </div>
-      </footer>
 
       {/* Keyboard shortcuts help dialog */}
       <Dialog open={showHelp} onOpenChange={setShowHelp}>

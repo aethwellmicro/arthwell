@@ -429,8 +429,8 @@ export function CollectionsView() {
             </TabsTrigger>
           </TabsList>
 
-          <Button onClick={() => { setForm(emptyForm); setShowNew(true) }} className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-1" /> New Collection
+          <Button variant="pill" size="sm" onClick={() => { setForm(emptyForm); setShowNew(true) }} className="w-full sm:w-auto">
+            <Plus className="h-3.5 w-3.5 mr-1" /> New Collection
           </Button>
         </div>
 

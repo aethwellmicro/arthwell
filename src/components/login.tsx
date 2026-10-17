@@ -47,48 +47,50 @@ export function LoginScreen() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
       {/* Left brand panel */}
-      <div className="lg:w-1/2 bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-700 text-white p-8 lg:p-14 flex flex-col justify-between relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 30%, white 2px, transparent 2px)', backgroundSize: '32px 32px' }} />
+      <div className="lg:w-1/2 bg-[#0a0a0a] border-r border-[#262626] text-white p-8 lg:p-14 flex flex-col justify-between relative overflow-hidden">
+        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: 'radial-gradient(circle at 20% 30%, white 1.5px, transparent 1.5px)', backgroundSize: '24px 24px' }} />
         <div className="relative flex items-center gap-3">
-          <div className="h-14 w-14 rounded-xl bg-white p-1 flex items-center justify-center overflow-hidden">
+          <div className="h-12 w-12 rounded-lg bg-white p-1 flex items-center justify-center shrink-0">
             <img src="/arthwell-logo.png" alt="ArthWell" className="h-full w-full object-contain" />
           </div>
           <div>
-            <p className="font-semibold text-lg leading-tight">ArthWell Micro Finance</p>
-            <p className="text-emerald-100 text-sm">Collection & Loan Management</p>
+            <p className="font-semibold text-base leading-tight tracking-tight">ArthWell Micro Finance</p>
+            <p className="text-[#8f8f8f] text-xs">Collection & Loan Management</p>
           </div>
         </div>
-        <div className="relative max-w-md">
-          <h1 className="text-3xl lg:text-4xl font-bold leading-tight">
-            Internal portal for collections, accounts & reporting.
+        <div className="relative max-w-md my-12 lg:my-0">
+          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-[#333333] bg-[#171717] text-[11px] font-mono text-[#a1a1a1] uppercase tracking-wider mb-4">
+            Financial Operations
+          </div>
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight text-[#ededed] leading-snug">
+            Internal operations portal for collections, loan accounts & reconciliation.
           </h1>
-          <p className="mt-4 text-emerald-100/90">
-            Manage customer accounts, disburse loans, record daily collections, generate
-            receipts and audit-ready reports — all in one secure internal platform.
+          <p className="mt-3 text-sm text-[#8f8f8f] leading-relaxed">
+            Manage customer KYC, disburse loans, record collections, print receipts, and conduct Day-End reconciliation with complete audit accountability.
           </p>
-          <div className="mt-8 grid grid-cols-3 gap-4">
+          <div className="mt-6 grid grid-cols-3 gap-3">
             {[
-              { k: 'Secure', v: 'Role-based access' },
-              { k: 'Audited', v: 'Full activity trail' },
-              { k: 'Reliable', v: 'Decimal-safe money' },
+              { k: 'RBAC', v: 'Role-based access' },
+              { k: 'Audited', v: 'Immutable logs' },
+              { k: 'Precision', v: 'Decimal-safe money' },
             ].map((f) => (
-              <div key={f.k} className="rounded-lg bg-white/10 backdrop-blur p-3">
-                <p className="font-semibold text-sm">{f.k}</p>
-                <p className="text-xs text-emerald-100/80">{f.v}</p>
+              <div key={f.k} className="rounded-md border border-[#262626] bg-[#141414] p-3">
+                <p className="font-semibold text-xs text-[#ededed]">{f.k}</p>
+                <p className="text-[11px] text-[#8f8f8f] mt-0.5">{f.v}</p>
               </div>
             ))}
           </div>
         </div>
-        <p className="relative text-xs text-emerald-100/70">
-          Authorized bank/office employees only. Customer-facing login is not available.
+        <p className="relative text-xs text-[#525252]">
+          Authorized internal employees only. Unauthorized access is strictly monitored.
         </p>
       </div>
 
       {/* Right login form */}
-      <div className="lg:w-1/2 flex items-center justify-center p-6 lg:p-10 bg-background">
-        <Card className="w-full max-w-md shadow-xl border-border/60">
+      <div className="lg:w-1/2 flex items-center justify-center p-6 lg:p-10 bg-canvas">
+        <Card className="w-full max-w-md shadow-xs border-border bg-card">
           <CardHeader>
             <div className="flex items-center gap-2 text-primary mb-1">
               <ShieldCheck className="h-5 w-5" />

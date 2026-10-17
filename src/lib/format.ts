@@ -59,6 +59,12 @@ export const todayInput = (): string => {
   return new Date().toISOString().slice(0, 10)
 }
 
+// Enforces strict 10-digit numeric mobile number limitation
+export const sanitizeMobile = (val: string | null | undefined): string => {
+  if (!val) return ''
+  return val.replace(/\D/g, '').slice(0, 10)
+}
+
 // Relative time: "2h ago", "3d ago", "just now"
 export const formatRelativeTime = (d: string | Date | undefined | null): string => {
   if (!d) return '—'
@@ -144,32 +150,32 @@ export function downloadCSV(filename: string, rows: Record<string, any>[]) {
 }
 
 export const STATUS_COLORS: Record<string, string> = {
-  ACTIVE: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  COMPLETED: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
-  OVERDUE: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  CLOSED: 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
-  BLOCKED: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  SUCCESSFUL: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  REVERSED: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  CANCELLED: 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
-  PENDING: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  PENDING_APPROVAL: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/40',
-  PENDING_VERIFICATION: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300/40',
-  APPROVED: 'bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-300/40',
-  READY_FOR_DISBURSEMENT: 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300/40',
-  REJECTED: 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300/40',
-  DISBURSED: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300/40',
-  PAID: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  PARTIAL: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  SENT: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  FAILED: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  ACTIVE: 'border border-[#ebebeb] bg-white text-[#171717] dark:border-[#262626] dark:bg-[#0a0a0a] dark:text-[#ededed]',
+  COMPLETED: 'border border-[#ebebeb] bg-white text-[#171717] dark:border-[#262626] dark:bg-[#0a0a0a] dark:text-[#ededed]',
+  OVERDUE: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#171717] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#ededed]',
+  CLOSED: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#8f8f8f] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#8f8f8f]',
+  BLOCKED: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#171717] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#ededed]',
+  SUCCESSFUL: 'border border-[#ebebeb] bg-white text-[#171717] dark:border-[#262626] dark:bg-[#0a0a0a] dark:text-[#ededed]',
+  REVERSED: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#8f8f8f] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#8f8f8f]',
+  CANCELLED: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#8f8f8f] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#8f8f8f]',
+  PENDING: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#4d4d4d] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#ededed]',
+  PENDING_APPROVAL: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#171717] font-medium dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#ededed]',
+  PENDING_VERIFICATION: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#171717] font-medium dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#ededed]',
+  APPROVED: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#171717] font-medium dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#ededed]',
+  READY_FOR_DISBURSEMENT: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#171717] font-medium dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#ededed]',
+  REJECTED: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#171717] font-medium dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#ededed]',
+  DISBURSED: 'border border-[#171717]/20 bg-[#f5f5f5] text-[#171717] dark:border-[#ededed]/20 dark:bg-[#1a1a1a] dark:text-[#ededed] font-medium',
+  PAID: 'border border-[#ebebeb] bg-white text-[#171717] dark:border-[#262626] dark:bg-[#0a0a0a] dark:text-[#ededed]',
+  PARTIAL: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#4d4d4d] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#ededed]',
+  SENT: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#4d4d4d] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#ededed]',
+  FAILED: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#171717] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#ededed]',
 }
 
 export const ROLE_COLORS: Record<string, string> = {
-  ADMIN: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  BRANCH_MANAGER: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
-  ACCOUNTANT: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  COLLECTION_EMPLOYEE: 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+  ADMIN: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#4d4d4d] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#a1a1a1]',
+  BRANCH_MANAGER: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#4d4d4d] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#a1a1a1]',
+  ACCOUNTANT: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#4d4d4d] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#a1a1a1]',
+  COLLECTION_EMPLOYEE: 'border border-[#ebebeb] bg-[#f5f5f5] text-[#4d4d4d] dark:border-[#262626] dark:bg-[#1a1a1a] dark:text-[#a1a1a1]',
 }
 
 export const ROLE_LABELS: Record<string, string> = {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { UserCog, Plus, Pencil, ShieldCheck, Mail, Phone, BadgeCheck, Search, Trash2, AlertTriangle, Users, CheckCircle2, HandCoins } from 'lucide-react'
-import { apiFetch, formatMoney, formatMoneyCompact, formatDate, ROLE_LABELS, ROLE_COLORS } from '@/lib/format'
+import { apiFetch, formatMoney, formatMoneyCompact, formatDate, ROLE_LABELS, ROLE_COLORS, sanitizeMobile } from '@/lib/format'
 import { useApp, canManageUsers } from '@/lib/store'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -358,7 +358,16 @@ export function EmployeesView() {
             <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Email *</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
             <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Password *</Label><Input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></div>
             <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Employee Code</Label><Input value={form.employeeCode} onChange={(e) => setForm({ ...form, employeeCode: e.target.value })} placeholder="EMP-005" /></div>
-            <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Phone (10 digits)</Label>
+              <Input
+                type="tel"
+                maxLength={10}
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: sanitizeMobile(e.target.value) })}
+                placeholder="10-digit mobile number"
+              />
+            </div>
             <div className={isAdmin ? "space-y-1.5" : "col-span-2 space-y-1.5"}><Label className="text-xs text-muted-foreground">Role</Label>
               <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -401,7 +410,16 @@ export function EmployeesView() {
             <div className="grid grid-cols-2 gap-3 py-2">
               <div className="col-span-2 space-y-1.5"><Label className="text-xs text-muted-foreground">Full Name</Label><Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></div>
               <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Employee Code</Label><Input value={editForm.employeeCode} onChange={(e) => setEditForm({ ...editForm, employeeCode: e.target.value })} /></div>
-              <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">Phone</Label><Input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} /></div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Phone (10 digits)</Label>
+                <Input
+                  type="tel"
+                  maxLength={10}
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: sanitizeMobile(e.target.value) })}
+                  placeholder="10-digit mobile number"
+                />
+              </div>
               <div className="col-span-2 space-y-1.5"><Label className="text-xs text-muted-foreground">New Password (leave blank to keep)</Label><Input type="password" value={editForm.password} onChange={(e) => setEditForm({ ...editForm, password: e.target.value })} /></div>
               {canManage && (
                 <>

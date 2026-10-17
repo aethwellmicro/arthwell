@@ -31,7 +31,7 @@ export function SortableHeader({
   return (
     <th
       className={cn(
-        'px-3 py-2.5 font-medium whitespace-nowrap',
+        'px-3 py-2.5 font-medium whitespace-nowrap text-[11px] font-mono uppercase tracking-wider text-muted-foreground',
         align === 'right' && 'text-right',
         align === 'center' && 'text-center',
         className
@@ -42,13 +42,13 @@ export function SortableHeader({
         size="sm"
         onClick={() => onSort(sortKey)}
         className={cn(
-          'h-auto p-0 px-1 text-xs font-medium hover:bg-transparent hover:text-foreground',
+          'h-auto p-0 px-1 text-[11px] font-mono uppercase tracking-wider hover:bg-transparent hover:text-foreground',
           align === 'right' && 'ml-auto',
-          isActive ? 'text-foreground' : 'text-muted-foreground'
+          isActive ? 'text-foreground font-semibold' : 'text-muted-foreground'
         )}
       >
         {label}
-        <Icon className={cn('h-3 w-3 ml-1', isActive ? 'opacity-100' : 'opacity-40')} />
+        <Icon className={cn('h-3 w-3 ml-1', isActive ? 'opacity-100 text-foreground' : 'opacity-40')} />
       </Button>
     </th>
   )

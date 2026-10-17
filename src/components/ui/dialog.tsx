@@ -61,8 +61,8 @@ function DialogContent({
         data-slot="dialog-content"
         aria-describedby={undefined}
         className={cn(
-          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200",
-          !className?.includes("max-w-") && "sm:max-w-lg",
+          "bg-card text-card-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right fixed inset-y-0 right-0 z-50 flex flex-col h-full !max-h-none w-full border-l border-border shadow-2xl duration-300 overflow-hidden sm:max-w-md md:max-w-lg lg:max-w-xl",
+          "[&>*:not([data-slot='dialog-header']):not([data-slot='dialog-footer'])]:overflow-y-auto [&>*:not([data-slot='dialog-header']):not([data-slot='dialog-footer'])]:p-4 sm:[&>*:not([data-slot='dialog-header']):not([data-slot='dialog-footer'])]:p-6 [&>*:not([data-slot='dialog-header']):not([data-slot='dialog-footer'])]:flex-1",
           className
         )}
         {...props}
@@ -71,9 +71,9 @@ function DialogContent({
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+            className="ring-offset-background focus:ring-ring text-muted-foreground hover:text-foreground absolute top-3.5 right-4 z-50 flex h-7 w-7 items-center justify-center rounded-[6px] opacity-70 transition-all hover:opacity-100 hover:bg-muted focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none"
           >
-            <XIcon />
+            <XIcon className="h-3.5 w-3.5" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}
@@ -86,7 +86,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+      className={cn("bg-card px-6 min-h-[64px] py-4 pr-14 border-b border-border flex flex-col justify-center gap-1 text-left shrink-0 z-10", className)}
       {...props}
     />
   )
@@ -97,7 +97,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="dialog-footer"
       className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        "bg-card px-6 py-4 border-t border-border flex flex-col-reverse gap-2 sm:flex-row sm:justify-end shrink-0 mt-auto z-10 shadow-xs",
         className
       )}
       {...props}

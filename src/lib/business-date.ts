@@ -263,10 +263,34 @@ export async function getBusinessDateSummary(businessDateId: string, tx?: any): 
     }
   }
 
-  // Open dates default to 7500 openingCash and 7500 PF & insurance fees (7500 + 7500 = 15000 expected closing cash)
   const isDateOpen = bDate.status !== 'CLOSED'
-  const effectiveOpeningCash = isDateOpen && openingCash === 0 ? 7500 : openingCash
-  const effectiveFeesCollected = isDateOpen && feesCollected === 0 ? 7500 : feesCollected
+  const dateStr = bDate.businessDate ? bDate.businessDate.toISOString().slice(0, 10) : ''
+  const isInitialGenesisDate = dateStr === '2026-07-25'
+
+  // If openingCash is not set or 0:
+  // For the initial genesis date (2026-07-25): default openingCash is 7500 and initial fees is 7500.
+  // For all subsequent dates: openingCash dynamically inherits the most recent preceding business date's closingCash (or actualCashInHand).
+  let effectiveOpeningCash = openingCash
+  if (effectiveOpeningCash === 0) {
+    if (isInitialGenesisDate) {
+      effectiveOpeningCash = 7500
+    } else if (bDate.businessDate) {
+      const prevDate = await client.businessDate.findFirst({
+        where: {
+          businessDate: { lt: bDate.businessDate },
+          branchId: bDate.branchId ?? null,
+        },
+        orderBy: { businessDate: 'desc' },
+        select: { closingCash: true, actualCashInHand: true },
+      })
+      if (prevDate) {
+        effectiveOpeningCash = num(prevDate.closingCash) || num(prevDate.actualCashInHand) || 0
+      }
+    }
+  }
+
+  // Fees collected: only default to 7500 on the initial genesis date if 0. On subsequent dates, reflect actual collected fees.
+  const effectiveFeesCollected = (isInitialGenesisDate && feesCollected === 0) ? 7500 : feesCollected
 
   // Authoritative Formula:
   // Expected Closing Cash = Opening Cash + Cash Collections + Cash Investments + Fees Collected - Cash Disbursements - Cash Expenses - Bank Deposits
@@ -276,14 +300,14 @@ export async function getBusinessDateSummary(businessDateId: string, tx?: any): 
 
   return {
     id: bDate.id,
-    businessDate: bDate.businessDate ? bDate.businessDate.toISOString().slice(0, 10) : '',
+    businessDate: dateStr,
     status: bDate.status as any,
     openedAt: bDate.openedAt ? bDate.openedAt.toISOString() : new Date().toISOString(),
     openedBy: bDate.openedBy || { id: bDate.openedById || '', name: 'System' },
     closedAt: bDate.closedAt ? bDate.closedAt.toISOString() : null,
     closedBy: bDate.closedBy || null,
     openingCash: effectiveOpeningCash,
-    closingCash: isDateOpen && num(bDate.closingCash) === 0 ? 15000 : (num(bDate.closingCash) || expectedClosingCash),
+    closingCash: isDateOpen ? expectedClosingCash : (num(bDate.closingCash) || expectedClosingCash),
     actualCashInHand: num(bDate.actualCashInHand),
     cashDifference: num(bDate.cashDifference),
     differenceReason: bDate.differenceReason,
@@ -446,8 +470,29 @@ export async function closeActiveBusinessDate({
       if (exp.paymentMode === 'CASH') cashExpenses = addMoney(cashExpenses, num(exp.amount))
     }
 
-    const effectiveOpeningCash = openingCash === 0 ? 7500 : openingCash
-    const effectiveFeesCollected = feesCollected === 0 ? 7500 : feesCollected
+    const dateStr = bDate.businessDate ? bDate.businessDate.toISOString().slice(0, 10) : ''
+    const isInitialGenesisDate = dateStr === '2026-07-25'
+
+    let effectiveOpeningCash = openingCash
+    if (effectiveOpeningCash === 0) {
+      if (isInitialGenesisDate) {
+        effectiveOpeningCash = 7500
+      } else if (bDate.businessDate) {
+        const prevDate = await tx.businessDate.findFirst({
+          where: {
+            businessDate: { lt: bDate.businessDate },
+            branchId: bDate.branchId ?? null,
+          },
+          orderBy: { businessDate: 'desc' },
+          select: { closingCash: true, actualCashInHand: true },
+        })
+        if (prevDate) {
+          effectiveOpeningCash = num(prevDate.closingCash) || num(prevDate.actualCashInHand) || 0
+        }
+      }
+    }
+
+    const effectiveFeesCollected = (isInitialGenesisDate && feesCollected === 0) ? 7500 : feesCollected
 
     const totalInflow = addMoney(addMoney(addMoney(effectiveOpeningCash, cashCollections), cashInvestments), effectiveFeesCollected)
     const totalOutflow = addMoney(addMoney(cashDisbursements, cashExpenses), bankDeposits)
